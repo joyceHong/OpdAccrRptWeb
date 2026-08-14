@@ -1,0 +1,70 @@
+@model OpdAccrRptWeb.ViewModels.ReportIndexViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "門急診報表作業";
+    string initialState = JsonSerializer.Serialize(Model, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
+
+<div id="report-app" v-cloak>
+    <header class="app-header">
+        <button class="brand" type="button" v-on:click="sidebarOpen = !sidebarOpen" aria-label="切換側邊選單">
+            <span class="brand-mark">醫</span>
+            <span><strong>門急診報表作業</strong><small>Outpatient Report Center</small></span>
+        </button>
+        <nav class="top-nav" aria-label="主要功能">
+            <button v-for="category in state.categories" :key="category.key" type="button"
+                    :class="{ active: activeCategory.key === category.key }" v-on:click="selectCategory(category)">
+                {{ category.name }}
+            </button>
+        </nav>
+        <div class="user-badge"><span>測</span><div>測試使用者<small>報表查詢人員</small></div></div>
+    </header>
+
+    <div class="app-shell">
+        <aside class="sidebar" :class="{ open: sidebarOpen }">
+            <div class="sidebar-heading"><span>報表清單</span><button type="button" v-on:click="collapseAll">全部收合</button></div>
+            <label class="report-filter"><span>⌕</span><input v-model.trim="reportKeyword" placeholder="搜尋報表名稱或代碼" /></label>
+            <div v-if="activeCategory.key === 'query'" class="empty-menu">資料查詢功能建置中</div>
+            <div v-for="(group, groupIndex) in filteredGroups" :key="group.name" class="tree-group">
+                <button class="tree-parent" type="button" v-on:click="toggleGroup(groupIndex)">
+                    <span>{{ group.name }}</span><span :class="['chevron', { open: openGroups.includes(groupIndex) }]">⌄</span>
+                </button>
+                <div v-show="openGroups.includes(groupIndex)" class="tree-children">
+                    <button v-for="report in group.reports" :key="report.code" type="button"
+                            :class="{ active: selectedReport && selectedReport.code === report.code }"
+                            v-on:click="selectReport(report)">
+                        <span class="report-code">{{ report.code }}</span><span>{{ report.name }}</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="content">
+            <div v-if="activeCategory.key === 'query'" class="coming-soon panel">
+                <div class="coming-icon">⌕</div><h1>資料查詢</h1><p>此功能尚在規劃中，後續將依需求逐步開放。</p>
+            </div>
+            <template v-else>
+                <div class="breadcrumb">{{ activeCategory.name }} <span>›</span> {{ selectedReport ? selectedReport.name : '請選擇報表' }}</div>
+                <router-view v-slot="{ Component }">
+                    <component
+                        v-if="Component && selectedReport"
+                        :is="Component"
+                        :selected-report="selectedReport"
+                        :default-start-date="state.defaultStartDate"
+                        :default-end-date="state.defaultEndDate"
+                        v-on:show-toast="showToast">
+                    </component>
+                </router-view>
+            </template>
+        </main>
+    </div>
+    <div v-if="toast" class="toast">{{ toast }}</div>
+</div>
+
+<script id="report-initial-state" type="application/json">@Html.Raw(initialState)</script>
+
+@section Scripts {
+    <script src="~/vendor/vue-router.global.prod.js"></script>
+    @await Html.PartialAsync("_C171TemplateReport")
+    <script src="~/js/report-app.js" asp-append-version="true"></script>
+}

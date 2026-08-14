@@ -1,0 +1,83 @@
+<script src="~/js/reports/report-c171.js" asp-append-version="true"></script>
+<template id="report-c171-template">
+    <div>
+        <section class="page-title">
+            <div>
+                <span class="eyebrow">{{ selectedReport ? selectedReport.code : 'REPORT' }}</span>
+                <h1>{{ selectedReport ? selectedReport.name : '請從左側選擇報表' }}</h1>
+                <p>設定查詢區間與條件，送出後即可檢視報表資料。</p>
+            </div>
+            <button class="outline-button" type="button" :disabled="!hasResults" v-on:click="exportResults">⇩ 匯出 Excel</button>
+        </section>
+        <section class="panel query-panel">
+            <div>
+                <div class="panel-title">
+                    <span>查詢條件</span>
+                    <small><i>*</i> 為必填欄位</small>
+                </div>
+                <form v-on:submit.prevent="search">
+                    <div class="date-row">
+                        <label><span>起始日期 <i>*</i></span><input v-model="form.startDate" type="date" required /></label>
+                        <span class="date-arrow">→</span>
+                        <label><span>截止日期 <i>*</i></span><input v-model="form.endDate" type="date" required /></label>
+                    </div>
+                    <button class="advanced-toggle" type="button" v-on:click="advancedOpen = !advancedOpen">
+                        <span><strong>進階條件</strong><small>（選填）</small></span>
+                        <span>{{ advancedOpen ? '收合 ︿' : '展開 ﹀' }}</span>
+                    </button>
+                    <div v-show="advancedOpen" class="advanced-grid">
+                        <label><span>科別</span><select v-model="form.department"><option value="">全部科別</option><option>內科</option><option>外科</option><option>急診醫學科</option></select></label>
+                        <label><span>診間</span><input v-model.trim="form.clinic" placeholder="請輸入診間" /></label>
+                        <label><span>醫院代碼</span><input v-model.trim="form.hospitalCode" placeholder="請輸入醫院代碼" /></label>
+                        <label><span>批價碼</span><input v-model.trim="form.billingCode" placeholder="請輸入批價碼" /></label>
+                    </div>
+                    <p v-if="validationMessage" class="validation-message">{{ validationMessage }}</p>
+                    <div class="form-actions">
+                        <button class="ghost-button" type="button" :disabled="isLoading" v-on:click="resetForm">重設</button>
+                        <button class="primary-button" type="submit" :disabled="isLoading">{{ isLoading ? '查詢中…' : '⌕ 查詢' }}</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+        <section class="panel result-panel">
+            <div class="result-heading">
+                <div>
+                    <strong>查詢結果</strong>
+                    <span v-if="hasResults">共 {{ filteredRows.length }} 筆</span>
+                </div>
+                <label v-if="hasResults">
+                    每頁顯示
+                    <select v-model.number="pageSize" v-on:change="currentPage = 1">
+                        <option :value="10">10 筆</option>
+                        <option :value="30">30 筆</option>
+                        <option :value="50">50 筆</option>
+                    </select>
+                </label>
+            </div>
+            <div v-if="isLoading" class="empty-result">
+                <div>⌛</div>
+                <strong>資料查詢中</strong>
+                <p>請稍候，正在取得報表資料。</p>
+            </div>
+            <div v-else-if="!hasResults" class="empty-result">
+                <div>▤</div>
+                <strong>{{ hasSearched ? '查無資料' : '尚無查詢結果' }}</strong>
+                <p>{{ hasSearched ? '目前條件沒有符合的資料。' : '請設定上方查詢條件後按下「查詢」。' }}</p>
+            </div>
+            <div v-else class="table-wrap">
+                <table>
+                    <thead><tr><th v-for="column in columns" :key="column.key">{{ column.label }}</th></tr></thead>
+                    <tbody><tr v-for="row in pagedRows" :key="row.id"><td v-for="column in columns" :key="column.key">{{ row[column.key] }}</td></tr></tbody>
+                </table>
+            </div>
+            <div v-if="hasResults" class="pagination">
+                <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
+                <div>
+                    <button type="button" :disabled="currentPage === 1" v-on:click="currentPage--">‹</button>
+                    <button class="active" type="button">{{ currentPage }}</button>
+                    <button type="button" :disabled="currentPage === totalPages" v-on:click="currentPage++">›</button>
+                </div>
+            </div>
+        </section>
+    </div>
+</template>

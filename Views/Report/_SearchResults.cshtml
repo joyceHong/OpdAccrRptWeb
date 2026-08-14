@@ -1,0 +1,35 @@
+<section class="panel result-panel">
+    <div class="result-heading">
+        <div>
+            <strong>查詢結果</strong>
+            <span v-if="hasResults">共 {{ filteredRows.length }} 筆</span>
+        </div>
+        <label v-if="hasResults">
+            每頁顯示
+            <select v-model.number="pageSize" v-on:change="currentPage = 1">
+                <option :value="10">10 筆</option>
+                <option :value="30">30 筆</option>
+                <option :value="50">50 筆</option>
+            </select>
+        </label>
+    </div>
+    <div v-if="!hasResults" class="empty-result">
+        <div>▤</div>
+        <strong>尚無查詢結果</strong>
+        <p>請設定上方查詢條件後按下「查詢」。</p>
+    </div>
+    <div v-else class="table-wrap">
+        <table>
+            <thead><tr><th v-for="column in columns" :key="column.key">{{ column.label }}</th></tr></thead>
+            <tbody><tr v-for="row in pagedRows" :key="row.id"><td v-for="column in columns" :key="column.key">{{ row[column.key] }}</td></tr></tbody>
+        </table>
+    </div>
+    <div v-if="hasResults" class="pagination">
+        <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
+        <div>
+            <button type="button" :disabled="currentPage === 1" v-on:click="currentPage--">‹</button>
+            <button class="active" type="button">{{ currentPage }}</button>
+            <button type="button" :disabled="currentPage === totalPages" v-on:click="currentPage++">›</button>
+        </div>
+    </div>
+</section>

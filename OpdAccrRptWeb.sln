@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.4.11626.88 stable
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpdAccrRptWeb", "OpdAccrRptWeb.csproj", "{DB354C45-25CA-5BB9-B32E-A20B6BDE5129}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DB354C45-25CA-5BB9-B32E-A20B6BDE5129}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DB354C45-25CA-5BB9-B32E-A20B6BDE5129}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DB354C45-25CA-5BB9-B32E-A20B6BDE5129}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DB354C45-25CA-5BB9-B32E-A20B6BDE5129}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0985016F-6B0B-48B1-8E9F-76C14339855E}
+	EndGlobalSection
+EndGlobal

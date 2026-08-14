@@ -1,0 +1,12 @@
+{
+  "name": "opd-accr-rpt-web-client",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "copy:vendor": "node scripts/copy-vendor.js"
+  },
+  "dependencies": {
+    "vue": "3.5.18",
+    "vue-router": "4.6.3"
+  }
+}

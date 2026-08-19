@@ -1,10 +1,14 @@
 using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
+Log.Logger = FileLoggingConfiguration.CreateLogger(
+    builder.Configuration,
+    builder.Environment.ContentRootPath,
+    builder.Environment.IsDevelopment());
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -51,3 +55,5 @@ static bool IsEndpointConfigured(DatabaseEndpointOptions endpoint)
     return !string.IsNullOrWhiteSpace(endpoint.DatabaseName)
         && !string.IsNullOrWhiteSpace(endpoint.ApplicationName);
 }
+
+public partial class Program;

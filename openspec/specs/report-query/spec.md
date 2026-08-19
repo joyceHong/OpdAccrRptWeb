@@ -6,6 +6,16 @@
 
 ## Requirements
 
+### Requirement: Shared simple report component
+
+格式單純的報表 SHALL 優先共用查詢條件、查詢狀態、結果表格、分頁及錯誤訊息元件；個別報表 SHALL 以設定與欄位定義表達差異。
+
+#### Scenario: Open reports with the same interaction pattern
+
+- **WHEN** 兩張報表都只需要日期條件及表格結果
+- **THEN** 系統 SHALL 使用相同的共用報表互動流程
+- **AND** 畫面 SHALL 顯示各自的報表代碼、名稱及結果欄位
+
 ### Requirement: Required date range
 
 支援查詢的報表 SHALL 提供必填的起始日期與截止日期，初始值 SHALL 為使用者開啟頁面當日。
@@ -52,7 +62,7 @@
 
 ### Requirement: Report-specific query dispatch
 
-系統 SHALL 依所選報表代碼執行對應的查詢，不得以其他報表的查詢替代。
+系統 SHALL 依所選報表代碼呼叫該報表獨立的後端查詢流程，不得以其他報表的查詢替代。
 
 #### Scenario: Submit C172 query
 
@@ -64,4 +74,3 @@
 - **WHEN** 使用者對尚未支援的報表送出請求
 - **THEN** 系統 SHALL 回傳明確的未支援結果
 - **AND** 系統 SHALL NOT 靜默回傳另一報表的資料
-

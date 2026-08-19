@@ -13,11 +13,13 @@ namespace OpdAccrRptWeb.Repositories
 
         private string _connectionString;
         private IConnectionStringProvider _connectionStringProvider;
-        public HealthCenterRepository(IConnectionStringProvider  connectionStringProvider)
+        public HealthCenterRepository(IConnectionStringProvider connectionStringProvider)
         {
             _connectionStringProvider = connectionStringProvider;
             _connectionString = _connectionStringProvider.GetDbTest3ConnectionString(); //取得測試資料庫連線字串
         }
+
+        #region C171  健康中心明細
 
         /// <summary>
         /// 取得健康中心查詢欄位資訊
@@ -25,7 +27,7 @@ namespace OpdAccrRptWeb.Repositories
         /// <returns></returns>
         public List<PropertyMetadata> GetHelthCenterDetailColumns()
         {
-            return ModelDescriptionsHelper.GetPropertyDescriptions<HelthCenterDetailViewModel>();
+            return ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterDetailViewModel>();
         }
 
         /// <summary>
@@ -33,15 +35,21 @@ namespace OpdAccrRptWeb.Repositories
         /// </summary>
         /// <param name="searchCondition"></param>
         /// <returns></returns>
-        public List<T> GetHealthCenterData<T>(SearchReportCondition searchCondition)
+        public PagedReportResult<T> GetHealthCenterData<T>(SearchReportCondition searchCondition)
         {
+            using IDbConnection connection = new OracleConnection(_connectionString);
+            var parameters = CreateC171Parameters(searchCondition);
+            var totalCount = connection.ExecuteScalar<int>(C171CountSql, parameters);
+            var data = connection.Query<T>(C171PageSql, parameters).ToList();
 
-            try
+            return new PagedReportResult<T>
             {
-                using (IDbConnection connection = new OracleConnection(_connectionString))
-                {
+                Data = data,
+                TotalCount = totalCount
+            };
+        }
 
-                    string selectSql = $@"SELECT
+        internal const string C171BaseSql = @"SELECT
                                             RTRIM(o.chop4pfin2)      AS PostingCode,
                                             RTRIM(t.chdcttypename)   AS PostingName,
                                             RTRIM(s.chnewsecno)      AS CenterCode,
@@ -59,7 +67,9 @@ namespace OpdAccrRptWeb.Repositories
                                             o.rlop4sub4 + o.rlop4sub5 + o.rlop4sub6 AS TotalAmount,
                                             RTRIM(o.chop4ordno)      AS BillingCode,
                                             RTRIM(o.chop4ordname)    AS BillingName,
-                                            RTRIM(o.chop4cdate)      AS OrderTime
+                                            RTRIM(o.chop4cdate)      AS OrderTime,
+                                            1                        AS SourceRank,
+                                            ROWIDTOCHAR(o.ROWID)      AS SourceRowId
                                         FROM opdordtbl o
                                         JOIN opdbasictbl b
                                           ON o.chop1date = b.chop1date
@@ -97,7 +107,9 @@ namespace OpdAccrRptWeb.Repositories
                                             d.rlop3sub4 + d.rlop3sub5 + d.rlop3sub6 AS amt,
                                             RTRIM(d.chop3drgno),
                                             RTRIM(d.chop3drgname),
-                                            RTRIM(d.chop3cdate)
+                                            RTRIM(d.chop3cdate),
+                                            2,
+                                            ROWIDTOCHAR(d.ROWID)
                                         FROM opddrgtbl d
                                         JOIN opdbasictbl b
                                           ON d.chop1date = b.chop1date
@@ -112,22 +124,54 @@ namespace OpdAccrRptWeb.Repositories
                                          AND (b.chop1room IN ('6F4', '6021') OR b.chop1sec LIKE '0294%')
                                          AND b.chop1mrno NOT IN ('C36979', '1000000')
                                          AND d.chop3stat <> 'DC'
-                                         AND d.rlop3drgtot <> 0
-                                        ORDER BY CenterCode, OrderingDoctorId, PerformingDoctorId,
-                                                 VisitDate, ClinicRoom, CHMRNO, BillingCode, BillingName";
+                                         AND d.rlop3drgtot <> 0";
 
-                    return  connection.Query<T>(selectSql, new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate }).ToList();
-                }
-            }
-            catch (Exception ex)
+        internal static readonly string C171CountSql = $@"SELECT COUNT(*) FROM ({C171BaseSql}) C171Rows";
+
+        internal static readonly string C171PageSql = $@"SELECT
+                                                PostingCode,
+                                                PostingName,
+                                                CenterCode,
+                                                OrderingDoctorId,
+                                                PerformingDoctorId,
+                                                VisitDate,
+                                                ClinicRoom,
+                                                CHMRNO,
+                                                PatientName,
+                                                Qty,
+                                                UnitPrice,
+                                                TotalAmount,
+                                                BillingCode,
+                                                BillingName,
+                                                OrderTime
+                                            FROM ({C171BaseSql}) C171Rows
+                                            ORDER BY CenterCode, OrderingDoctorId, PerformingDoctorId,
+                                                     VisitDate, ClinicRoom, CHMRNO, BillingCode, BillingName,
+                                                     SourceRank, SourceRowId
+                                            OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
+
+        internal static object CreateC171Parameters(SearchReportCondition searchCondition)
+        {
+            var pageNumber = searchCondition.PageNumber ?? 1;
+            var pageSize = searchCondition.PageSize ?? 10;
+            return new
             {
-                return new List<T>();
-            }            
+                strSDate = searchCondition.StartDate,
+                strEDate = searchCondition.EndDate,
+                rowOffset = ((long)pageNumber - 1) * pageSize,
+                pageSize
+            };
         }
+        #endregion
 
-
-
-        public List<T>GetHealthCenterCountData<T>(SearchReportCondition searchCondition)
+        #region C172  健康管理中心金額統計
+        /// <summary>
+        /// C172  健康管理中心金額統計
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="searchCondition"></param>
+        /// <returns></returns>
+        public List<T> GetHealthCenterCountData<T>(SearchReportCondition searchCondition)
         {
             try
             {
@@ -188,9 +232,121 @@ namespace OpdAccrRptWeb.Repositories
             }
         }
 
+        /// <summary>
+        /// C172 健康管理中心金額統計的欄位資訊
+        /// </summary>
+        /// <returns></returns>
         public List<PropertyMetadata> GetHelthCenterCountColumns()
         {
-            return ModelDescriptionsHelper.GetPropertyDescriptions<HelthCenterCountViewModel>();
+            return ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterCountViewModel>();
         }
+        #endregion
+
+        #region C173 健檢人次的統計
+
+
+        /// <summary>
+        /// 健檢人次的欄位資訊
+        /// </summary>
+        /// <returns></returns>
+        public List<PropertyMetadata> GetHealthCheckupVisitsColumns()
+        {
+            return ModelDescriptionsHelper.GetPropertyDescriptions<HealthCheckupVisits>();
+        }
+
+        /// <summary>
+        ///  健檢人次的資料
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="searchCondition"></param>
+        /// <returns></returns>
+        public List<T> GetHealthCheckupVisitsData<T>(SearchReportCondition searchCondition)
+        {
+            try
+            {
+                using (IDbConnection connection = new OracleConnection(_connectionString))
+                {
+                    string selectSql = $@"SELECT
+                                        SUBSTR(chop1date, 1, 5) AS Chop1date,
+                                        RTRIM(chop1sec)         AS Chop1sec,
+                                        COUNT(*)                AS Visits
+                                    FROM (
+                                        SELECT DISTINCT
+                                            b.chop1date,
+                                            b.chop1time,
+                                            b.chop1room,
+                                            b.intop1no,
+                                            s.chnewsecno AS chop1sec
+                                        FROM opdbasictbl b,
+                                             opdordtbl o,
+                                             gensectiontbl s
+                                        WHERE b.chop1date = o.chop1date
+                                          AND b.chop1time = o.chop1time
+                                          AND b.chop1room = o.chop1room
+                                          AND b.intop1no  = o.intop1no
+                                          AND b.chop1sec  = s.chsecno
+                                          AND b.chop1date BETWEEN :strSDate AND :strEDate
+                                          AND b.chop1room NOT IN ('AAAA', 'RRRR', 'SSSS', 'ZZZZ')
+                                          AND b.chop1mrno NOT IN ('C36979', '1000000')
+                                          AND b.chop1sec LIKE '0294%'
+                                          AND RTRIM(o.chop4dcdate) IS NULL
+                                          AND o.chop4stat <> 'DC'
+                                    )
+                                    GROUP BY SUBSTR(chop1date, 1, 5), chop1sec";
+
+                    return connection.Query<T>(selectSql, new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate }).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+        #endregion
+
+
+
+        #region C174 健康管理中心合約單位記帳表
+
+        public List<PropertyMetadata> GetHealthCenterContractBillingReportColumns()
+        {
+            return ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterContractBillingReport>();
+        }
+
+        public List<T> GetHealthCenterContractBillingReport<T>(SearchReportCondition searchCondition)
+        {
+            try
+            {
+                using (IDbConnection connection = new OracleConnection(_connectionString))
+                {
+                     string selectSql = $@"SELECT
+                        RTRIM(chop1pfin2)   AS BillingCode,
+                        RTRIM(chop1pfin2nm) AS BillingName,
+                        chop1date           AS VisitDate,
+                        RTRIM(chop1mrno)    AS Chop1mrno,
+                        RTRIM(chop1pname)   AS PatientName,
+                        RTRIM(chop1psecnm)  AS DepartmentName,
+                        RTRIM(chop1dridnm)  AS DoctorName,
+                        RTRIM(chop1dct)     AS AccountSubjectCode,
+                        RTRIM(chop1dctnm)   AS AccountSubjectName,
+                        rlop1sub3           AS DiscountAmount,
+                        rlop1sub2           AS BillingAmount,
+                        rlop1subamt         AS TotalAmount,
+                        RTRIM(chcuser)      AS BillingUser
+                    FROM opdRecRpt_PFin2SumDM1
+                    WHERE chdateflag BETWEEN :strSDate || '000000'
+                                         AND :strEDate || '999999'";
+
+                    return connection.Query<T>(selectSql, new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate }).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
+        #endregion
+
     }
 }

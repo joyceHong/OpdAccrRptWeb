@@ -3,7 +3,9 @@
     const { createApp } = Vue;
     const reportComponentMap = Object.freeze({
         C171: window.ReportComponents.ReportTemplate,
-        C172: window.ReportComponents.ReportTemplate
+        C172: window.ReportComponents.ReportTemplate,
+        C173: window.ReportComponents.ReportTemplate,
+        C174: window.ReportComponents.ReportTemplate
     });
     const unavailableReportComponent = {
         template: '<section class="panel empty-result"><strong>此報表畫面尚未建置</strong><p>請選擇已開放的報表。</p></section>'

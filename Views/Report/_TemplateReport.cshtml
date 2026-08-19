@@ -43,11 +43,11 @@
             <div class="result-heading">
                 <div>
                     <strong>查詢結果</strong>
-                    <span v-if="hasResults">共 {{ filteredRows.length }} 筆</span>
+                    <span v-if="hasResults">共 {{ totalCount }} 筆</span>
                 </div>
                 <label v-if="hasResults">
                     每頁顯示
-                    <select v-model.number="pageSize" v-on:change="currentPage = 1">
+                    <select v-model.number="pageSize" :disabled="isLoading" v-on:change="changePageSize">
                         <option :value="10">10 筆</option>
                         <option :value="30">30 筆</option>
                         <option :value="50">50 筆</option>
@@ -73,9 +73,9 @@
             <div v-if="hasResults" class="pagination">
                 <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
                 <div>
-                    <button type="button" :disabled="currentPage === 1" v-on:click="currentPage--">‹</button>
+                    <button type="button" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(currentPage - 1)">‹</button>
                     <button class="active" type="button">{{ currentPage }}</button>
-                    <button type="button" :disabled="currentPage === totalPages" v-on:click="currentPage++">›</button>
+                    <button type="button" :disabled="isLoading || currentPage === totalPages" v-on:click="goToPage(currentPage + 1)">›</button>
                 </div>
             </div>
         </section>

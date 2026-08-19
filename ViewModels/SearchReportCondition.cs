@@ -23,6 +23,15 @@
         /// </summary>
         public string? Chop1sec { get; set; }
 
+        /// <summary>
+        /// 從 1 開始的頁碼。C171 未提供時預設為 1。
+        /// </summary>
+        public int? PageNumber { get; set; }
+
+        /// <summary>
+        /// 每頁筆數。C171 僅接受 10、30 或 50。
+        /// </summary>
+        public int? PageSize { get; set; }
 
     }
 }

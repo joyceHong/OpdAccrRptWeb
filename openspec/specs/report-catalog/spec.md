@@ -34,16 +34,6 @@
 - **WHEN** 使用者選擇「醫務統計報表」
 - **THEN** 系統 SHALL 顯示醫師看診人數日表、醫師看診人數月表及門急診日報表
 
-### Requirement: Current query availability
-
-目前只有 `C171` 與 `C172` 具備初步 SQL 查詢能力；其查詢規則及結果欄位 MAY 隨後續盤點調整。
-
-#### Scenario: Identify currently queryable reports
-
-- **WHEN** 系統判斷報表是否可執行查詢
-- **THEN** 系統 SHALL 僅將已實作並驗證的報表標示為可查詢
-- **AND** 現階段 SHALL 至少識別 `C171` 與 `C172` 的初步查詢能力
-
 ### Requirement: Preserve inactive legacy entry status
 
 舊系統殘留代碼 `C26` SHALL NOT 出現在一般使用者的正常報表目錄，除非業務單位另行決定恢復或取代。
@@ -61,4 +51,3 @@
 
 - **WHEN** 使用者選擇「資料查詢」
 - **THEN** 系統 SHALL 顯示功能仍在規劃或建置中的訊息
-

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-定義報表結果的欄位與資料呈現，以及下一階段預定補上的分頁和 Excel 匯出能力。
+定義報表結果的欄位與資料呈現、共用分頁行為，以及下一階段預定補上的 Excel 匯出能力。
 
 ## Requirements
 
@@ -36,19 +36,19 @@
 - **THEN** 系統 SHALL 顯示查詢失敗訊息
 - **AND** 使用者訊息 SHALL NOT 包含連線字串、SQL 或敏感個資
 
-## Planned Requirements
-
-下列能力屬下一階段工作，目前不得視為已完成。
-
 ### Requirement: Paginated result table
 
-系統 SHALL 支援報表結果分頁，預設每頁 30 筆，並允許使用者從下拉選單調整每頁筆數。
+系統 SHALL 支援報表結果分頁，預設每頁 10 筆，並允許使用者從下拉選單調整每頁筆數。
 
 #### Scenario: Open a multi-page result
 
-- **WHEN** 查詢結果超過 30 筆且使用者未變更每頁筆數
-- **THEN** 系統 SHALL 顯示前 30 筆
+- **WHEN** 查詢結果超過 10 筆且使用者未變更每頁筆數
+- **THEN** 系統 SHALL 顯示前 10 筆
 - **AND** 系統 SHALL 提供前往其他頁面的控制項
+
+## Planned Requirements
+
+下列能力屬下一階段工作。
 
 ### Requirement: Excel export
 
@@ -59,4 +59,3 @@
 - **WHEN** 使用者在查詢成功後執行匯出
 - **THEN** 系統 SHALL 產生對應目前報表與查詢條件的 Excel 相容檔案
 - **AND** 匯出範圍 SHALL NOT 僅限於目前顯示頁
-

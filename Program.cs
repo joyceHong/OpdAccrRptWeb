@@ -12,6 +12,7 @@ builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddMemoryCache();
 builder.Services
     .AddOptions<DatabaseConnectionOptions>()
     .Bind(builder.Configuration.GetSection(DatabaseConnectionOptions.SectionName))
@@ -24,6 +25,7 @@ builder.Services
     .ValidateOnStart();
 builder.Services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
 builder.Services.AddSingleton<IHealthCenterRepository, HealthCenterRepository>();
+builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
 builder.Services.AddSingleton<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();
 

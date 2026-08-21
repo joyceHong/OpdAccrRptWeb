@@ -60,9 +60,9 @@ namespace OpdAccrRptWeb.Repositories
                                             RTRIM(b.chop1mrno)       AS CHMRNO,
                                             RTRIM(b.chop1pname)      AS PatientName,
                                             o.rlop4ordtot + o.rlop4ordtot2 AS Qty,
-                                            (o.rlop4sub1 + o.rlop4sub2 + o.rlop4sub3 +
+                                           ROUND(  (o.rlop4sub1 + o.rlop4sub2 + o.rlop4sub3 +
                                              o.rlop4sub4 + o.rlop4sub5 + o.rlop4sub6)
-                                               / (o.rlop4ordtot + o.rlop4ordtot2) AS UnitPrice,
+                                               / (o.rlop4ordtot + o.rlop4ordtot2),4) AS UnitPrice,
                                             o.rlop4sub1 + o.rlop4sub2 + o.rlop4sub3 +
                                             o.rlop4sub4 + o.rlop4sub5 + o.rlop4sub6 AS TotalAmount,
                                             RTRIM(o.chop4ordno)      AS BillingCode,
@@ -100,9 +100,9 @@ namespace OpdAccrRptWeb.Repositories
                                             RTRIM(b.chop1mrno),
                                             RTRIM(b.chop1pname),
                                             d.rlop3drgtot AS qty,
-                                            (d.rlop3sub1 + d.rlop3sub2 + d.rlop3sub3 +
+                                           ROUND( (d.rlop3sub1 + d.rlop3sub2 + d.rlop3sub3 +
                                              d.rlop3sub4 + d.rlop3sub5 + d.rlop3sub6)
-                                               / d.rlop3drgtot AS unitprice,
+                                               / d.rlop3drgtot,4) AS unitprice,
                                             d.rlop3sub1 + d.rlop3sub2 + d.rlop3sub3 +
                                             d.rlop3sub4 + d.rlop3sub5 + d.rlop3sub6 AS amt,
                                             RTRIM(d.chop3drgno),
@@ -145,10 +145,30 @@ namespace OpdAccrRptWeb.Repositories
                                                 BillingName,
                                                 OrderTime
                                             FROM ({C171BaseSql}) C171Rows
-                                            ORDER BY CenterCode, OrderingDoctorId, PerformingDoctorId,
-                                                     VisitDate, ClinicRoom, CHMRNO, BillingCode, BillingName,
-                                                     SourceRank, SourceRowId
+                                            ORDER BY SourceRowId
                                             OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
+
+        //internal static readonly string C171PageSql = $@"SELECT
+        //                                        PostingCode,
+        //                                        PostingName,
+        //                                        CenterCode,
+        //                                        OrderingDoctorId,
+        //                                        PerformingDoctorId,
+        //                                        VisitDate,
+        //                                        ClinicRoom,
+        //                                        CHMRNO,
+        //                                        PatientName,
+        //                                        Qty,
+        //                                        UnitPrice,
+        //                                        TotalAmount,
+        //                                        BillingCode,
+        //                                        BillingName,
+        //                                        OrderTime
+        //                                    FROM ({C171BaseSql}) C171Rows
+        //                                    ORDER BY CenterCode, OrderingDoctorId, PerformingDoctorId,
+        //                                             VisitDate, ClinicRoom, CHMRNO, BillingCode, BillingName,
+        //                                             SourceRank, SourceRowId
+        //                                    OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
 
         internal static object CreateC171Parameters(SearchReportCondition searchCondition)
         {
@@ -178,50 +198,96 @@ namespace OpdAccrRptWeb.Repositories
                 using (IDbConnection connection = new OracleConnection(_connectionString))
                 {
                     string selectSql = $@"SELECT
-                                            RTRIM(s.chnewsecno)    AS CenterCode,
-                                            b.chop1date            AS VisitDate,
-                                            RTRIM(o.chop4ordno)    AS BillingCode,
-                                            RTRIM(o.chop4ordname)  AS BillingName,
-                                            SUM(o.rlop4sub1 + o.rlop4sub2 + o.rlop4sub3 +
-                                                o.rlop4sub4 + o.rlop4sub5 + o.rlop4sub6) AS TotalAmount
-                                        FROM opdordtbl o, opdbasictbl b, gensectiontbl s
-                                        WHERE o.chop1date = b.chop1date
-                                          AND o.chop1time = b.chop1time
-                                          AND o.chop1room = b.chop1room
-                                          AND o.intop1no  = b.intop1no
-                                          AND b.chop1sec  = s.chsecno
-                                          AND b.chop1date BETWEEN :strSDate AND :strEDate
-                                          AND (b.chop1room IN ('6F4', '6021') OR b.chop1sec LIKE '0294%')
+                                            RTRIM(s.chnewsecno) AS CenterCode, -- 責任中心代碼
+                                            b.chop1date AS VisitDate, -- 就診日,
+                                            RTRIM(o.chop4ordno) AS BillingCode, --批價代碼,
+                                            RTRIM(o.chop4ordname) AS BillingName, -- 批價碼名稱,
+                                            SUM(
+                                                o.rlop4sub1
+                                                + o.rlop4sub2
+                                                + o.rlop4sub3
+                                                + o.rlop4sub4
+                                                + o.rlop4sub5
+                                                + o.rlop4sub6
+                                            ) AS TotalAmount --金額
+                                        FROM opdordtbl o
+                                        JOIN opdbasictbl b
+                                            ON  o.chop1date = b.chop1date
+                                            AND o.chop1time = b.chop1time
+                                            AND o.chop1room = b.chop1room
+                                            AND o.intop1no = b.intop1no
+                                        JOIN gensectiontbl s
+                                            ON b.chop1sec = s.chsecno
+                                        WHERE b.chop1date BETWEEN :strSDate AND :strEDate
+                                          AND (
+                                                b.chop1room IN ('6F4', '6021')
+                                                OR b.chop1sec LIKE '0294%'
+                                              )
                                           AND b.chop1mrno NOT IN ('C36979', '1000000')
                                           AND o.chop4stat <> 'DC'
                                           AND o.chop4ordno NOT IN ('ACC-69', 'ACC-64')
-                                        GROUP BY s.chnewsecno, b.chop1date, o.chop4ordno, o.chop4ordname
-                                        HAVING SUM(o.rlop4sub1 + o.rlop4sub2 + o.rlop4sub3 +
-                                                   o.rlop4sub4 + o.rlop4sub5 + o.rlop4sub6) <> 0
+                                        GROUP BY
+                                            s.chnewsecno,
+                                            b.chop1date,
+                                            o.chop4ordno,
+                                            o.chop4ordname
+                                        HAVING SUM(
+                                            o.rlop4sub1
+                                            + o.rlop4sub2
+                                            + o.rlop4sub3
+                                            + o.rlop4sub4
+                                            + o.rlop4sub5
+                                            + o.rlop4sub6
+                                        ) <> 0
 
                                         UNION ALL
 
                                         SELECT
-                                            RTRIM(s.chnewsecno),
-                                            b.chop1date,
-                                            RTRIM(d.chop3drgno),
-                                            RTRIM(d.chop3drgname),
-                                            SUM(d.rlop3sub1 + d.rlop3sub2 + d.rlop3sub3 +
-                                                d.rlop3sub4 + d.rlop3sub5 + d.rlop3sub6)
-                                        FROM opddrgtbl d, opdbasictbl b, gensectiontbl s
-                                        WHERE d.chop1date = b.chop1date
-                                          AND d.chop1time = b.chop1time
-                                          AND d.chop1room = b.chop1room
-                                          AND d.intop1no  = b.intop1no
-                                          AND b.chop1sec  = s.chsecno
-                                          AND b.chop1date BETWEEN :strSDate AND :strEDate
-                                          AND (b.chop1room IN ('6F4', '6021') OR b.chop1sec LIKE '0294%')
+                                            RTRIM(s.chnewsecno) AS CenterCode, -- 責任中心代碼,
+                                            b.chop1date AS  VisitDate,
+                                            RTRIM(d.chop3drgno) AS BillingCode, --批價代碼,
+                                            RTRIM(d.chop3drgname) AS BillingName, -- 批價碼名稱,
+                                            SUM(
+                                                d.rlop3sub1
+                                                + d.rlop3sub2
+                                                + d.rlop3sub3
+                                                + d.rlop3sub4
+                                                + d.rlop3sub5
+                                                + d.rlop3sub6
+                                            ) AS TotalAmount --AS 金額
+                                        FROM opddrgtbl d
+                                        JOIN opdbasictbl b
+                                            ON  d.chop1date = b.chop1date
+                                            AND d.chop1time = b.chop1time
+                                            AND d.chop1room = b.chop1room
+                                            AND d.intop1no = b.intop1no
+                                        JOIN gensectiontbl s
+                                            ON b.chop1sec = s.chsecno
+                                        WHERE b.chop1date BETWEEN :strSDate AND :strEDate
+                                          AND (
+                                                b.chop1room IN ('6F4', '6021')
+                                                OR b.chop1sec LIKE '0294%'
+                                              )
                                           AND b.chop1mrno NOT IN ('C36979', '1000000')
                                           AND d.chop3stat <> 'DC'
-                                        GROUP BY s.chnewsecno, b.chop1date, d.chop3drgno, d.chop3drgname
-                                        HAVING SUM(d.rlop3sub1 + d.rlop3sub2 + d.rlop3sub3 +
-                                                   d.rlop3sub4 + d.rlop3sub5 + d.rlop3sub6) <> 0
-                                        ORDER BY CenterCode, VisitDate, BillingCode, BillingName";
+                                        GROUP BY
+                                            s.chnewsecno,
+                                            b.chop1date,
+                                            d.chop3drgno,
+                                            d.chop3drgname
+                                        HAVING SUM(
+                                            d.rlop3sub1
+                                            + d.rlop3sub2
+                                            + d.rlop3sub3
+                                            + d.rlop3sub4
+                                            + d.rlop3sub5
+                                            + d.rlop3sub6
+                                        ) <> 0
+                                        ORDER BY
+                                            CenterCode,
+                                            VisitDate,
+                                            BillingCode,
+                                            BillingName";
 
                     return connection.Query<T>(selectSql, new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate }).ToList();
                 }
@@ -267,32 +333,34 @@ namespace OpdAccrRptWeb.Repositories
                 using (IDbConnection connection = new OracleConnection(_connectionString))
                 {
                     string selectSql = $@"SELECT
-                                        SUBSTR(chop1date, 1, 5) AS Chop1date,
-                                        RTRIM(chop1sec)         AS Chop1sec,
-                                        COUNT(*)                AS Visits
-                                    FROM (
-                                        SELECT DISTINCT
-                                            b.chop1date,
-                                            b.chop1time,
-                                            b.chop1room,
-                                            b.intop1no,
-                                            s.chnewsecno AS chop1sec
-                                        FROM opdbasictbl b,
-                                             opdordtbl o,
-                                             gensectiontbl s
-                                        WHERE b.chop1date = o.chop1date
-                                          AND b.chop1time = o.chop1time
-                                          AND b.chop1room = o.chop1room
-                                          AND b.intop1no  = o.intop1no
-                                          AND b.chop1sec  = s.chsecno
-                                          AND b.chop1date BETWEEN :strSDate AND :strEDate
-                                          AND b.chop1room NOT IN ('AAAA', 'RRRR', 'SSSS', 'ZZZZ')
-                                          AND b.chop1mrno NOT IN ('C36979', '1000000')
-                                          AND b.chop1sec LIKE '0294%'
-                                          AND RTRIM(o.chop4dcdate) IS NULL
-                                          AND o.chop4stat <> 'DC'
-                                    )
-                                    GROUP BY SUBSTR(chop1date, 1, 5), chop1sec";
+                                            SUBSTR(chop1date, 1, 5) AS chop1date, --就診年月
+                                            RTRIM(chop1sec) AS chop1sec, --科別
+                                            COUNT(*) AS Visits --人次
+                                        FROM (
+                                            SELECT DISTINCT
+                                                b.chop1date,
+                                                b.chop1time,
+                                                b.chop1room,
+                                                b.intop1no,
+                                                s.chnewsecno AS chop1sec
+                                            FROM opdbasictbl b
+                                            JOIN opdordtbl o
+                                                ON  b.chop1date = o.chop1date
+                                                AND b.chop1time = o.chop1time
+                                                AND b.chop1room = o.chop1room
+                                                AND b.intop1no = o.intop1no
+                                            JOIN gensectiontbl s
+                                                ON b.chop1sec = s.chsecno
+                                            WHERE b.chop1date BETWEEN :strSDate AND :strEDate
+                                              AND b.chop1room NOT IN ('AAAA', 'RRRR', 'SSSS', 'ZZZZ')
+                                              AND b.chop1mrno NOT IN ('C36979', '1000000')
+                                              AND b.chop1sec LIKE '0294%'
+                                              AND RTRIM(o.chop4dcdate) IS NULL
+                                              AND o.chop4stat <> 'DC'
+                                        )
+                                        GROUP BY
+                                            SUBSTR(chop1date, 1, 5),
+                                            chop1sec";
 
                     return connection.Query<T>(selectSql, new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate }).ToList();
                 }
@@ -313,13 +381,19 @@ namespace OpdAccrRptWeb.Repositories
             return ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterContractBillingReport>();
         }
 
-        public List<T> GetHealthCenterContractBillingReport<T>(SearchReportCondition searchCondition)
+        public int GetHealthCenterContractBillingReportCount(SearchReportCondition searchCondition)
         {
-            try
-            {
-                using (IDbConnection connection = new OracleConnection(_connectionString))
-                {
-                     string selectSql = $@"SELECT
+            using IDbConnection connection = new OracleConnection(_connectionString);
+            return connection.ExecuteScalar<int>(C174CountSql, CreateC174Parameters(searchCondition));
+        }
+
+        public List<T> GetHealthCenterContractBillingReportPage<T>(SearchReportCondition searchCondition)
+        {
+            using IDbConnection connection = new OracleConnection(_connectionString);
+            return connection.Query<T>(C174PageSql, CreateC174Parameters(searchCondition)).ToList();
+        }
+
+        internal const string C174BaseSql = @"SELECT
                         RTRIM(chop1pfin2)   AS BillingCode,
                         RTRIM(chop1pfin2nm) AS BillingName,
                         chop1date           AS VisitDate,
@@ -332,18 +406,45 @@ namespace OpdAccrRptWeb.Repositories
                         rlop1sub3           AS DiscountAmount,
                         rlop1sub2           AS BillingAmount,
                         rlop1subamt         AS TotalAmount,
-                        RTRIM(chcuser)      AS BillingUser
+                        RTRIM(chcuser)      AS BillingUser,
+                        ROWIDTOCHAR(ROWID)  AS SourceRowId
                     FROM opdRecRpt_PFin2SumDM1
                     WHERE chdateflag BETWEEN :strSDate || '000000'
                                          AND :strEDate || '999999'";
 
-                    return connection.Query<T>(selectSql, new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate }).ToList();
-                }
-            }
-            catch (Exception ex)
+        internal static readonly string C174CountSql = $@"SELECT COUNT(*) FROM ({C174BaseSql}) C174Rows";
+
+        internal static readonly string C174PageSql = $@"SELECT
+                        BillingCode,
+                        BillingName,
+                        VisitDate,
+                        Chop1mrno,
+                        PatientName,
+                        DepartmentName,
+                        DoctorName,
+                        AccountSubjectCode,
+                        AccountSubjectName,
+                        DiscountAmount,
+                        BillingAmount,
+                        TotalAmount,
+                        BillingUser
+                    FROM ({C174BaseSql}) C174Rows
+                    ORDER BY BillingCode, BillingName, VisitDate, Chop1mrno,
+                             DepartmentName, DoctorName, AccountSubjectCode,
+                             AccountSubjectName, BillingUser, SourceRowId
+                    OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
+
+        internal static object CreateC174Parameters(SearchReportCondition searchCondition)
+        {
+            var pageNumber = searchCondition.PageNumber ?? 1;
+            var pageSize = searchCondition.PageSize ?? 10;
+            return new
             {
-                return null;
-            }
+                strSDate = searchCondition.StartDate,
+                strEDate = searchCondition.EndDate,
+                rowOffset = ((long)pageNumber - 1) * pageSize,
+                pageSize
+            };
         }
 
         #endregion

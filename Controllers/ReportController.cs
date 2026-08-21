@@ -36,7 +36,7 @@ public sealed class ReportController : Controller
     [HttpPost("Report/GetReportData")]
     public IActionResult GetReportData([FromBody] SearchReportCondition searchCondition)
     {
-        if (searchCondition.ReportCode == "C171")
+        if (searchCondition.ReportCode is "C171" or "C174")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;

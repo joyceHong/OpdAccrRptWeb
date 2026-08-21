@@ -55,13 +55,16 @@ namespace OpdAccrRptWeb.Repositories
         List<PropertyMetadata> GetHealthCenterContractBillingReportColumns();
 
         /// <summary>
-        /// C174 健康管理中心合約單位記帳表
+        /// C174 健康管理中心合約單位記帳表總筆數
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="searchCondition"></param>
         /// <returns></returns>
-        public List<T> GetHealthCenterContractBillingReport<T>(SearchReportCondition searchCondition);
+        int GetHealthCenterContractBillingReportCount(SearchReportCondition searchCondition);
 
+        /// <summary>
+        /// C174 健康管理中心合約單位記帳表分頁資料
+        /// </summary>
+        List<T> GetHealthCenterContractBillingReportPage<T>(SearchReportCondition searchCondition);
 
 
     }

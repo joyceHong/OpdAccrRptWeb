@@ -10,10 +10,14 @@ namespace OpdAccrRptWeb.Services;
 public class ReportService : IReportService
 {
     private readonly IHealthCenterRepository _healthCenterRepository;
+    private readonly IReportTotalCountCache _totalCountCache;
 
-    public ReportService(IHealthCenterRepository healthCenterRepository)
+    public ReportService(
+        IHealthCenterRepository healthCenterRepository,
+        IReportTotalCountCache totalCountCache)
     {
         _healthCenterRepository = healthCenterRepository;
+        _totalCountCache = totalCountCache;
     }
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
@@ -48,13 +52,36 @@ public class ReportService : IReportService
                     _healthCenterRepository.GetHelthCenterCountColumns(),
                     _healthCenterRepository.GetHealthCenterCountData<T>(searchCondition));
             case "C173":
+                var healthCheckupVisits = _healthCenterRepository
+                    .GetHealthCheckupVisitsData<HealthCheckupVisits>(searchCondition)
+                    .OrderBy(visit => visit.Chop1date, StringComparer.Ordinal)
+                    .ThenBy(visit => visit.Chop1sec, StringComparer.Ordinal)
+                    .Cast<T>()
+                    .ToList();
                 return CreateUnpagedResult(
                     _healthCenterRepository.GetHealthCheckupVisitsColumns(),
-                    _healthCenterRepository.GetHealthCheckupVisitsData<T>(searchCondition));
+                    healthCheckupVisits);
             case "C174":
-                return CreateUnpagedResult(
-                    _healthCenterRepository.GetHealthCenterContractBillingReportColumns(),
-                    _healthCenterRepository.GetHealthCenterContractBillingReport<T>(searchCondition));
+                var c174PageNumber = searchCondition.PageNumber!.Value;
+                var c174PageSize = searchCondition.PageSize!.Value;
+                var totalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
+                    },
+                    () => _healthCenterRepository.GetHealthCenterContractBillingReportCount(searchCondition));
+                var pageData = _healthCenterRepository.GetHealthCenterContractBillingReportPage<T>(searchCondition);
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = _healthCenterRepository.GetHealthCenterContractBillingReportColumns(),
+                    Data = pageData,
+                    TotalCount = totalCount,
+                    PageNumber = c174PageNumber,
+                    PageSize = c174PageSize,
+                    TotalPages = CalculateTotalPages(totalCount, c174PageSize)
+                };
             default:
                 throw new ArgumentException($"Invalid report code: {searchCondition.ReportCode}");
         }

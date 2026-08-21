@@ -33,7 +33,7 @@
             };
         },
         computed: {
-            isServerPaged() { return this.selectedReport.code === "C171"; },
+            isServerPaged() { return ["C171", "C174"].includes(this.selectedReport.code); },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
             totalCount() { return this.isServerPaged ? this.serverTotalCount : this.filteredRows.length; },

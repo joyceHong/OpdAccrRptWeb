@@ -1,7 +1,26 @@
 (() => {
-    const createInitialForm = (startDate, endDate) => ({
+    const reportConfigurations = Object.freeze({
+        C171: Object.freeze({ serverPaged: true }),
+        C172: Object.freeze({ serverPaged: false }),
+        C173: Object.freeze({ serverPaged: false }),
+        C174: Object.freeze({ serverPaged: true }),
+        C18: Object.freeze({
+            serverPaged: true,
+            encounterSource: Object.freeze({
+                defaultValue: "Emergency",
+                options: Object.freeze([
+                    Object.freeze({ value: "Emergency", label: "急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        })
+    });
+    const getReportConfiguration = reportCode => reportConfigurations[reportCode]
+        ?? Object.freeze({ serverPaged: false });
+    const createInitialForm = (startDate, endDate, reportConfiguration) => ({
         startDate,
         endDate,
+        encounterSource: reportConfiguration.encounterSource?.defaultValue ?? "",
         department: "",
         clinic: "",
         hospitalCode: "",
@@ -9,6 +28,7 @@
     });
 
     window.ReportComponents = window.ReportComponents || {};
+    window.ReportConfigurations = reportConfigurations;
     window.ReportComponents.ReportTemplate = {
         template: "#report-template",
         props: {
@@ -28,12 +48,18 @@
                 pageSize: 10,
                 serverTotalCount: 0,
                 serverTotalPages: 0,
-                form: createInitialForm(this.defaultStartDate, this.defaultEndDate),
+                form: createInitialForm(
+                    this.defaultStartDate,
+                    this.defaultEndDate,
+                    getReportConfiguration(this.selectedReport.code)),
                 columns: []
             };
         },
         computed: {
-            isServerPaged() { return ["C171", "C174"].includes(this.selectedReport.code); },
+            reportConfiguration() { return getReportConfiguration(this.selectedReport.code); },
+            encounterSourceConfiguration() { return this.reportConfiguration.encounterSource ?? null; },
+            hasEncounterSource() { return this.encounterSourceConfiguration !== null; },
+            isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
             totalCount() { return this.isServerPaged ? this.serverTotalCount : this.filteredRows.length; },
@@ -50,15 +76,24 @@
                 return this.filteredRows.slice(start, start + this.pageSize);
             }
         },
+        watch: {
+            "selectedReport.code"() {
+                this.resetForm();
+            }
+        },
         methods: {
             resetForm() {
-                this.form = createInitialForm(this.defaultStartDate, this.defaultEndDate);
+                this.form = createInitialForm(
+                    this.defaultStartDate,
+                    this.defaultEndDate,
+                    getReportConfiguration(this.selectedReport.code));
                 this.advancedOpen = false;
                 this.validationMessage = "";
                 this.hasSearched = false;
                 this.rows = [];
                 this.columns = [];
                 this.currentPage = 1;
+                this.pageSize = 10;
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
             },
@@ -69,6 +104,15 @@
                 }
                 if (this.form.startDate > this.form.endDate) {
                     this.validationMessage = "起始日期不可晚於截止日期。";
+                    return;
+                }
+                if (this.hasEncounterSource && !this.form.encounterSource) {
+                    this.validationMessage = "請選擇急診或住院來源。";
+                    return;
+                }
+                if (this.hasEncounterSource
+                    && this.form.startDate.substring(0, 4) !== this.form.endDate.substring(0, 4)) {
+                    this.validationMessage = "C18 起訖日期必須屬於同一民國年度。";
                     return;
                 }
 
@@ -87,6 +131,9 @@
                             reportCode: this.selectedReport.code,
                             startDate: this.form.startDate,
                             endDate: this.form.endDate,
+                            encounterSource: this.hasEncounterSource
+                                ? this.form.encounterSource
+                                : undefined,
                             chop1sec: this.form.department,
                             pageNumber: this.isServerPaged ? this.currentPage : null,
                             pageSize: this.isServerPaged ? this.pageSize : null
@@ -144,6 +191,9 @@
                 if (this.isServerPaged && this.hasSearched) {
                     await this.fetchResults();
                 }
+            },
+            changeEncounterSource() {
+                this.currentPage = 1;
             },
             exportResults() {
                 this.$emit("show-toast", "Excel 匯出將於後端 API 階段實作。");

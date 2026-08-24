@@ -12,7 +12,9 @@ namespace OpdAccrRptWeb.Repositories
         /// <typeparam name="T"></typeparam>
         /// <param name="searchCondition"></param>
         /// <returns></returns>
-        PagedReportResult<T> GetHealthCenterData<T>(SearchReportCondition searchCondition);
+        int GetHealthCenterDataCount(SearchReportCondition searchCondition);
+
+        List<T> GetHealthCenterDataPage<T>(SearchReportCondition searchCondition);
 
         /// <summary>
         /// 健康管理中心明細資料的欄位資訊

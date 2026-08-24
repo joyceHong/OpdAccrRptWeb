@@ -1,6 +1,8 @@
 ﻿using OpdAccrRptWeb.Help;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace OpdAccrRptWeb.Services;
 
@@ -10,14 +12,20 @@ namespace OpdAccrRptWeb.Services;
 public class ReportService : IReportService
 {
     private readonly IHealthCenterRepository _healthCenterRepository;
+    private readonly IReferralMemberRepository _referralMemberRepository;
     private readonly IReportTotalCountCache _totalCountCache;
+    private readonly ILogger<ReportService> _logger;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
-        IReportTotalCountCache totalCountCache)
+        IReferralMemberRepository referralMemberRepository,
+        IReportTotalCountCache totalCountCache,
+        ILogger<ReportService> logger)
     {
         _healthCenterRepository = healthCenterRepository;
+        _referralMemberRepository = referralMemberRepository;
         _totalCountCache = totalCountCache;
+        _logger = logger;
     }
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
@@ -35,17 +43,40 @@ public class ReportService : IReportService
         switch (searchCondition.ReportCode)
         {
             case "C171":
-                var pagedResult = _healthCenterRepository.GetHealthCenterData<T>(searchCondition);
+                var countQueryExecuted = false;
+                var totalCountStopwatch = Stopwatch.StartNew();
+                var c171TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
+                    },
+                    () =>
+                    {
+                        countQueryExecuted = true;
+                        return _healthCenterRepository.GetHealthCenterDataCount(searchCondition);
+                    });
+                totalCountStopwatch.Stop();
+                _logger.LogInformation(
+                    "{ReportCode} total count resolved in {TotalCountResolutionElapsedMs} ms for {StartDate} through {EndDate}; CacheHit={CacheHit}, TotalCount={TotalCount}",
+                    searchCondition.ReportCode,
+                    totalCountStopwatch.ElapsedMilliseconds,
+                    searchCondition.StartDate,
+                    searchCondition.EndDate,
+                    !countQueryExecuted,
+                    c171TotalCount);
+                var c171PageData = _healthCenterRepository.GetHealthCenterDataPage<T>(searchCondition);
                 var pageNumber = searchCondition.PageNumber!.Value;
                 var pageSize = searchCondition.PageSize!.Value;
                 return new ReportDataAndColumns<T>
                 {
                     Columns = _healthCenterRepository.GetHelthCenterDetailColumns(),
-                    Data = pagedResult.Data,
-                    TotalCount = pagedResult.TotalCount,
+                    Data = c171PageData,
+                    TotalCount = c171TotalCount,
                     PageNumber = pageNumber,
                     PageSize = pageSize,
-                    TotalPages = CalculateTotalPages(pagedResult.TotalCount, pageSize)
+                    TotalPages = CalculateTotalPages(c171TotalCount, pageSize)
                 };
             case "C172":
                 return CreateUnpagedResult(
@@ -81,6 +112,31 @@ public class ReportService : IReportService
                     PageNumber = c174PageNumber,
                     PageSize = c174PageSize,
                     TotalPages = CalculateTotalPages(totalCount, c174PageSize)
+                };
+            case "C18":
+                var c18PageNumber = searchCondition.PageNumber!.Value;
+                var c18PageSize = searchCondition.PageSize!.Value;
+                var c18TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate,
+                        [nameof(SearchReportCondition.EncounterSource)] = searchCondition.EncounterSource
+                    },
+                    () => _referralMemberRepository.GetCount(searchCondition));
+                var c18PageData = _referralMemberRepository
+                    .GetPage(searchCondition)
+                    .Cast<T>()
+                    .ToList();
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = _referralMemberRepository.GetColumns(),
+                    Data = c18PageData,
+                    TotalCount = c18TotalCount,
+                    PageNumber = c18PageNumber,
+                    PageSize = c18PageSize,
+                    TotalPages = CalculateTotalPages(c18TotalCount, c18PageSize)
                 };
             default:
                 throw new ArgumentException($"Invalid report code: {searchCondition.ReportCode}");

@@ -1,6 +1,7 @@
 using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,15 +17,11 @@ builder.Services.AddMemoryCache();
 builder.Services
     .AddOptions<DatabaseConnectionOptions>()
     .Bind(builder.Configuration.GetSection(DatabaseConnectionOptions.SectionName))
-    .Validate(
-        options => IsEndpointConfigured(options.GuidAp01),
-        "DatabaseConnections:GuidAp01 必須設定 DatabaseName 與 ApplicationName。")
-    .Validate(
-        options => IsEndpointConfigured(options.DbTest3),
-        "DatabaseConnections:DbTest3 必須設定 DatabaseName 與 ApplicationName。")
     .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<DatabaseConnectionOptions>, DatabaseConnectionOptionsValidator>();
 builder.Services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
 builder.Services.AddSingleton<IHealthCenterRepository, HealthCenterRepository>();
+builder.Services.AddSingleton<IReferralMemberRepository, ReferralMemberRepository>();
 builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
 builder.Services.AddSingleton<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();
@@ -51,11 +48,5 @@ app.MapControllerRoute(
 
 
 app.Run();
-
-static bool IsEndpointConfigured(DatabaseEndpointOptions endpoint)
-{
-    return !string.IsNullOrWhiteSpace(endpoint.DatabaseName)
-        && !string.IsNullOrWhiteSpace(endpoint.ApplicationName);
-}
 
 public partial class Program;

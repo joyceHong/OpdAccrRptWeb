@@ -19,6 +19,11 @@
         public string? EndDate { get; set; }
 
         /// <summary>
+        /// C18 就醫來源，僅接受 Emergency 或 Inpatient。
+        /// </summary>
+        public string? EncounterSource { get; set; }
+
+        /// <summary>
         /// 科別
         /// </summary>
         public string? Chop1sec { get; set; }
@@ -33,5 +38,15 @@
         /// </summary>
         public int? PageSize { get; set; }
 
+    }
+
+    public static class EncounterSources
+    {
+        public const string Emergency = "Emergency";
+
+        public const string Inpatient = "Inpatient";
+
+        public static bool IsSupported(string? value) =>
+            value is Emergency or Inpatient;
     }
 }

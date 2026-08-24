@@ -76,6 +76,38 @@ The system SHALL support paginated report results with a default page size of 10
 - **THEN** the response SHALL contain an empty data collection, total count 0, and total pages 0
 - **AND** the UI SHALL display the existing no-data state rather than page navigation
 
+---
+### Requirement: C18 server-paginated results
+
+C18 SHALL use server-side pagination with a default page size of 10 and allowed page sizes of 10, 30, and 50. Every successful response SHALL include the requested page data, total count, page number, page size, and total pages for the selected date range and encounter source.
+
+#### Scenario: Open a multi-page C18 result
+
+- **WHEN** a C18 query matches 28 rows and the user has not changed the page size
+- **THEN** the server SHALL return page 1 with 10 rows, total count 28, and total pages 3
+- **AND** the UI SHALL display server page navigation
+
+##### Example: C18 page boundaries
+
+| Request | Returned rows | Total count | Total pages |
+| ----- | ----- | ----- | ----- |
+| page 1, size 10 | rows 1-10 | 28 | 3 |
+| page 2, size 10 | rows 11-20 | 28 | 3 |
+| page 3, size 10 | rows 21-28 | 28 | 3 |
+| page 4, size 10 | empty | 28 | 3 |
+
+#### Scenario: Navigate to another C18 page
+
+- **WHEN** a user moves from C18 page 1 to page 2
+- **THEN** the UI SHALL request page 2 with the unchanged date range, encounter source, and page size
+- **AND** the UI SHALL replace the displayed rows with the returned page
+
+#### Scenario: Display an empty C18 result
+
+- **WHEN** a valid C18 query matches zero rows
+- **THEN** the response SHALL contain an empty data collection, total count 0, and total pages 0
+- **AND** the UI SHALL display the existing no-data state
+
 ## Planned Requirements
 
 下列能力屬下一階段工作。
@@ -147,6 +179,44 @@ code:
   - Program.cs
   - OpdAccrRptWeb.Tests/ReportTotalCountCacheTests.cs
   - .spectra.yaml
+tests:
+  - OpdAccrRptWeb.Tests/report-template.test.js
+-->
+
+
+<!-- @trace
+source: add-c18-referral-member-report
+updated: 2026-08-21
+code:
+  - ViewModels/PagedReportResult.cs
+  - ViewModels/HealthCenterCountViewModel.cs
+  - ViewModels/ReferralMemberReportViewModel.cs
+  - Repositories/ReferralMemberRepository.cs
+  - Repositories/IReferralMemberRepository.cs
+  - wwwroot/js/reports/report-template.js
+  - ViewModels/HealthCheckupVisits.cs
+  - ViewModels/SearchReportCondition.cs
+  - Views/Report/_TemplateReport.cshtml
+  - ViewModels/HealthCenterContractBillingReport.cs
+  - ViewModels/HealthCenterDetailViewModel.cs
+  - Program.cs
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/ReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/GlobalUsings.cs
+  - Properties/AssemblyInfo.cs
+  - Services/ReportService.cs
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - OpdAccrRptWeb.Tests/FileLoggingTests.cs
+  - Controllers/ReportController.cs
+  - Services/IReportTotalCountCache.cs
+  - OpdAccrRptWeb.Tests/ReportTotalCountCacheTests.cs
+  - Infrastructure/FileLoggingConfiguration.cs
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Services/ReportTotalCountCache.cs
+  - wwwroot/css/site.css
 tests:
   - OpdAccrRptWeb.Tests/report-template.test.js
 -->

@@ -4,6 +4,7 @@ using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.ViewModels;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
+using System.Diagnostics;
 using static OpdAccrRptWeb.Help.ModelDescriptionsHelper;
 
 namespace OpdAccrRptWeb.Repositories
@@ -11,12 +12,15 @@ namespace OpdAccrRptWeb.Repositories
     public class HealthCenterRepository : IHealthCenterRepository
     {
 
-        private string _connectionString;
-        private IConnectionStringProvider _connectionStringProvider;
-        public HealthCenterRepository(IConnectionStringProvider connectionStringProvider)
+        private readonly IConnectionStringProvider _connectionStringProvider;
+        private readonly ILogger<HealthCenterRepository> _logger;
+
+        public HealthCenterRepository(
+            IConnectionStringProvider connectionStringProvider,
+            ILogger<HealthCenterRepository> logger)
         {
             _connectionStringProvider = connectionStringProvider;
-            _connectionString = _connectionStringProvider.GetDbTest3ConnectionString(); //取得測試資料庫連線字串
+            _logger = logger;
         }
 
         #region C171  健康中心明細
@@ -35,18 +39,54 @@ namespace OpdAccrRptWeb.Repositories
         /// </summary>
         /// <param name="searchCondition"></param>
         /// <returns></returns>
-        public PagedReportResult<T> GetHealthCenterData<T>(SearchReportCondition searchCondition)
+        public int GetHealthCenterDataCount(SearchReportCondition searchCondition)
         {
-            using IDbConnection connection = new OracleConnection(_connectionString);
-            var parameters = CreateC171Parameters(searchCondition);
-            var totalCount = connection.ExecuteScalar<int>(C171CountSql, parameters);
-            var data = connection.Query<T>(C171PageSql, parameters).ToList();
-
-            return new PagedReportResult<T>
+            return ExecuteC171Count(searchCondition, () =>
             {
-                Data = data,
-                TotalCount = totalCount
-            };
+                using IDbConnection connection = CreateConnection();
+                return connection.ExecuteScalar<int>(C171CountSql, CreateC171Parameters(searchCondition));
+            });
+        }
+
+        public List<T> GetHealthCenterDataPage<T>(SearchReportCondition searchCondition)
+        {
+            return ExecuteC171Page(searchCondition, () =>
+            {
+                using IDbConnection connection = CreateConnection();
+                return connection.Query<T>(C171PageSql, CreateC171Parameters(searchCondition)).ToList();
+            });
+        }
+
+        internal int ExecuteC171Count(SearchReportCondition searchCondition, Func<int> query)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var totalCount = query();
+            stopwatch.Stop();
+            _logger.LogInformation(
+                "{ReportCode} count SQL completed in {CountSqlElapsedMs} ms for {StartDate} through {EndDate}; TotalCount={TotalCount}",
+                searchCondition.ReportCode,
+                stopwatch.ElapsedMilliseconds,
+                searchCondition.StartDate,
+                searchCondition.EndDate,
+                totalCount);
+            return totalCount;
+        }
+
+        internal List<T> ExecuteC171Page<T>(SearchReportCondition searchCondition, Func<List<T>> query)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var data = query();
+            stopwatch.Stop();
+            _logger.LogInformation(
+                "{ReportCode} page SQL completed in {PageSqlElapsedMs} ms for {StartDate} through {EndDate}; PageNumber={PageNumber}, PageSize={PageSize}, ReturnedRows={ReturnedRows}",
+                searchCondition.ReportCode,
+                stopwatch.ElapsedMilliseconds,
+                searchCondition.StartDate,
+                searchCondition.EndDate,
+                searchCondition.PageNumber,
+                searchCondition.PageSize,
+                data.Count);
+            return data;
         }
 
         internal const string C171BaseSql = @"SELECT
@@ -195,7 +235,7 @@ namespace OpdAccrRptWeb.Repositories
         {
             try
             {
-                using (IDbConnection connection = new OracleConnection(_connectionString))
+                using (IDbConnection connection = CreateConnection())
                 {
                     string selectSql = $@"SELECT
                                             RTRIM(s.chnewsecno) AS CenterCode, -- 責任中心代碼
@@ -330,7 +370,7 @@ namespace OpdAccrRptWeb.Repositories
         {
             try
             {
-                using (IDbConnection connection = new OracleConnection(_connectionString))
+                using (IDbConnection connection = CreateConnection())
                 {
                     string selectSql = $@"SELECT
                                             SUBSTR(chop1date, 1, 5) AS chop1date, --就診年月
@@ -383,13 +423,13 @@ namespace OpdAccrRptWeb.Repositories
 
         public int GetHealthCenterContractBillingReportCount(SearchReportCondition searchCondition)
         {
-            using IDbConnection connection = new OracleConnection(_connectionString);
+            using IDbConnection connection = CreateConnection();
             return connection.ExecuteScalar<int>(C174CountSql, CreateC174Parameters(searchCondition));
         }
 
         public List<T> GetHealthCenterContractBillingReportPage<T>(SearchReportCondition searchCondition)
         {
-            using IDbConnection connection = new OracleConnection(_connectionString);
+            using IDbConnection connection = CreateConnection();
             return connection.Query<T>(C174PageSql, CreateC174Parameters(searchCondition)).ToList();
         }
 
@@ -448,6 +488,9 @@ namespace OpdAccrRptWeb.Repositories
         }
 
         #endregion
+
+        private IDbConnection CreateConnection() =>
+            new OracleConnection(_connectionStringProvider.GetConnectionString());
 
     }
 }

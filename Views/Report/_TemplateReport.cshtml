@@ -21,6 +21,19 @@
                         <span class="date-arrow">→</span>
                         <label><span>截止日期 <i>*</i></span><input v-model="form.endDate" type="date" required /></label>
                     </div>
+                    <fieldset v-if="hasEncounterSource" class="source-fieldset">
+                        <legend>就醫來源 <i>*</i></legend>
+                        <label v-for="option in encounterSourceConfiguration.options" :key="option.value" class="source-option">
+                            <input
+                                v-model="form.encounterSource"
+                                type="radio"
+                                name="encounterSource"
+                                :value="option.value"
+                                required
+                                v-on:change="changeEncounterSource" />
+                            <span>{{ option.label }}</span>
+                        </label>
+                    </fieldset>
                     <button class="advanced-toggle" type="button" v-on:click="advancedOpen = !advancedOpen">
                         <span><strong>進階條件</strong><small>（選填）</small></span>
                         <span>{{ advancedOpen ? '收合 ︿' : '展開 ﹀' }}</span>

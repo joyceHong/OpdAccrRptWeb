@@ -16,6 +16,7 @@
 - **THEN** 系統 SHALL 使用相同的共用報表互動流程
 - **AND** 畫面 SHALL 顯示各自的報表代碼、名稱及結果欄位
 
+---
 ### Requirement: Required date range
 
 支援查詢的報表 SHALL 提供必填的起始日期與截止日期，初始值 SHALL 為使用者開啟頁面當日。
@@ -31,6 +32,7 @@
 - **THEN** 系統 SHALL 拒絕送出查詢
 - **AND** 系統 SHALL 顯示可理解的日期範圍錯誤訊息
 
+---
 ### Requirement: ROC date conversion boundary
 
 前端 SHALL 使用可供使用者操作的日期格式，後端 MAY 在資料存取邊界將日期轉換為既有資料來源所需的民國日期格式。
@@ -41,6 +43,7 @@
 - **THEN** 系統 SHALL 以等值日期執行查詢
 - **AND** 日期格式轉換 SHALL NOT 改變使用者選取的日期範圍
 
+---
 ### Requirement: Optional advanced conditions
 
 系統 SHALL 允許各報表定義選填的進階條件，例如科別、診間、醫院代碼或批價碼。
@@ -50,6 +53,7 @@
 - **WHEN** 使用者僅填寫必要日期條件
 - **THEN** 系統 SHALL 允許送出查詢
 
+---
 ### Requirement: Reset query conditions
 
 系統 SHALL 提供重設功能，使查詢條件回復該報表的初始狀態。
@@ -60,6 +64,7 @@
 - **THEN** 系統 SHALL 清除選填條件
 - **AND** 必填條件 SHALL 回復預設值
 
+---
 ### Requirement: Report-specific query dispatch
 
 系統 SHALL 依所選報表代碼呼叫該報表獨立的後端查詢流程，不得以其他報表的查詢替代。
@@ -74,3 +79,71 @@
 - **WHEN** 使用者對尚未支援的報表送出請求
 - **THEN** 系統 SHALL 回傳明確的未支援結果
 - **AND** 系統 SHALL NOT 靜默回傳另一報表的資料
+
+---
+### Requirement: Report-configured query fields
+
+The shared report component SHALL use report configuration to determine report-specific query fields, their allowed values, their initial values, and their reset values. A report-specific field SHALL remain part of the shared form, validation, request, and pagination lifecycle without requiring a complete report-specific component.
+
+#### Scenario: Display the C18 source field
+
+- **WHEN** a user opens C18
+- **THEN** the shared report component SHALL display an encounter-source field with `Emergency` and `Inpatient` choices
+- **AND** `Emergency` SHALL be selected
+
+#### Scenario: Open a report without a source field
+
+- **WHEN** a user opens a report whose configuration does not define encounter source
+- **THEN** the shared report component SHALL NOT display or submit the encounter-source field for that report
+
+#### Scenario: Submit a configured source
+
+- **WHEN** a user selects `Inpatient` for C18 and submits the form
+- **THEN** the request SHALL include `EncounterSource` with value `Inpatient`
+
+#### Scenario: Preserve source during server pagination
+
+- **WHEN** a C18 user navigates to another page or changes page size
+- **THEN** each follow-up request SHALL retain the selected encounter source
+
+#### Scenario: Reset a configured source
+
+- **WHEN** a C18 user resets the query form
+- **THEN** the encounter source SHALL return to its configured `Emergency` default
+
+<!-- @trace
+source: add-c18-referral-member-report
+updated: 2026-08-21
+code:
+  - ViewModels/PagedReportResult.cs
+  - ViewModels/HealthCenterCountViewModel.cs
+  - ViewModels/ReferralMemberReportViewModel.cs
+  - Repositories/ReferralMemberRepository.cs
+  - Repositories/IReferralMemberRepository.cs
+  - wwwroot/js/reports/report-template.js
+  - ViewModels/HealthCheckupVisits.cs
+  - ViewModels/SearchReportCondition.cs
+  - Views/Report/_TemplateReport.cshtml
+  - ViewModels/HealthCenterContractBillingReport.cs
+  - ViewModels/HealthCenterDetailViewModel.cs
+  - Program.cs
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/ReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/GlobalUsings.cs
+  - Properties/AssemblyInfo.cs
+  - Services/ReportService.cs
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - OpdAccrRptWeb.Tests/FileLoggingTests.cs
+  - Controllers/ReportController.cs
+  - Services/IReportTotalCountCache.cs
+  - OpdAccrRptWeb.Tests/ReportTotalCountCacheTests.cs
+  - Infrastructure/FileLoggingConfiguration.cs
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Services/ReportTotalCountCache.cs
+  - wwwroot/css/site.css
+tests:
+  - OpdAccrRptWeb.Tests/report-template.test.js
+-->

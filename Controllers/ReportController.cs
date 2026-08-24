@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
+using System.Globalization;
 
 namespace OpdAccrRptWeb.Controllers;
 
@@ -36,7 +37,16 @@ public sealed class ReportController : Controller
     [HttpPost("Report/GetReportData")]
     public IActionResult GetReportData([FromBody] SearchReportCondition searchCondition)
     {
-        if (searchCondition.ReportCode is "C171" or "C174")
+        if (searchCondition.ReportCode == "C18")
+        {
+            IActionResult? validationResult = ValidateC18Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode is "C171" or "C174" or "C18")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -60,6 +70,7 @@ public sealed class ReportController : Controller
                 "C172" => Ok(_reportService.ReportDataAndColumns<HealthCenterCountViewModel>(searchCondition)),
                 "C173" => Ok(_reportService.ReportDataAndColumns<HealthCheckupVisits>(searchCondition)),
                 "C174" => Ok(_reportService.ReportDataAndColumns<HealthCenterContractBillingReport>(searchCondition)),
+                "C18" => Ok(_reportService.ReportDataAndColumns<ReferralMemberReportViewModel>(searchCondition)),
                 _ => Ok(null)
             };
         }
@@ -68,11 +79,12 @@ public sealed class ReportController : Controller
             var traceId = HttpContext.TraceIdentifier;
             _logger.LogError(
                 exception,
-                "報表查詢失敗。TraceId: {TraceId}, ReportCode: {ReportCode}, StartDate: {StartDate}, EndDate: {EndDate}, PageNumber: {PageNumber}, PageSize: {PageSize}",
+                "報表查詢失敗。TraceId: {TraceId}, ReportCode: {ReportCode}, StartDate: {StartDate}, EndDate: {EndDate}, EncounterSource: {EncounterSource}, PageNumber: {PageNumber}, PageSize: {PageSize}",
                 traceId,
                 searchCondition.ReportCode,
                 searchCondition.StartDate,
                 searchCondition.EndDate,
+                searchCondition.EncounterSource,
                 searchCondition.PageNumber,
                 searchCondition.PageSize);
 
@@ -85,4 +97,38 @@ public sealed class ReportController : Controller
             return StatusCode(StatusCodes.Status500InternalServerError, problemDetails);
         }
     }
+
+    private BadRequestObjectResult? ValidateC18Condition(SearchReportCondition searchCondition)
+    {
+        if (!EncounterSources.IsSupported(searchCondition.EncounterSource))
+        {
+            return BadRequest("就醫來源僅接受急診或住院。");
+        }
+
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
+            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的起始日期與截止日期。");
+        }
+
+        if (startDate > endDate)
+        {
+            return BadRequest("起始日期不可晚於截止日期。");
+        }
+
+        if (startDate.Year != endDate.Year)
+        {
+            return BadRequest("C18 起訖日期必須屬於同一民國年度。");
+        }
+
+        return null;
+    }
+
+    private static bool TryParseDate(string? value, out DateOnly date) =>
+        DateOnly.TryParseExact(
+            value,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out date);
 }

@@ -6,10 +6,23 @@
         C174: Object.freeze({ serverPaged: true }),
         C18: Object.freeze({
             serverPaged: true,
+            requireSameYear: true,
             encounterSource: Object.freeze({
                 defaultValue: "Emergency",
                 options: Object.freeze([
                     Object.freeze({ value: "Emergency", label: "急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        }),
+        C19: Object.freeze({
+            serverPaged: true,
+            singleDay: true,
+            stationOrBedPrefix: true,
+            encounterSource: Object.freeze({
+                defaultValue: "Emergency",
+                options: Object.freeze([
+                    Object.freeze({ value: "Emergency", label: "門急診" }),
                     Object.freeze({ value: "Inpatient", label: "住院" })
                 ])
             })
@@ -21,6 +34,7 @@
         startDate,
         endDate,
         encounterSource: reportConfiguration.encounterSource?.defaultValue ?? "",
+        stationOrBedPrefix: "",
         department: "",
         clinic: "",
         hospitalCode: "",
@@ -59,6 +73,7 @@
             reportConfiguration() { return getReportConfiguration(this.selectedReport.code); },
             encounterSourceConfiguration() { return this.reportConfiguration.encounterSource ?? null; },
             hasEncounterSource() { return this.encounterSourceConfiguration !== null; },
+            hasStationOrBedPrefix() { return this.reportConfiguration.stationOrBedPrefix === true; },
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
@@ -107,10 +122,17 @@
                     return;
                 }
                 if (this.hasEncounterSource && !this.form.encounterSource) {
-                    this.validationMessage = "請選擇急診或住院來源。";
+                    this.validationMessage = this.selectedReport.code === "C19"
+                        ? "請選擇門急診或住院來源。"
+                        : "請選擇急診或住院來源。";
                     return;
                 }
-                if (this.hasEncounterSource
+                if (this.reportConfiguration.singleDay === true
+                    && this.form.startDate !== this.form.endDate) {
+                    this.validationMessage = "C19 僅限查詢單日資料，起始日期與截止日期必須相同。";
+                    return;
+                }
+                if (this.reportConfiguration.requireSameYear === true
                     && this.form.startDate.substring(0, 4) !== this.form.endDate.substring(0, 4)) {
                     this.validationMessage = "C18 起訖日期必須屬於同一民國年度。";
                     return;
@@ -133,6 +155,9 @@
                             endDate: this.form.endDate,
                             encounterSource: this.hasEncounterSource
                                 ? this.form.encounterSource
+                                : undefined,
+                            stationOrBedPrefix: this.hasStationOrBedPrefix
+                                ? this.form.stationOrBedPrefix
                                 : undefined,
                             chop1sec: this.form.department,
                             pageNumber: this.isServerPaged ? this.currentPage : null,

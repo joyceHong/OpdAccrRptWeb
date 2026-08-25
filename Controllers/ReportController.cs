@@ -46,7 +46,16 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C171" or "C174" or "C18")
+        if (searchCondition.ReportCode == "C19")
+        {
+            IActionResult? validationResult = ValidateC19Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode is "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -71,6 +80,7 @@ public sealed class ReportController : Controller
                 "C173" => Ok(_reportService.ReportDataAndColumns<HealthCheckupVisits>(searchCondition)),
                 "C174" => Ok(_reportService.ReportDataAndColumns<HealthCenterContractBillingReport>(searchCondition)),
                 "C18" => Ok(_reportService.ReportDataAndColumns<ReferralMemberReportViewModel>(searchCondition)),
+                "C19" => Ok(_reportService.ReportDataAndColumns<SafeNeedleReportViewModel>(searchCondition)),
                 _ => Ok(null)
             };
         }
@@ -119,6 +129,27 @@ public sealed class ReportController : Controller
         if (startDate.Year != endDate.Year)
         {
             return BadRequest("C18 起訖日期必須屬於同一民國年度。");
+        }
+
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC19Condition(SearchReportCondition searchCondition)
+    {
+        if (!EncounterSources.IsSupported(searchCondition.EncounterSource))
+        {
+            return BadRequest("C19 就醫來源僅接受門急診或住院。");
+        }
+
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
+            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的 C19 查詢日期。");
+        }
+
+        if (startDate != endDate)
+        {
+            return BadRequest("C19 僅限查詢單日資料，起始日期與截止日期必須相同。");
         }
 
         return null;

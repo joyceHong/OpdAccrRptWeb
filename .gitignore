@@ -9,3 +9,4 @@ logs/
 .spectra/
 openspec/.vector-search.db*
 .openspec/
+/openspec

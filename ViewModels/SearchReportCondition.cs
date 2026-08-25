@@ -24,6 +24,11 @@
         public string? EncounterSource { get; set; }
 
         /// <summary>
+        /// C19 選填的護理站／床號前綴。
+        /// </summary>
+        public string? StationOrBedPrefix { get; set; }
+
+        /// <summary>
         /// 科別
         /// </summary>
         public string? Chop1sec { get; set; }

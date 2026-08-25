@@ -13,17 +13,20 @@ public class ReportService : IReportService
 {
     private readonly IHealthCenterRepository _healthCenterRepository;
     private readonly IReferralMemberRepository _referralMemberRepository;
+    private readonly ISafeNeedleRepository _safeNeedleRepository;
     private readonly IReportTotalCountCache _totalCountCache;
     private readonly ILogger<ReportService> _logger;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
         IReferralMemberRepository referralMemberRepository,
+        ISafeNeedleRepository safeNeedleRepository,
         IReportTotalCountCache totalCountCache,
         ILogger<ReportService> logger)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
+        _safeNeedleRepository = safeNeedleRepository;
         _totalCountCache = totalCountCache;
         _logger = logger;
     }
@@ -137,6 +140,35 @@ public class ReportService : IReportService
                     PageNumber = c18PageNumber,
                     PageSize = c18PageSize,
                     TotalPages = CalculateTotalPages(c18TotalCount, c18PageSize)
+                };
+            case "C19":
+                var c19PageNumber = searchCondition.PageNumber!.Value;
+                var c19PageSize = searchCondition.PageSize!.Value;
+                var normalizedPrefix = string.IsNullOrWhiteSpace(searchCondition.StationOrBedPrefix)
+                    ? null
+                    : searchCondition.StationOrBedPrefix.Trim();
+                var c19TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate,
+                        [nameof(SearchReportCondition.EncounterSource)] = searchCondition.EncounterSource,
+                        [nameof(SearchReportCondition.StationOrBedPrefix)] = normalizedPrefix
+                    },
+                    () => _safeNeedleRepository.GetCount(searchCondition));
+                var c19PageData = _safeNeedleRepository
+                    .GetPage(searchCondition)
+                    .Cast<T>()
+                    .ToList();
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = _safeNeedleRepository.GetColumns(),
+                    Data = c19PageData,
+                    TotalCount = c19TotalCount,
+                    PageNumber = c19PageNumber,
+                    PageSize = c19PageSize,
+                    TotalPages = CalculateTotalPages(c19TotalCount, c19PageSize)
                 };
             default:
                 throw new ArgumentException($"Invalid report code: {searchCondition.ReportCode}");

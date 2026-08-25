@@ -39,10 +39,13 @@
                         <span>{{ advancedOpen ? '收合 ︿' : '展開 ﹀' }}</span>
                     </button>
                     <div v-show="advancedOpen" class="advanced-grid">
-                        <label><span>科別</span><select v-model="form.department"><option value="">全部科別</option><option>內科</option><option>外科</option><option>急診醫學科</option></select></label>
-                        <label><span>診間</span><input v-model.trim="form.clinic" placeholder="請輸入診間" /></label>
-                        <label><span>醫院代碼</span><input v-model.trim="form.hospitalCode" placeholder="請輸入醫院代碼" /></label>
-                        <label><span>批價碼</span><input v-model.trim="form.billingCode" placeholder="請輸入批價碼" /></label>
+                        <label v-if="hasStationOrBedPrefix"><span>護理站／床號前綴</span><input v-model.trim="form.stationOrBedPrefix" placeholder="例如：7A" /></label>
+                        <template v-else>
+                            <label><span>科別</span><select v-model="form.department"><option value="">全部科別</option><option>內科</option><option>外科</option><option>急診醫學科</option></select></label>
+                            <label><span>診間</span><input v-model.trim="form.clinic" placeholder="請輸入診間" /></label>
+                            <label><span>醫院代碼</span><input v-model.trim="form.hospitalCode" placeholder="請輸入醫院代碼" /></label>
+                            <label><span>批價碼</span><input v-model.trim="form.billingCode" placeholder="請輸入批價碼" /></label>
+                        </template>
                     </div>
                     <p v-if="validationMessage" class="validation-message">{{ validationMessage }}</p>
                     <div class="form-actions">

@@ -7,7 +7,16 @@
                 <h1>{{ selectedReport ? selectedReport.name : '請從左側選擇報表' }}</h1>
                 <p>設定查詢區間與條件，送出後即可檢視報表資料。</p>
             </div>
-            <button class="outline-button" type="button" :disabled="!hasResults" v-on:click="exportResults">⇩ 匯出 Excel</button>
+            <button class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
+                {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
+            </button>
+        </section>
+        <section v-if="exportJob" class="export-status" role="status" aria-live="polite">
+            <strong>Excel 匯出：{{ exportJob.status }}</strong>
+            <span v-if="exportJob.status === 'Queued'">等待系統處理。</span>
+            <span v-else-if="exportJob.status === 'Running'">正在產生完整報表。</span>
+            <a v-else-if="exportJob.status === 'Ready' && exportJob.downloadUrl" :href="exportJob.downloadUrl">下載完成的 Excel</a>
+            <span v-else>{{ exportJob.message || '工作已結束，請重新申請匯出。' }}</span>
         </section>
         <section class="panel query-panel">
             <div>

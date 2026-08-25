@@ -487,6 +487,25 @@ namespace OpdAccrRptWeb.Repositories
             };
         }
 
+        public List<HealthCenterContractBillingReport> GetHealthCenterContractBillingReportBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(offset);
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+            using IDbConnection connection = CreateConnection();
+            return connection.Query<HealthCenterContractBillingReport>(
+                C174PageSql,
+                new
+                {
+                    strSDate = searchCondition.StartDate,
+                    strEDate = searchCondition.EndDate,
+                    rowOffset = offset,
+                    pageSize = batchSize
+                }).ToList();
+        }
+
         #endregion
 
         private IDbConnection CreateConnection() =>

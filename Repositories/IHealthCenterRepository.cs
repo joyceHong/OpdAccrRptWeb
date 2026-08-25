@@ -68,6 +68,11 @@ namespace OpdAccrRptWeb.Repositories
         /// </summary>
         List<T> GetHealthCenterContractBillingReportPage<T>(SearchReportCondition searchCondition);
 
+        List<HealthCenterContractBillingReport> GetHealthCenterContractBillingReportBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize);
+
 
     }
 }

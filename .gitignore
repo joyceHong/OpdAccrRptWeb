@@ -6,7 +6,9 @@ obj/
 .DS_Store
 *.log
 logs/
+App_Data/report-exports/
 .spectra/
 openspec/.vector-search.db*
 .openspec/
 /openspec
+/logs

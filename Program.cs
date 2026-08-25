@@ -14,6 +14,12 @@ builder.Host.UseSerilog();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services
+    .AddOptions<ReportExportOptions>()
+    .Bind(builder.Configuration.GetSection(ReportExportOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<ReportExportOptions>, ReportExportOptionsValidator>();
 builder.Services
     .AddOptions<DatabaseConnectionOptions>()
     .Bind(builder.Configuration.GetSection(DatabaseConnectionOptions.SectionName))
@@ -26,6 +32,14 @@ builder.Services.AddSingleton<ISafeNeedleRepository, SafeNeedleRepository>();
 builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
 builder.Services.AddSingleton<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();
+builder.Services.AddSingleton<IReportExportJobStore, ReportExportJobStore>();
+builder.Services.AddSingleton<ReportExportWorkQueue>();
+builder.Services.AddSingleton<IReportExportWorkQueue>(provider => provider.GetRequiredService<ReportExportWorkQueue>());
+builder.Services.AddSingleton<IReportExportQueue>(provider => provider.GetRequiredService<ReportExportWorkQueue>());
+builder.Services.AddSingleton<ReportExportService>();
+builder.Services.AddSingleton<IReportExportService>(provider => provider.GetRequiredService<ReportExportService>());
+builder.Services.AddSingleton<IReportWorkbookGenerator>(provider => provider.GetRequiredService<ReportExportService>());
+builder.Services.AddHostedService<BackgroundReportExportService>();
 
 var app = builder.Build();
 

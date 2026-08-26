@@ -11,4 +11,4 @@ App_Data/report-exports/
 openspec/.vector-search.db*
 .openspec/
 /openspec
-/logs
+./logs

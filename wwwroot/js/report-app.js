@@ -2,6 +2,7 @@
     const initialState = JSON.parse(document.getElementById("report-initial-state").textContent);
     const { createApp } = Vue;
     const reportComponentMap = Object.freeze({
+        C1: window.ReportComponents.ReportTemplate,
         C171: window.ReportComponents.ReportTemplate,
         C172: window.ReportComponents.ReportTemplate,
         C173: window.ReportComponents.ReportTemplate,

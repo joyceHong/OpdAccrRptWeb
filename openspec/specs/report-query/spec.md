@@ -147,3 +147,20 @@ code:
 tests:
   - OpdAccrRptWeb.Tests/report-template.test.js
 -->
+
+---
+### Requirement: Accessible report query busy state
+
+The shared report result panel SHALL expose a busy state while report data is being requested. The busy state SHALL be driven by the same loading state that disables query and pagination controls, SHALL contain one non-visual status message identifying that report data is loading, and SHALL be cleared after both successful and failed requests.
+
+#### Scenario: Submit a valid report query
+
+- **WHEN** a user submits valid query conditions and the data request is pending
+- **THEN** the report result panel SHALL expose that it is busy
+- **AND** assistive technology SHALL have access to one status message indicating that report data is loading
+
+#### Scenario: Complete or fail a report query
+
+- **WHEN** a pending report request either returns a response or fails
+- **THEN** the report result panel SHALL no longer expose that it is busy
+- **AND** the UI SHALL present the applicable result, empty-result, or error state

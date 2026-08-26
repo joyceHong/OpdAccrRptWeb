@@ -16,19 +16,22 @@ public class ReportService : IReportService
     private readonly ISafeNeedleRepository _safeNeedleRepository;
     private readonly IReportTotalCountCache _totalCountCache;
     private readonly ILogger<ReportService> _logger;
+    private readonly ISurgicalAccountingRepository? _surgicalAccountingRepository;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
         IReferralMemberRepository referralMemberRepository,
         ISafeNeedleRepository safeNeedleRepository,
         IReportTotalCountCache totalCountCache,
-        ILogger<ReportService> logger)
+        ILogger<ReportService> logger,
+        ISurgicalAccountingRepository? surgicalAccountingRepository = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
         _safeNeedleRepository = safeNeedleRepository;
         _totalCountCache = totalCountCache;
         _logger = logger;
+        _surgicalAccountingRepository = surgicalAccountingRepository;
     }
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
@@ -45,6 +48,32 @@ public class ReportService : IReportService
 
         switch (searchCondition.ReportCode)
         {
+            case "C1":
+                var surgicalAccountingRepository = _surgicalAccountingRepository
+                    ?? throw new InvalidOperationException("C1 repository 尚未設定。");
+                var c1PageNumber = searchCondition.PageNumber!.Value;
+                var c1PageSize = searchCondition.PageSize!.Value;
+                var c1TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
+                    },
+                    () => surgicalAccountingRepository.GetCount(searchCondition));
+                var c1PageData = surgicalAccountingRepository
+                    .GetPage(searchCondition)
+                    .Cast<T>()
+                    .ToList();
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = surgicalAccountingRepository.GetColumns(),
+                    Data = c1PageData,
+                    TotalCount = c1TotalCount,
+                    PageNumber = c1PageNumber,
+                    PageSize = c1PageSize,
+                    TotalPages = CalculateTotalPages(c1TotalCount, c1PageSize)
+                };
             case "C171":
                 var countQueryExecuted = false;
                 var totalCountStopwatch = Stopwatch.StartNew();

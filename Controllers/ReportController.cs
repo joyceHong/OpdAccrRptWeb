@@ -40,6 +40,15 @@ public sealed class ReportController : Controller
     [HttpPost("Report/GetReportData")]
     public IActionResult GetReportData([FromBody] SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C1")
+        {
+            IActionResult? validationResult = ValidateC1Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
         if (searchCondition.ReportCode == "C18")
         {
             IActionResult? validationResult = ValidateC18Condition(searchCondition);
@@ -58,7 +67,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -78,6 +87,7 @@ public sealed class ReportController : Controller
         {
             return searchCondition.ReportCode switch
             {
+                "C1" => Ok(_reportService.ReportDataAndColumns<SurgicalAccountingReportViewModel>(searchCondition)),
                 "C171" => Ok(_reportService.ReportDataAndColumns<HealthCenterDetailViewModel>(searchCondition)),
                 "C172" => Ok(_reportService.ReportDataAndColumns<HealthCenterCountViewModel>(searchCondition)),
                 "C173" => Ok(_reportService.ReportDataAndColumns<HealthCheckupVisits>(searchCondition)),
@@ -241,6 +251,22 @@ public sealed class ReportController : Controller
         if (startDate.Year != endDate.Year)
         {
             return BadRequest("C18 起訖日期必須屬於同一民國年度。");
+        }
+
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC1Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
+            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的 C1 起始日期與截止日期。");
+        }
+
+        if (startDate > endDate)
+        {
+            return BadRequest("C1 起始日期不可晚於截止日期。");
         }
 
         return null;

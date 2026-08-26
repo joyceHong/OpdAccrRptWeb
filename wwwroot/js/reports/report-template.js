@@ -1,5 +1,6 @@
 (() => {
     const reportConfigurations = Object.freeze({
+        C1: Object.freeze({ serverPaged: true }),
         C171: Object.freeze({ serverPaged: true }),
         C172: Object.freeze({ serverPaged: false }),
         C173: Object.freeze({ serverPaged: false }),

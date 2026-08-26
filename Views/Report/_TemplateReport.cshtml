@@ -64,13 +64,13 @@
                 </form>
             </div>
         </section>
-        <section class="panel result-panel">
+        <section class="panel result-panel" :aria-busy="isLoading ? 'true' : 'false'">
             <div class="result-heading">
                 <div>
                     <strong>查詢結果</strong>
-                    <span v-if="hasResults">共 {{ totalCount }} 筆</span>
+                    <span v-if="!isLoading && hasResults">共 {{ totalCount }} 筆</span>
                 </div>
-                <label v-if="hasResults">
+                <label v-if="!isLoading && hasResults">
                     每頁顯示
                     <select v-model.number="pageSize" :disabled="isLoading" v-on:change="changePageSize">
                         <option :value="10">10 筆</option>
@@ -79,11 +79,10 @@
                     </select>
                 </label>
             </div>
-            <div v-if="isLoading" class="empty-result">
-                <div>⌛</div>
-                <strong>資料查詢中</strong>
-                <p>請稍候，正在取得報表資料。</p>
-            </div>
+            <template v-if="isLoading">
+                <span class="visually-hidden" role="status">資料查詢中</span>
+                <partial name="_TableSkeleton" />
+            </template>
             <div v-else-if="!hasResults" class="empty-result">
                 <div>▤</div>
                 <strong>{{ hasSearched ? '查無資料' : '尚無查詢結果' }}</strong>
@@ -95,7 +94,7 @@
                     <tbody><tr v-for="row in pagedRows" :key="row.id"><td v-for="column in columns" :key="column.key">{{ row[column.key] }}</td></tr></tbody>
                 </table>
             </div>
-            <div v-if="hasResults" class="pagination">
+            <div v-if="!isLoading && hasResults" class="pagination">
                 <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
                 <div>
                     <button type="button" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(currentPage - 1)">‹</button>

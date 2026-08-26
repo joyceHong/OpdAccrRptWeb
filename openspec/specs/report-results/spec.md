@@ -108,6 +108,55 @@ C18 SHALL use server-side pagination with a default page size of 10 and allowed 
 - **THEN** the response SHALL contain an empty data collection, total count 0, and total pages 0
 - **AND** the UI SHALL display the existing no-data state
 
+---
+### Requirement: Report result skeleton during data loading
+
+The shared report result area SHALL display a table-shaped Skeleton Loader while report data is being requested. The Skeleton Loader SHALL use a stable four-column and three-row placeholder structure, SHALL replace rather than accompany stale result content, and SHALL NOT require report-column metadata from the pending response.
+
+#### Scenario: Load the first query result
+
+- **WHEN** a valid report query is pending
+- **THEN** the result area SHALL display the table-shaped Skeleton Loader
+- **AND** the result area SHALL NOT display the no-query, no-data, or result-table state at the same time
+
+#### Scenario: Load another server-provided page
+
+- **WHEN** a server-paginated report is requesting another page
+- **THEN** the result area SHALL replace the previous page with the Skeleton Loader until the request completes
+- **AND** pagination controls SHALL NOT be presented as an active result state during loading
+
+#### Scenario: Reload after changing page size
+
+- **WHEN** a user changes page size after completing a server-paginated query and the replacement request is pending
+- **THEN** the result area SHALL display the same Skeleton Loader used for the initial query
+
+#### Scenario: Finish loading with no rows
+
+- **WHEN** a pending query completes successfully with zero rows
+- **THEN** the Skeleton Loader SHALL be removed
+- **AND** the result area SHALL display the no-data state
+
+#### Scenario: Finish loading with an error
+
+- **WHEN** a pending query fails
+- **THEN** the Skeleton Loader SHALL be removed
+- **AND** the existing query failure feedback SHALL be displayed
+
+---
+### Requirement: Motion preference for report skeleton
+
+The Skeleton Loader SHALL use the site's native CSS without a third-party styling dependency. It SHALL display a shimmer animation under normal motion preferences and SHALL render a static, recognizable placeholder when the user requests reduced motion.
+
+#### Scenario: Display with normal motion preference
+
+- **WHEN** report data is loading and the user has not requested reduced motion
+- **THEN** the Skeleton Loader SHALL display a shimmer animation
+
+#### Scenario: Display with reduced motion preference
+
+- **WHEN** report data is loading and the user has requested reduced motion
+- **THEN** the Skeleton Loader SHALL remain visible without positional animation
+
 ## Planned Requirements
 
 下列能力屬下一階段工作。

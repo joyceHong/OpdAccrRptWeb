@@ -29,6 +29,7 @@ builder.Services.AddSingleton<IConnectionStringProvider, ConnectionStringProvide
 builder.Services.AddSingleton<IHealthCenterRepository, HealthCenterRepository>();
 builder.Services.AddSingleton<IReferralMemberRepository, ReferralMemberRepository>();
 builder.Services.AddSingleton<ISafeNeedleRepository, SafeNeedleRepository>();
+builder.Services.AddSingleton<ISurgicalAccountingRepository, SurgicalAccountingRepository>();
 builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
 builder.Services.AddSingleton<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();

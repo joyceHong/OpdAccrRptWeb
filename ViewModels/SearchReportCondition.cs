@@ -28,6 +28,15 @@
         /// </summary>
         public string? StationOrBedPrefix { get; set; }
 
+        public string? CashierUserId { get; set; }
+
+        public string? CashierCashSortType { get; set; }
+
+        /// <summary>
+        /// C29 選填的合約代碼；空白代表全部合約。
+        /// </summary>
+        public string? BillingCode { get; set; }
+
         /// <summary>
         /// 科別
         /// </summary>

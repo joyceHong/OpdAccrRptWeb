@@ -49,6 +49,51 @@ public sealed class ReportController : Controller
             }
         }
 
+        if (searchCondition.ReportCode == "C22")
+        {
+            IActionResult? validationResult = ValidateC22Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode == "C25")
+        {
+            IActionResult? validationResult = ValidateC25Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode == "C27")
+        {
+            IActionResult? validationResult = ValidateC27Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode == "C28")
+        {
+            IActionResult? validationResult = ValidateC28Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode == "C29")
+        {
+            IActionResult? validationResult = ValidateC29Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
         if (searchCondition.ReportCode == "C18")
         {
             IActionResult? validationResult = ValidateC18Condition(searchCondition);
@@ -67,7 +112,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C22" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -88,6 +133,11 @@ public sealed class ReportController : Controller
             return searchCondition.ReportCode switch
             {
                 "C1" => Ok(_reportService.ReportDataAndColumns<SurgicalAccountingReportViewModel>(searchCondition)),
+                "C22" => Ok(_reportService.ReportDataAndColumns<CashierCashReportViewModel>(searchCondition)),
+                "C25" => Ok(_reportService.ReportDataAndColumns<InpatientAdvancePaymentBalanceReportViewModel>(searchCondition)),
+                "C27" => Ok(_reportService.ReportDataAndColumns<AssistiveDeviceDepositBalanceReportViewModel>(searchCondition)),
+                "C28" => Ok(_reportService.ReportDataAndColumns<InpatientReceivableBalanceReportViewModel>(searchCondition)),
+                "C29" => Ok(_reportService.ReportDataAndColumns<ContractPaymentDetailReportViewModel>(searchCondition)),
                 "C171" => Ok(_reportService.ReportDataAndColumns<HealthCenterDetailViewModel>(searchCondition)),
                 "C172" => Ok(_reportService.ReportDataAndColumns<HealthCenterCountViewModel>(searchCondition)),
                 "C173" => Ok(_reportService.ReportDataAndColumns<HealthCheckupVisits>(searchCondition)),
@@ -272,6 +322,87 @@ public sealed class ReportController : Controller
         return null;
     }
 
+    private BadRequestObjectResult? ValidateC22Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
+            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的 C22 起始日期與截止日期。");
+        }
+        if (startDate > endDate)
+        {
+            return BadRequest("C22 起始日期不可晚於截止日期。");
+        }
+        if (!CashierCashSortTypes.IsSupported(searchCondition.CashierCashSortType))
+        {
+            return BadRequest("C22 排序方式僅接受依櫃員或依門急診。");
+        }
+        searchCondition.CashierUserId = string.IsNullOrWhiteSpace(searchCondition.CashierUserId)
+            ? null
+            : searchCondition.CashierUserId.Trim();
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC25Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
+            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的 C25 起始日期與截止日期。");
+        }
+
+        if (startDate > endDate)
+        {
+            return BadRequest("C25 起始日期不可晚於截止日期。");
+        }
+
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC27Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.EndDate, out _))
+        {
+            return BadRequest("請輸入有效的 C27 截止日期。");
+        }
+
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC28Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.EndDate, out _))
+        {
+            return BadRequest("請輸入有效的 C28 截止日期。");
+        }
+
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC29Condition(SearchReportCondition searchCondition)
+    {
+        if (!EncounterSources.IsSupported(searchCondition.EncounterSource))
+        {
+            return BadRequest("C29 就醫來源僅接受門急診或住院。");
+        }
+
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
+            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的 C29 起始日期與截止日期。");
+        }
+
+        if (startDate > endDate)
+        {
+            return BadRequest("C29 起始日期不可晚於截止日期。");
+        }
+
+        searchCondition.BillingCode = string.IsNullOrWhiteSpace(searchCondition.BillingCode)
+            ? null
+            : searchCondition.BillingCode.Trim();
+        return null;
+    }
+
     private BadRequestObjectResult? ValidateC19Condition(SearchReportCondition searchCondition)
     {
         if (!EncounterSources.IsSupported(searchCondition.EncounterSource))
@@ -293,11 +424,14 @@ public sealed class ReportController : Controller
         return null;
     }
 
-    private static bool TryParseDate(string? value, out DateOnly date) =>
-        DateOnly.TryParseExact(
+    private static bool TryParseDate(string? value, out DateOnly date)
+    {
+        bool parsed = DateOnly.TryParseExact(
             value,
             "yyyy-MM-dd",
             CultureInfo.InvariantCulture,
             DateTimeStyles.None,
             out date);
+        return parsed && date.Year >= 1912;
+    }
 }

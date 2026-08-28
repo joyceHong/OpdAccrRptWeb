@@ -67,18 +67,93 @@
 ---
 ### Requirement: Report-specific query dispatch
 
-系統 SHALL 依所選報表代碼呼叫該報表獨立的後端查詢流程，不得以其他報表的查詢替代。
+系統 SHALL 依所選報表代碼呼叫該報表獨立的後端查詢流程，不得以其他報表的查詢替代。C25 SHALL 使用既有共用報表元件與分頁 request/response lifecycle，不得為相同互動另建專用元件。
 
 #### Scenario: Submit C172 query
 
 - **WHEN** 使用者在 `C172` 報表送出有效條件
 - **THEN** 系統 SHALL 執行健康管理中心金額統計的查詢流程
 
+#### Scenario: Submit C25 query
+
+- **WHEN** 使用者在 `C25` 報表送出有效日期與分頁條件
+- **THEN** 系統 SHALL 執行住院預收醫療費餘額的截止日快照查詢流程
+- **AND** 系統 SHALL 透過共用報表元件呈現結果及分頁
+
 #### Scenario: Submit an unsupported report
 
 - **WHEN** 使用者對尚未支援的報表送出請求
 - **THEN** 系統 SHALL 回傳明確的未支援結果
 - **AND** 系統 SHALL NOT 靜默回傳另一報表的資料
+
+
+<!-- @trace
+source: add-c25-inpatient-advance-payment-balance
+updated: 2026-08-27
+code:
+  - Repositories/ISafeNeedleRepository.cs
+  - ViewModels/PagedReportResult.cs
+  - Properties/AssemblyInfo.cs
+  - OpdAccrRptWeb.Tests/ReportTotalCountCacheTests.cs
+  - Services/IReportTotalCountCache.cs
+  - ViewModels/CashierCashReportViewModel.cs
+  - OpdAccrRptWeb.Tests/SafeNeedleRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - Repositories/InpatientAdvancePaymentBalanceRepository.cs
+  - Repositories/SafeNeedleRepository.cs
+  - Repositories/SurgicalAccountingRepository.cs
+  - document/C22.md
+  - OpdAccrRptWeb.Tests/InpatientAdvancePaymentBalanceReportServiceTests.cs
+  - Services/IReportExportService.cs
+  - OpdAccrRptWeb.Tests/CashierCashReportServiceTests.cs
+  - wwwroot/js/reports/report-template.js
+  - OpdAccrRptWeb.Tests/ReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - OpdAccrRptWeb.Tests/ReportExportOptionsTests.cs
+  - Repositories/ReferralMemberRepository.cs
+  - ViewModels/HealthCenterContractBillingReport.cs
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Repositories/ICashierCashRepository.cs
+  - Repositories/ISurgicalAccountingRepository.cs
+  - Program.cs
+  - Services/ReportExportService.cs
+  - ViewModels/SearchReportCondition.cs
+  - Services/ReportExportOptions.cs
+  - Repositories/CashierCashRepository.cs
+  - Views/Report/_TemplateReport.cshtml
+  - Services/ReportExportOptionsValidator.cs
+  - OpdAccrRptWeb.Tests/GlobalUsings.cs
+  - OpdAccrRptWeb.Tests/ConnectionStringProviderTests.cs
+  - ViewModels/ReferralMemberReportViewModel.cs
+  - ViewModels/HealthCenterCountViewModel.cs
+  - ViewModels/HealthCheckupVisits.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - ViewModels/ReportExportJobResponse.cs
+  - Repositories/IReferralMemberRepository.cs
+  - OpdAccrRptWeb.Tests/BackgroundReportExportServiceTests.cs
+  - OpdAccrRptWeb.Tests/CashierCashRepositoryTests.cs
+  - ViewModels/InpatientAdvancePaymentBalanceReportViewModel.cs
+  - Views/Report/_TableSkeleton.cshtml
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - Services/BackgroundReportExportService.cs
+  - ViewModels/SurgicalAccountingReportViewModel.cs
+  - ViewModels/HealthCenterDetailViewModel.cs
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - Services/ReportExportJobStore.cs
+  - ViewModels/SafeNeedleReportViewModel.cs
+  - OpdAccrRptWeb.Tests/InpatientAdvancePaymentBalanceRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/ReportExportJobStoreTests.cs
+  - Services/ReportService.cs
+  - OpdAccrRptWeb.Tests/FileLoggingTests.cs
+  - Controllers/ReportController.cs
+  - Infrastructure/FileLoggingConfiguration.cs
+  - Services/ReportTotalCountCache.cs
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/SurgicalAccountingRepositoryTests.cs
+  - Repositories/IInpatientAdvancePaymentBalanceRepository.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-template.test.js
+-->
 
 ---
 ### Requirement: Report-configured query fields

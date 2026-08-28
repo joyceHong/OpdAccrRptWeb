@@ -30,6 +30,11 @@ builder.Services.AddSingleton<IHealthCenterRepository, HealthCenterRepository>()
 builder.Services.AddSingleton<IReferralMemberRepository, ReferralMemberRepository>();
 builder.Services.AddSingleton<ISafeNeedleRepository, SafeNeedleRepository>();
 builder.Services.AddSingleton<ISurgicalAccountingRepository, SurgicalAccountingRepository>();
+builder.Services.AddSingleton<ICashierCashRepository, CashierCashRepository>();
+builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, InpatientAdvancePaymentBalanceRepository>();
+builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
+builder.Services.AddSingleton<IInpatientReceivableBalanceRepository, InpatientReceivableBalanceRepository>();
+builder.Services.AddSingleton<IContractPaymentDetailRepository, ContractPaymentDetailRepository>();
 builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
 builder.Services.AddSingleton<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();

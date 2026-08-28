@@ -17,6 +17,11 @@ public class ReportService : IReportService
     private readonly IReportTotalCountCache _totalCountCache;
     private readonly ILogger<ReportService> _logger;
     private readonly ISurgicalAccountingRepository? _surgicalAccountingRepository;
+    private readonly ICashierCashRepository? _cashierCashRepository;
+    private readonly IInpatientAdvancePaymentBalanceRepository? _inpatientAdvancePaymentBalanceRepository;
+    private readonly IAssistiveDeviceDepositBalanceRepository? _assistiveDeviceDepositBalanceRepository;
+    private readonly IInpatientReceivableBalanceRepository? _inpatientReceivableBalanceRepository;
+    private readonly IContractPaymentDetailRepository? _contractPaymentDetailRepository;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -24,7 +29,12 @@ public class ReportService : IReportService
         ISafeNeedleRepository safeNeedleRepository,
         IReportTotalCountCache totalCountCache,
         ILogger<ReportService> logger,
-        ISurgicalAccountingRepository? surgicalAccountingRepository = null)
+        ISurgicalAccountingRepository? surgicalAccountingRepository = null,
+        ICashierCashRepository? cashierCashRepository = null,
+        IInpatientAdvancePaymentBalanceRepository? inpatientAdvancePaymentBalanceRepository = null,
+        IAssistiveDeviceDepositBalanceRepository? assistiveDeviceDepositBalanceRepository = null,
+        IInpatientReceivableBalanceRepository? inpatientReceivableBalanceRepository = null,
+        IContractPaymentDetailRepository? contractPaymentDetailRepository = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -32,6 +42,11 @@ public class ReportService : IReportService
         _totalCountCache = totalCountCache;
         _logger = logger;
         _surgicalAccountingRepository = surgicalAccountingRepository;
+        _cashierCashRepository = cashierCashRepository;
+        _inpatientAdvancePaymentBalanceRepository = inpatientAdvancePaymentBalanceRepository;
+        _assistiveDeviceDepositBalanceRepository = assistiveDeviceDepositBalanceRepository;
+        _inpatientReceivableBalanceRepository = inpatientReceivableBalanceRepository;
+        _contractPaymentDetailRepository = contractPaymentDetailRepository;
     }
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
@@ -73,6 +88,120 @@ public class ReportService : IReportService
                     PageNumber = c1PageNumber,
                     PageSize = c1PageSize,
                     TotalPages = CalculateTotalPages(c1TotalCount, c1PageSize)
+                };
+            case "C22":
+                var cashierCashRepository = _cashierCashRepository
+                    ?? throw new InvalidOperationException("C22 repository 尚未設定。");
+                var c22PageNumber = searchCondition.PageNumber!.Value;
+                var c22PageSize = searchCondition.PageSize!.Value;
+                var c22TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate,
+                        [nameof(SearchReportCondition.CashierUserId)] = string.IsNullOrWhiteSpace(searchCondition.CashierUserId) ? null : searchCondition.CashierUserId.Trim()
+                    },
+                    () => cashierCashRepository.GetCount(searchCondition));
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = cashierCashRepository.GetColumns(),
+                    Data = cashierCashRepository.GetPage(searchCondition).Cast<T>().ToList(),
+                    TotalCount = c22TotalCount,
+                    PageNumber = c22PageNumber,
+                    PageSize = c22PageSize,
+                    TotalPages = CalculateTotalPages(c22TotalCount, c22PageSize)
+                };
+            case "C25":
+                var inpatientAdvancePaymentBalanceRepository = _inpatientAdvancePaymentBalanceRepository
+                    ?? throw new InvalidOperationException("C25 repository 尚未設定。");
+                var c25PageNumber = searchCondition.PageNumber!.Value;
+                var c25PageSize = searchCondition.PageSize!.Value;
+                var c25TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
+                    },
+                    () => inpatientAdvancePaymentBalanceRepository.GetCount(searchCondition));
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = inpatientAdvancePaymentBalanceRepository.GetColumns(),
+                    Data = inpatientAdvancePaymentBalanceRepository.GetPage(searchCondition).Cast<T>().ToList(),
+                    TotalCount = c25TotalCount,
+                    PageNumber = c25PageNumber,
+                    PageSize = c25PageSize,
+                    TotalPages = CalculateTotalPages(c25TotalCount, c25PageSize)
+                };
+            case "C27":
+                var assistiveDeviceDepositBalanceRepository = _assistiveDeviceDepositBalanceRepository
+                    ?? throw new InvalidOperationException("C27 repository 尚未設定。");
+                var c27PageNumber = searchCondition.PageNumber!.Value;
+                var c27PageSize = searchCondition.PageSize!.Value;
+                var c27TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
+                    },
+                    () => assistiveDeviceDepositBalanceRepository.GetCount(searchCondition));
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = assistiveDeviceDepositBalanceRepository.GetColumns(),
+                    Data = assistiveDeviceDepositBalanceRepository.GetPage(searchCondition).Cast<T>().ToList(),
+                    TotalCount = c27TotalCount,
+                    PageNumber = c27PageNumber,
+                    PageSize = c27PageSize,
+                    TotalPages = CalculateTotalPages(c27TotalCount, c27PageSize)
+                };
+            case "C28":
+                var inpatientReceivableBalanceRepository = _inpatientReceivableBalanceRepository
+                    ?? throw new InvalidOperationException("C28 repository 尚未設定。");
+                var c28PageNumber = searchCondition.PageNumber!.Value;
+                var c28PageSize = searchCondition.PageSize!.Value;
+                var c28TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
+                    },
+                    () => inpatientReceivableBalanceRepository.GetCount(searchCondition));
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = inpatientReceivableBalanceRepository.GetColumns(),
+                    Data = inpatientReceivableBalanceRepository.GetPage(searchCondition).Cast<T>().ToList(),
+                    TotalCount = c28TotalCount,
+                    PageNumber = c28PageNumber,
+                    PageSize = c28PageSize,
+                    TotalPages = CalculateTotalPages(c28TotalCount, c28PageSize)
+                };
+            case "C29":
+                var contractPaymentDetailRepository = _contractPaymentDetailRepository
+                    ?? throw new InvalidOperationException("C29 repository 尚未設定。");
+                var c29PageNumber = searchCondition.PageNumber!.Value;
+                var c29PageSize = searchCondition.PageSize!.Value;
+                searchCondition.BillingCode = string.IsNullOrWhiteSpace(searchCondition.BillingCode)
+                    ? null
+                    : searchCondition.BillingCode.Trim();
+                var c29TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate,
+                        [nameof(SearchReportCondition.EncounterSource)] = searchCondition.EncounterSource,
+                        [nameof(SearchReportCondition.BillingCode)] = searchCondition.BillingCode
+                    },
+                    () => contractPaymentDetailRepository.GetCount(searchCondition));
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = contractPaymentDetailRepository.GetColumns(),
+                    Data = contractPaymentDetailRepository.GetPage(searchCondition).Cast<T>().ToList(),
+                    TotalCount = c29TotalCount,
+                    PageNumber = c29PageNumber,
+                    PageSize = c29PageSize,
+                    TotalPages = CalculateTotalPages(c29TotalCount, c29PageSize)
                 };
             case "C171":
                 var countQueryExecuted = false;

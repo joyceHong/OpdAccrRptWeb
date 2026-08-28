@@ -26,8 +26,8 @@
                 </div>
                 <form v-on:submit.prevent="search">
                     <div class="date-row">
-                        <label><span>起始日期 <i>*</i></span><input v-model="form.startDate" type="date" required /></label>
-                        <span class="date-arrow">→</span>
+                        <label v-if="!isEndDateOnly"><span>起始日期 <i>*</i></span><input v-model="form.startDate" type="date" required /></label>
+                        <span v-if="!isEndDateOnly" class="date-arrow">→</span>
                         <label><span>截止日期 <i>*</i></span><input v-model="form.endDate" type="date" required /></label>
                     </div>
                     <fieldset v-if="hasEncounterSource" class="source-fieldset">
@@ -49,7 +49,10 @@
                     </button>
                     <div v-show="advancedOpen" class="advanced-grid">
                         <label v-if="hasStationOrBedPrefix"><span>護理站／床號前綴</span><input v-model.trim="form.stationOrBedPrefix" placeholder="例如：7A" /></label>
-                        <template v-else>
+                        <label v-if="hasCashierUserId"><span>批價員代碼</span><input v-model.trim="form.cashierUserId" placeholder="請輸入批價員代碼" /></label>
+                        <label v-if="hasCashierCashSort"><span>排序方式 <i>*</i></span><select v-model="form.cashierCashSortType" required><option v-for="option in cashierCashSortConfiguration.options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
+                        <label v-if="hasBillingCode"><span>合約代碼</span><input v-model.trim="form.billingCode" placeholder="空白代表全部合約" /></label>
+                        <template v-if="!hasStationOrBedPrefix && !hasCashierUserId && !hasBillingCode">
                             <label><span>科別</span><select v-model="form.department"><option value="">全部科別</option><option>內科</option><option>外科</option><option>急診醫學科</option></select></label>
                             <label><span>診間</span><input v-model.trim="form.clinic" placeholder="請輸入診間" /></label>
                             <label><span>醫院代碼</span><input v-model.trim="form.hospitalCode" placeholder="請輸入醫院代碼" /></label>

@@ -279,3 +279,71 @@ tests:
 - **WHEN** 使用者在查詢成功後執行匯出
 - **THEN** 系統 SHALL 產生對應目前報表與查詢條件的 Excel 相容檔案
 - **AND** 匯出範圍 SHALL NOT 僅限於目前顯示頁
+
+<!-- @trace
+source: add-c174-excel-export
+updated: 2026-08-26
+code:
+  - ViewModels/ReferralMemberReportViewModel.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/ReportServiceTests.cs
+  - Repositories/ISafeNeedleRepository.cs
+  - OpdAccrRptWeb.Tests/SafeNeedleRepositoryTests.cs
+  - Services/IReportExportService.cs
+  - Services/ReportExportOptionsValidator.cs
+  - Services/ReportExportService.cs
+  - wwwroot/js/report-app.js
+  - ViewModels/SafeNeedleReportViewModel.cs
+  - ViewModels/HealthCenterCountViewModel.cs
+  - Repositories/SafeNeedleRepository.cs
+  - ViewModels/SurgicalAccountingReportViewModel.cs
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - OpdAccrRptWeb.Tests/GlobalUsings.cs
+  - document/C22.md
+  - Repositories/ReferralMemberRepository.cs
+  - OpdAccrRptWeb.Tests/CashierCashRepositoryTests.cs
+  - Repositories/IHealthCenterRepository.cs
+  - Views/Report/_TemplateReport.cshtml
+  - OpdAccrRptWeb.Tests/FileLoggingTests.cs
+  - Repositories/CashierCashRepository.cs
+  - ViewModels/HealthCenterContractBillingReport.cs
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Repositories/ISurgicalAccountingRepository.cs
+  - ViewModels/HealthCheckupVisits.cs
+  - Repositories/IReferralMemberRepository.cs
+  - appsettings.json
+  - Services/IReportTotalCountCache.cs
+  - OpdAccrRptWeb.Tests/ReportExportOptionsTests.cs
+  - ViewModels/CashierCashReportViewModel.cs
+  - OpdAccrRptWeb.Tests/ConnectionStringProviderTests.cs
+  - ViewModels/HealthCenterDetailViewModel.cs
+  - Views/Report/_TableSkeleton.cshtml
+  - Services/ReportExportOptions.cs
+  - OpdAccrRptWeb.Tests/SurgicalAccountingRepositoryTests.cs
+  - ViewModels/ReportExportJobResponse.cs
+  - Services/ReportTotalCountCache.cs
+  - OpdAccrRptWeb.Tests/ReportTotalCountCacheTests.cs
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - Repositories/ICashierCashRepository.cs
+  - ViewModels/PagedReportResult.cs
+  - OpdAccrRptWeb.Tests/BackgroundReportExportServiceTests.cs
+  - Program.cs
+  - Properties/AssemblyInfo.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - Services/ReportExportJobStore.cs
+  - ViewModels/SearchReportCondition.cs
+  - OpdAccrRptWeb.csproj
+  - Repositories/HealthCenterRepository.cs
+  - wwwroot/css/site.css
+  - Repositories/SurgicalAccountingRepository.cs
+  - wwwroot/js/reports/report-template.js
+  - Services/ReportService.cs
+  - Infrastructure/FileLoggingConfiguration.cs
+  - Services/BackgroundReportExportService.cs
+  - OpdAccrRptWeb.Tests/ReportExportJobStoreTests.cs
+  - OpdAccrRptWeb.Tests/CashierCashReportServiceTests.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-template.test.js
+-->

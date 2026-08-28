@@ -1,6 +1,31 @@
 (() => {
     const reportConfigurations = Object.freeze({
         C1: Object.freeze({ serverPaged: true }),
+        C22: Object.freeze({
+            serverPaged: true,
+            cashierUserId: true,
+            cashierCashSort: Object.freeze({
+                defaultValue: "Cashier",
+                options: Object.freeze([
+                    Object.freeze({ value: "Cashier", label: "依櫃員" }),
+                    Object.freeze({ value: "Encounter", label: "依門急診" })
+                ])
+            })
+        }),
+        C25: Object.freeze({ serverPaged: true }),
+        C27: Object.freeze({ serverPaged: true, endDateOnly: true }),
+        C28: Object.freeze({ serverPaged: true, endDateOnly: true }),
+        C29: Object.freeze({
+            serverPaged: true,
+            billingCode: true,
+            encounterSource: Object.freeze({
+                defaultValue: "Emergency",
+                options: Object.freeze([
+                    Object.freeze({ value: "Emergency", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        }),
         C171: Object.freeze({ serverPaged: true }),
         C172: Object.freeze({ serverPaged: false }),
         C173: Object.freeze({ serverPaged: false }),
@@ -36,6 +61,8 @@
         endDate,
         encounterSource: reportConfiguration.encounterSource?.defaultValue ?? "",
         stationOrBedPrefix: "",
+        cashierUserId: "",
+        cashierCashSortType: reportConfiguration.cashierCashSort?.defaultValue ?? "",
         department: "",
         clinic: "",
         hospitalCode: "",
@@ -78,6 +105,11 @@
             encounterSourceConfiguration() { return this.reportConfiguration.encounterSource ?? null; },
             hasEncounterSource() { return this.encounterSourceConfiguration !== null; },
             hasStationOrBedPrefix() { return this.reportConfiguration.stationOrBedPrefix === true; },
+            hasCashierUserId() { return this.reportConfiguration.cashierUserId === true; },
+            hasCashierCashSort() { return this.reportConfiguration.cashierCashSort !== undefined; },
+            hasBillingCode() { return this.reportConfiguration.billingCode === true; },
+            cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
+            isEndDateOnly() { return this.reportConfiguration.endDateOnly === true; },
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
@@ -124,11 +156,13 @@
                 this.exportJob = null;
             },
             async search() {
-                if (!this.form.startDate || !this.form.endDate) {
-                    this.validationMessage = "請輸入起始日期與截止日期。";
+                if (!this.form.endDate || (!this.isEndDateOnly && !this.form.startDate)) {
+                    this.validationMessage = this.isEndDateOnly
+                        ? "請輸入截止日期。"
+                        : "請輸入起始日期與截止日期。";
                     return;
                 }
-                if (this.form.startDate > this.form.endDate) {
+                if (!this.isEndDateOnly && this.form.startDate > this.form.endDate) {
                     this.validationMessage = "起始日期不可晚於截止日期。";
                     return;
                 }
@@ -162,13 +196,18 @@
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             reportCode: this.selectedReport.code,
-                            startDate: this.form.startDate,
+                            startDate: this.isEndDateOnly ? undefined : this.form.startDate,
                             endDate: this.form.endDate,
                             encounterSource: this.hasEncounterSource
                                 ? this.form.encounterSource
                                 : undefined,
                             stationOrBedPrefix: this.hasStationOrBedPrefix
                                 ? this.form.stationOrBedPrefix
+                                : undefined,
+                            cashierUserId: this.hasCashierUserId ? this.form.cashierUserId : undefined,
+                            cashierCashSortType: this.hasCashierCashSort ? this.form.cashierCashSortType : undefined,
+                            billingCode: this.hasBillingCode
+                                ? this.form.billingCode.trim()
                                 : undefined,
                             chop1sec: this.form.department,
                             pageNumber: this.isServerPaged ? this.currentPage : null,

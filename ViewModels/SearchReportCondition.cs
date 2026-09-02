@@ -38,6 +38,11 @@
         public string? BillingCode { get; set; }
 
         /// <summary>
+        /// C214 應收餘額類型，僅接受 SelfPay 或 Insurance。
+        /// </summary>
+        public string? ReceivableBalanceType { get; set; }
+
+        /// <summary>
         /// 科別
         /// </summary>
         public string? Chop1sec { get; set; }
@@ -62,5 +67,15 @@
 
         public static bool IsSupported(string? value) =>
             value is Emergency or Inpatient;
+    }
+
+    public static class ReceivableBalanceTypes
+    {
+        public const string SelfPay = "SelfPay";
+
+        public const string Insurance = "Insurance";
+
+        public static bool IsSupported(string? value) =>
+            value is SelfPay or Insurance;
     }
 }

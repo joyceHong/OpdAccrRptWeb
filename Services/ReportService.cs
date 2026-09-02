@@ -18,6 +18,8 @@ public class ReportService : IReportService
     private readonly ILogger<ReportService> _logger;
     private readonly ISurgicalAccountingRepository? _surgicalAccountingRepository;
     private readonly ICashierCashRepository? _cashierCashRepository;
+    private readonly ICashierCashSummaryRepository? _cashierCashSummaryRepository;
+    private readonly IOutpatientReceivableBalanceRepository? _outpatientReceivableBalanceRepository;
     private readonly IInpatientAdvancePaymentBalanceRepository? _inpatientAdvancePaymentBalanceRepository;
     private readonly IAssistiveDeviceDepositBalanceRepository? _assistiveDeviceDepositBalanceRepository;
     private readonly IInpatientReceivableBalanceRepository? _inpatientReceivableBalanceRepository;
@@ -34,7 +36,9 @@ public class ReportService : IReportService
         IInpatientAdvancePaymentBalanceRepository? inpatientAdvancePaymentBalanceRepository = null,
         IAssistiveDeviceDepositBalanceRepository? assistiveDeviceDepositBalanceRepository = null,
         IInpatientReceivableBalanceRepository? inpatientReceivableBalanceRepository = null,
-        IContractPaymentDetailRepository? contractPaymentDetailRepository = null)
+        IContractPaymentDetailRepository? contractPaymentDetailRepository = null,
+        ICashierCashSummaryRepository? cashierCashSummaryRepository = null,
+        IOutpatientReceivableBalanceRepository? outpatientReceivableBalanceRepository = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -43,6 +47,8 @@ public class ReportService : IReportService
         _logger = logger;
         _surgicalAccountingRepository = surgicalAccountingRepository;
         _cashierCashRepository = cashierCashRepository;
+        _cashierCashSummaryRepository = cashierCashSummaryRepository;
+        _outpatientReceivableBalanceRepository = outpatientReceivableBalanceRepository;
         _inpatientAdvancePaymentBalanceRepository = inpatientAdvancePaymentBalanceRepository;
         _assistiveDeviceDepositBalanceRepository = assistiveDeviceDepositBalanceRepository;
         _inpatientReceivableBalanceRepository = inpatientReceivableBalanceRepository;
@@ -111,6 +117,50 @@ public class ReportService : IReportService
                     PageNumber = c22PageNumber,
                     PageSize = c22PageSize,
                     TotalPages = CalculateTotalPages(c22TotalCount, c22PageSize)
+                };
+            case "C213":
+                var cashierCashSummaryRepository = _cashierCashSummaryRepository
+                    ?? throw new InvalidOperationException("C213 repository 尚未設定。");
+                var c213PageNumber = searchCondition.PageNumber!.Value;
+                var c213PageSize = searchCondition.PageSize!.Value;
+                var c213TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
+                    },
+                    () => cashierCashSummaryRepository.GetCount(searchCondition));
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = cashierCashSummaryRepository.GetColumns(),
+                    Data = cashierCashSummaryRepository.GetPage(searchCondition).Cast<T>().ToList(),
+                    TotalCount = c213TotalCount,
+                    PageNumber = c213PageNumber,
+                    PageSize = c213PageSize,
+                    TotalPages = CalculateTotalPages(c213TotalCount, c213PageSize)
+                };
+            case "C214":
+                var outpatientReceivableBalanceRepository = _outpatientReceivableBalanceRepository
+                    ?? throw new InvalidOperationException("C214 repository 尚未設定。");
+                var c214PageNumber = searchCondition.PageNumber!.Value;
+                var c214PageSize = searchCondition.PageSize!.Value;
+                var c214TotalCount = _totalCountCache.GetOrCreate(
+                    searchCondition.ReportCode,
+                    new Dictionary<string, string?>
+                    {
+                        [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate,
+                        [nameof(SearchReportCondition.ReceivableBalanceType)] = searchCondition.ReceivableBalanceType
+                    },
+                    () => outpatientReceivableBalanceRepository.GetCount(searchCondition));
+                return new ReportDataAndColumns<T>
+                {
+                    Columns = outpatientReceivableBalanceRepository.GetColumns(),
+                    Data = outpatientReceivableBalanceRepository.GetPage(searchCondition).Cast<T>().ToList(),
+                    TotalCount = c214TotalCount,
+                    PageNumber = c214PageNumber,
+                    PageSize = c214PageSize,
+                    TotalPages = CalculateTotalPages(c214TotalCount, c214PageSize)
                 };
             case "C25":
                 var inpatientAdvancePaymentBalanceRepository = _inpatientAdvancePaymentBalanceRepository

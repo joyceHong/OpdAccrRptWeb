@@ -31,6 +31,8 @@ builder.Services.AddSingleton<IReferralMemberRepository, ReferralMemberRepositor
 builder.Services.AddSingleton<ISafeNeedleRepository, SafeNeedleRepository>();
 builder.Services.AddSingleton<ISurgicalAccountingRepository, SurgicalAccountingRepository>();
 builder.Services.AddSingleton<ICashierCashRepository, CashierCashRepository>();
+builder.Services.AddSingleton<ICashierCashSummaryRepository, CashierCashSummaryRepository>();
+builder.Services.AddSingleton<IOutpatientReceivableBalanceRepository, OutpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, InpatientAdvancePaymentBalanceRepository>();
 builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
 builder.Services.AddSingleton<IInpatientReceivableBalanceRepository, InpatientReceivableBalanceRepository>();

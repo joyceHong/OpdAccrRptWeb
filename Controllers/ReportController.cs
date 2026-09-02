@@ -58,6 +58,24 @@ public sealed class ReportController : Controller
             }
         }
 
+        if (searchCondition.ReportCode == "C213")
+        {
+            IActionResult? validationResult = ValidateC213Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode == "C214")
+        {
+            IActionResult? validationResult = ValidateC214Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
         if (searchCondition.ReportCode == "C25")
         {
             IActionResult? validationResult = ValidateC25Condition(searchCondition);
@@ -112,18 +130,28 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C22" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C22" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
 
             if (searchCondition.PageNumber <= 0)
             {
+                if (searchCondition.ReportCode == "C214")
+                {
+                    return C214ValidationProblem("頁碼必須大於零。");
+                }
+
                 return BadRequest("頁碼必須大於零。");
             }
 
             if (searchCondition.PageSize is not (10 or 30 or 50))
             {
+                if (searchCondition.ReportCode == "C214")
+                {
+                    return C214ValidationProblem("每頁筆數僅接受 10、30 或 50。");
+                }
+
                 return BadRequest("每頁筆數僅接受 10、30 或 50。");
             }
         }
@@ -134,6 +162,8 @@ public sealed class ReportController : Controller
             {
                 "C1" => Ok(_reportService.ReportDataAndColumns<SurgicalAccountingReportViewModel>(searchCondition)),
                 "C22" => Ok(_reportService.ReportDataAndColumns<CashierCashReportViewModel>(searchCondition)),
+                "C213" => Ok(_reportService.ReportDataAndColumns<CashierCashSummaryReportViewModel>(searchCondition)),
+                "C214" => Ok(_reportService.ReportDataAndColumns<OutpatientReceivableBalanceReportViewModel>(searchCondition)),
                 "C25" => Ok(_reportService.ReportDataAndColumns<InpatientAdvancePaymentBalanceReportViewModel>(searchCondition)),
                 "C27" => Ok(_reportService.ReportDataAndColumns<AssistiveDeviceDepositBalanceReportViewModel>(searchCondition)),
                 "C28" => Ok(_reportService.ReportDataAndColumns<InpatientReceivableBalanceReportViewModel>(searchCondition)),
@@ -341,6 +371,51 @@ public sealed class ReportController : Controller
             ? null
             : searchCondition.CashierUserId.Trim();
         return null;
+    }
+
+    private BadRequestObjectResult? ValidateC213Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
+            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的 C213 起始日期與截止日期。");
+        }
+
+        if (startDate > endDate)
+        {
+            return BadRequest("C213 起始日期不可晚於截止日期。");
+        }
+
+        return null;
+    }
+
+    private IActionResult? ValidateC214Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return C214ValidationProblem("請輸入有效的 C214 截止日期。");
+        }
+
+        if (endDate < new DateOnly(2015, 1, 1))
+        {
+            return C214ValidationProblem("C214 截止日期不可早於 2015-01-01。");
+        }
+
+        searchCondition.ReceivableBalanceType = string.IsNullOrWhiteSpace(
+            searchCondition.ReceivableBalanceType)
+            ? ReceivableBalanceTypes.SelfPay
+            : searchCondition.ReceivableBalanceType;
+        if (!ReceivableBalanceTypes.IsSupported(searchCondition.ReceivableBalanceType))
+        {
+            return C214ValidationProblem("C214 餘額類型僅接受 SelfPay 或 Insurance。");
+        }
+
+        return null;
+    }
+
+    private ObjectResult C214ValidationProblem(string title)
+    {
+        return Problem(title: title, statusCode: StatusCodes.Status400BadRequest);
     }
 
     private BadRequestObjectResult? ValidateC25Condition(SearchReportCondition searchCondition)

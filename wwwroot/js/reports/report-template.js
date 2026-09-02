@@ -12,6 +12,19 @@
                 ])
             })
         }),
+        C213: Object.freeze({ serverPaged: true, advancedConditions: false }),
+        C214: Object.freeze({
+            serverPaged: true,
+            endDateOnly: true,
+            advancedConditions: false,
+            receivableBalanceType: Object.freeze({
+                defaultValue: "SelfPay",
+                options: Object.freeze([
+                    Object.freeze({ value: "SelfPay", label: "自費" }),
+                    Object.freeze({ value: "Insurance", label: "健保" })
+                ])
+            })
+        }),
         C25: Object.freeze({ serverPaged: true }),
         C27: Object.freeze({ serverPaged: true, endDateOnly: true }),
         C28: Object.freeze({ serverPaged: true, endDateOnly: true }),
@@ -66,7 +79,8 @@
         department: "",
         clinic: "",
         hospitalCode: "",
-        billingCode: ""
+        billingCode: "",
+        receivableBalanceType: reportConfiguration.receivableBalanceType?.defaultValue ?? ""
     });
 
     window.ReportComponents = window.ReportComponents || {};
@@ -108,6 +122,9 @@
             hasCashierUserId() { return this.reportConfiguration.cashierUserId === true; },
             hasCashierCashSort() { return this.reportConfiguration.cashierCashSort !== undefined; },
             hasBillingCode() { return this.reportConfiguration.billingCode === true; },
+            receivableBalanceTypeConfiguration() { return this.reportConfiguration.receivableBalanceType ?? null; },
+            hasReceivableBalanceType() { return this.receivableBalanceTypeConfiguration !== null; },
+            hasAdvancedConditions() { return this.reportConfiguration.advancedConditions !== false; },
             cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
             isEndDateOnly() { return this.reportConfiguration.endDateOnly === true; },
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
@@ -209,7 +226,12 @@
                             billingCode: this.hasBillingCode
                                 ? this.form.billingCode.trim()
                                 : undefined,
-                            chop1sec: this.form.department,
+                            receivableBalanceType: this.hasReceivableBalanceType
+                                ? this.form.receivableBalanceType
+                                : undefined,
+                            chop1sec: this.hasAdvancedConditions
+                                ? this.form.department
+                                : undefined,
                             pageNumber: this.isServerPaged ? this.currentPage : null,
                             pageSize: this.isServerPaged ? this.pageSize : null
                         })
@@ -269,6 +291,15 @@
             },
             changeEncounterSource() {
                 this.currentPage = 1;
+            },
+            changeReceivableBalanceType() {
+                this.currentPage = 1;
+                this.hasSearched = false;
+                this.rows = [];
+                this.columns = [];
+                this.serverTotalCount = 0;
+                this.serverTotalPages = 0;
+                this.validationMessage = "";
             },
             async exportResults() {
                 if (!this.canExport) return;

@@ -37,6 +37,21 @@
         /// </summary>
         public string? BillingCode { get; set; }
 
+        /// <summary>C21 帳務範圍；依來源接受 0-3 或 4/5/8。</summary>
+        public int? AccountingScope { get; set; }
+
+        /// <summary>C21 或 C23 是否強制重新計算／重建。</summary>
+        public bool ForceRebuild { get; set; }
+
+        /// <summary>C23 日期模式：General 或 EncounterDate。</summary>
+        public string? DateMode { get; set; }
+
+        /// <summary>C23 住院別：Inpatient 或 Discharged；就診日模式必須為空。</summary>
+        public string? InpatientType { get; set; }
+
+        /// <summary>C23 選填合約代碼。</summary>
+        public string? ContractCode { get; set; }
+
         /// <summary>
         /// C214 應收餘額類型，僅接受 SelfPay 或 Insurance。
         /// </summary>
@@ -67,6 +82,38 @@
 
         public static bool IsSupported(string? value) =>
             value is Emergency or Inpatient;
+    }
+
+    public static class C21EncounterSources
+    {
+        public const string Outpatient = "Outpatient";
+        public const string Inpatient = "Inpatient";
+
+        public static bool IsSupported(string? value) => value is Outpatient or Inpatient;
+
+        public static bool IsScopeSupported(string source, int scope) =>
+            source == Outpatient ? scope is 0 or 1 or 2 or 3 : scope is 4 or 5 or 8;
+    }
+
+    public static class C23EncounterSources
+    {
+        public const string Outpatient = "Outpatient";
+        public const string Inpatient = "Inpatient";
+        public static bool IsSupported(string? value) => value is Outpatient or Inpatient;
+    }
+
+    public static class C23DateModes
+    {
+        public const string General = "General";
+        public const string EncounterDate = "EncounterDate";
+        public static bool IsSupported(string? value) => value is General or EncounterDate;
+    }
+
+    public static class C23InpatientTypes
+    {
+        public const string Inpatient = "Inpatient";
+        public const string Discharged = "Discharged";
+        public static bool IsSupported(string? value) => value is Inpatient or Discharged;
     }
 
     public static class ReceivableBalanceTypes

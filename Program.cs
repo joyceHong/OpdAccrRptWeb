@@ -32,12 +32,25 @@ builder.Services.AddSingleton<ISafeNeedleRepository, SafeNeedleRepository>();
 builder.Services.AddSingleton<ISurgicalAccountingRepository, SurgicalAccountingRepository>();
 builder.Services.AddSingleton<ICashierCashRepository, CashierCashRepository>();
 builder.Services.AddSingleton<ICashierCashSummaryRepository, CashierCashSummaryRepository>();
+builder.Services.AddSingleton<IC21AccountingSummaryRepository, C21AccountingSummaryRepository>();
+builder.Services.AddSingleton<IC23ContractAccountingRepository, C23ContractAccountingRepository>();
 builder.Services.AddSingleton<IOutpatientReceivableBalanceRepository, OutpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, InpatientAdvancePaymentBalanceRepository>();
 builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
 builder.Services.AddSingleton<IInpatientReceivableBalanceRepository, InpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IContractPaymentDetailRepository, ContractPaymentDetailRepository>();
 builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
+builder.Services.AddSingleton<IC21AccountingSummaryCalculationService, C21AccountingSummaryCalculationService>();
+builder.Services.AddSingleton<IC21UserIdentityProvider, ConfiguredC21UserIdentityProvider>();
+builder.Services.AddSingleton<IC21RebuildAuthorizationService, C21RebuildAuthorizationService>();
+builder.Services.AddSingleton<IC21RebuildService, C21RebuildService>();
+builder.Services.AddOptions<C21Options>()
+    .Bind(builder.Configuration.GetSection(C21Options.SectionName));
+builder.Services.AddSingleton<IC23UserIdentityProvider, ConfiguredC23UserIdentityProvider>();
+builder.Services.AddSingleton<IC23RebuildAuthorizationService, C23RebuildAuthorizationService>();
+builder.Services.AddSingleton<IC23RebuildService, C23RebuildService>();
+builder.Services.AddOptions<C23Options>()
+    .Bind(builder.Configuration.GetSection(C23Options.SectionName));
 builder.Services.AddSingleton<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();
 builder.Services.AddSingleton<IReportExportJobStore, ReportExportJobStore>();

@@ -56,6 +56,25 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
+                    <div v-if="isC21" class="advanced-grid">
+                        <label>
+                            <span>{{ form.encounterSource === 'Inpatient' ? '住院別' : '門急診選項' }}</span>
+                            <select v-model.number="form.accountingScope">
+                                <option v-for="option in c21ScopeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                            </select>
+                        </label>
+                        <label><span>收費科目</span><select v-model="form.billingCode"><option value="">全部</option><option v-for="item in c21BillingItems" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
+                        <label v-if="canForceC21Rebuild" class="source-option">
+                            <input v-model="form.forceRebuild" type="checkbox" />
+                            <span>重新計算</span>
+                        </label>
+                    </div>
+                    <div v-if="isC23" class="advanced-grid">
+                        <label><span>日期模式 <i>*</i></span><select v-model="form.dateMode" v-on:change="changeC23DateMode"><option value="General">一般日期</option><option value="EncounterDate">就診日</option></select></label>
+                        <label v-if="form.encounterSource === 'Inpatient' && form.dateMode === 'General'"><span>住院別 <i>*</i></span><select v-model="form.inpatientType" required><option value="" disabled>請選擇</option><option value="Inpatient">住院</option><option value="Discharged">出院</option></select></label>
+                        <label><span>合約代碼</span><select v-model="form.contractCode"><option value="">全部</option><option v-for="item in c23Contracts" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
+                        <label v-if="canForceC23Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
+                    </div>
                     <button v-if="hasAdvancedConditions" class="advanced-toggle" type="button" v-on:click="advancedOpen = !advancedOpen">
                         <span><strong>進階條件</strong><small>（選填）</small></span>
                         <span>{{ advancedOpen ? '收合 ︿' : '展開 ﹀' }}</span>

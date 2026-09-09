@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using OpdAccrRptWeb.Services;
+using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
 using System.Globalization;
 
@@ -11,17 +13,29 @@ public sealed class ReportController : Controller
     private readonly IReportService _reportService;
     private readonly IReportExportService _reportExportService;
     private readonly ILogger<ReportController> _logger;
+    private readonly IC21AccountingSummaryRepository? _c21Repository;
+    private readonly IOptions<C21Options>? _c21Options;
+    private readonly IC23ContractAccountingRepository? _c23Repository;
+    private readonly IOptions<C23Options>? _c23Options;
 
     public ReportController(
         IReportCatalogService reportCatalogService,
         IReportService reportService,
         IReportExportService reportExportService,
-        ILogger<ReportController> logger)
+        ILogger<ReportController> logger,
+        IC21AccountingSummaryRepository? c21Repository = null,
+        IOptions<C21Options>? c21Options = null,
+        IC23ContractAccountingRepository? c23Repository = null,
+        IOptions<C23Options>? c23Options = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
         _reportExportService = reportExportService;
         _logger = logger;
+        _c21Repository = c21Repository;
+        _c21Options = c21Options;
+        _c23Repository = c23Repository;
+        _c23Options = c23Options;
     }
 
     [HttpGet("/")]
@@ -34,12 +48,29 @@ public sealed class ReportController : Controller
     public IActionResult Index(string? reportCode = null)
     {
         ReportIndexViewModel viewModel = _reportCatalogService.GetReportIndex();
+        viewModel.C21RebuildEnabled = _c21Options?.Value.RebuildEnabled ?? false;
+        viewModel.C23RebuildEnabled = _c23Options?.Value.RebuildEnabled ?? false;
         return View(viewModel);
     }
 
     [HttpPost("Report/GetReportData")]
     public IActionResult GetReportData([FromBody] SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C21")
+        {
+            IActionResult? validationResult = ValidateC21Condition(searchCondition);
+            if (validationResult is not null)
+            {
+                return validationResult;
+            }
+        }
+
+        if (searchCondition.ReportCode == "C23")
+        {
+            IActionResult? validationResult = ValidateC23Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
         if (searchCondition.ReportCode == "C1")
         {
             IActionResult? validationResult = ValidateC1Condition(searchCondition);
@@ -130,7 +161,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C22" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C21" or "C22" or "C23" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -161,6 +192,8 @@ public sealed class ReportController : Controller
             return searchCondition.ReportCode switch
             {
                 "C1" => Ok(_reportService.ReportDataAndColumns<SurgicalAccountingReportViewModel>(searchCondition)),
+                "C21" => Ok(_reportService.ReportDataAndColumns<C21AccountingSummaryReportViewModel>(searchCondition)),
+                "C23" => Ok(_reportService.ReportDataAndColumns<C23ContractAccountingReportViewModel>(searchCondition)),
                 "C22" => Ok(_reportService.ReportDataAndColumns<CashierCashReportViewModel>(searchCondition)),
                 "C213" => Ok(_reportService.ReportDataAndColumns<CashierCashSummaryReportViewModel>(searchCondition)),
                 "C214" => Ok(_reportService.ReportDataAndColumns<OutpatientReceivableBalanceReportViewModel>(searchCondition)),
@@ -176,6 +209,22 @@ public sealed class ReportController : Controller
                 "C19" => Ok(_reportService.ReportDataAndColumns<SafeNeedleReportViewModel>(searchCondition)),
                 _ => Ok(null)
             };
+        }
+        catch (C21RebuildForbiddenException exception)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = exception.Message
+            });
+        }
+        catch (C23RebuildForbiddenException exception)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = exception.Message
+            });
         }
         catch (Exception exception)
         {
@@ -199,6 +248,55 @@ public sealed class ReportController : Controller
             problemDetails.Extensions["traceId"] = traceId;
             return StatusCode(StatusCodes.Status500InternalServerError, problemDetails);
         }
+    }
+
+    [HttpGet("Report/C21/BillingItems")]
+    public IActionResult GetC21BillingItems()
+    {
+        if (_c21Repository is null)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+        return Ok(_c21Repository.GetBillingItems());
+    }
+
+    [HttpGet("Report/C23/Contracts")]
+    public IActionResult GetC23Contracts()
+    {
+        if (_c23Repository is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        return Ok(_c23Repository.GetContracts());
+    }
+
+    private BadRequestObjectResult? ValidateC23Condition(SearchReportCondition condition)
+    {
+        if (!TryParseDate(condition.StartDate, out var startDate) || !TryParseDate(condition.EndDate, out var endDate))
+            return BadRequest("請輸入有效的 C23 起始日期與截止日期。");
+        if (startDate > endDate) return BadRequest("C23 起始日期不可晚於截止日期。");
+        if (!C23EncounterSources.IsSupported(condition.EncounterSource))
+            return BadRequest("C23 來源僅接受門急診或住院。");
+        condition.DateMode = string.IsNullOrWhiteSpace(condition.DateMode) ? C23DateModes.General : condition.DateMode;
+        if (!C23DateModes.IsSupported(condition.DateMode)) return BadRequest("C23 日期模式不正確。");
+        if (condition.DateMode == C23DateModes.EncounterDate)
+        {
+            if (startDate.Year != endDate.Year || startDate.Month != endDate.Month)
+                return BadRequest("C23 就診日模式起訖日期必須在同一月份。");
+            condition.InpatientType = null;
+        }
+        else if (condition.EncounterSource == C23EncounterSources.Inpatient
+                 && !C23InpatientTypes.IsSupported(condition.InpatientType))
+        {
+            return BadRequest("C23 一般住院查詢必須選擇住院或出院。");
+        }
+        else if (condition.EncounterSource == C23EncounterSources.Outpatient)
+        {
+            condition.InpatientType = null;
+        }
+        condition.ContractCode = string.IsNullOrWhiteSpace(condition.ContractCode) ? null : condition.ContractCode.Trim();
+        if (condition.ForceRebuild && (condition.DateMode != C23DateModes.General || startDate != endDate))
+            return BadRequest("C23 手動重建僅適用於一般模式單日查詢。");
+        if (condition.ForceRebuild && !(_c23Options?.Value.RebuildEnabled ?? false))
+            return BadRequest("C23 手動重建功能未開放。");
+        return null;
     }
 
     [HttpPost("Report/Export")]
@@ -238,6 +336,43 @@ public sealed class ReportController : Controller
         {
             return ExportFailure(exception, searchCondition.ReportCode);
         }
+    }
+
+    private BadRequestObjectResult? ValidateC21Condition(SearchReportCondition condition)
+    {
+        if (!TryParseDate(condition.StartDate, out var startDate)
+            || !TryParseDate(condition.EndDate, out var endDate))
+        {
+            return BadRequest("請輸入有效的 C21 起始日期與截止日期。");
+        }
+        if (startDate > endDate)
+        {
+            return BadRequest("C21 起始日期不可晚於截止日期。");
+        }
+        if (!C21EncounterSources.IsSupported(condition.EncounterSource))
+        {
+            return BadRequest("C21 來源僅接受門急診或住院。");
+        }
+
+        condition.AccountingScope ??= condition.EncounterSource == C21EncounterSources.Inpatient ? 4 : 0;
+        if (!C21EncounterSources.IsScopeSupported(condition.EncounterSource!, condition.AccountingScope.Value))
+        {
+            return BadRequest("C21 來源與帳務範圍不相容。");
+        }
+        condition.BillingCode = string.IsNullOrWhiteSpace(condition.BillingCode)
+            ? null
+            : condition.BillingCode.Trim();
+        if (condition.BillingCode is not null
+            && (condition.BillingCode.Length != 2 || !condition.BillingCode.All(char.IsDigit)))
+        {
+            return BadRequest("C21 收費科目僅接受兩碼數字代碼。");
+        }
+        if (condition.ForceRebuild
+            && (condition.EncounterSource != C21EncounterSources.Inpatient || startDate != endDate))
+        {
+            return BadRequest("C21 重新計算僅適用於單日住院查詢。");
+        }
+        return null;
     }
 
     [HttpGet("Report/Export/{jobId}")]

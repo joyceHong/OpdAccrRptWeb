@@ -7,4 +7,8 @@ public sealed class ReportIndexViewModel
     public required string DefaultStartDate { get; init; }
 
     public required string DefaultEndDate { get; init; }
+
+    public bool C21RebuildEnabled { get; set; }
+
+    public bool C23RebuildEnabled { get; set; }
 }

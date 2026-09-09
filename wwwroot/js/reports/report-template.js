@@ -1,6 +1,30 @@
 (() => {
     const reportConfigurations = Object.freeze({
         C1: Object.freeze({ serverPaged: true }),
+        C21: Object.freeze({
+            serverPaged: true,
+            advancedConditions: false,
+            c21: true,
+            encounterSource: Object.freeze({
+                defaultValue: "Outpatient",
+                options: Object.freeze([
+                    Object.freeze({ value: "Outpatient", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        }),
+        C23: Object.freeze({
+            serverPaged: true,
+            advancedConditions: false,
+            c23: true,
+            encounterSource: Object.freeze({
+                defaultValue: "Outpatient",
+                options: Object.freeze([
+                    Object.freeze({ value: "Outpatient", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        }),
         C22: Object.freeze({
             serverPaged: true,
             cashierUserId: true,
@@ -80,6 +104,13 @@
         clinic: "",
         hospitalCode: "",
         billingCode: "",
+        accountingScope: reportConfiguration.c21 === true
+            ? (reportConfiguration.encounterSource?.defaultValue === "Inpatient" ? 4 : 0)
+            : null,
+        forceRebuild: false,
+        dateMode: reportConfiguration.c23 === true ? "General" : "",
+        inpatientType: "",
+        contractCode: "",
         receivableBalanceType: reportConfiguration.receivableBalanceType?.defaultValue ?? ""
     });
 
@@ -90,7 +121,9 @@
         props: {
             selectedReport: { type: Object, required: true },
             defaultStartDate: { type: String, required: true },
-            defaultEndDate: { type: String, required: true }
+            defaultEndDate: { type: String, required: true },
+            c21RebuildEnabled: { type: Boolean, default: false },
+            c23RebuildEnabled: { type: Boolean, default: false }
         },
         emits: ["show-toast"],
         data() {
@@ -112,6 +145,8 @@
                     this.defaultEndDate,
                     getReportConfiguration(this.selectedReport.code)),
                 columns: []
+                ,c21BillingItems: [],
+                c23Contracts: []
             };
         },
         computed: {
@@ -122,6 +157,23 @@
             hasCashierUserId() { return this.reportConfiguration.cashierUserId === true; },
             hasCashierCashSort() { return this.reportConfiguration.cashierCashSort !== undefined; },
             hasBillingCode() { return this.reportConfiguration.billingCode === true; },
+            isC21() { return this.reportConfiguration.c21 === true; },
+            isC23() { return this.reportConfiguration.c23 === true; },
+            c21ScopeOptions() {
+                return this.form.encounterSource === "Inpatient"
+                    ? [{ value: 4, label: "全部" }, { value: 5, label: "住院總帳" }, { value: 8, label: "出院總帳" }]
+                    : [{ value: 0, label: "全部" }, { value: 1, label: "門急診" }, { value: 2, label: "門診" }, { value: 3, label: "急診" }];
+            },
+            canForceC21Rebuild() {
+                return this.c21RebuildEnabled && this.isC21
+                    && this.form.encounterSource === "Inpatient"
+                    && this.form.startDate === this.form.endDate;
+            },
+            canForceC23Rebuild() {
+                return this.c23RebuildEnabled && this.isC23
+                    && this.form.dateMode === "General"
+                    && this.form.startDate === this.form.endDate;
+            },
             receivableBalanceTypeConfiguration() { return this.reportConfiguration.receivableBalanceType ?? null; },
             hasReceivableBalanceType() { return this.receivableBalanceTypeConfiguration !== null; },
             hasAdvancedConditions() { return this.reportConfiguration.advancedConditions !== false; },
@@ -148,7 +200,13 @@
         watch: {
             "selectedReport.code"() {
                 this.resetForm();
+                this.loadC21BillingItems();
+                this.loadC23Contracts();
             }
+        },
+        mounted() {
+            this.loadC21BillingItems();
+            this.loadC23Contracts();
         },
         beforeUnmount() {
             this.stopExportPolling();
@@ -171,6 +229,26 @@
                 this.serverTotalPages = 0;
                 this.isExporting = false;
                 this.exportJob = null;
+            },
+            async loadC21BillingItems() {
+                this.c21BillingItems = [];
+                if (!this.isC21) return;
+                try {
+                    const response = await fetch("/Report/C21/BillingItems");
+                    if (response.ok) this.c21BillingItems = await response.json();
+                } catch {
+                    this.c21BillingItems = [];
+                }
+            },
+            async loadC23Contracts() {
+                this.c23Contracts = [];
+                if (!this.isC23) return;
+                try {
+                    const response = await fetch("/Report/C23/Contracts");
+                    if (response.ok) this.c23Contracts = await response.json();
+                } catch {
+                    this.c23Contracts = [];
+                }
             },
             async search() {
                 if (!this.form.endDate || (!this.isEndDateOnly && !this.form.startDate)) {
@@ -199,6 +277,16 @@
                     this.validationMessage = "C18 起訖日期必須屬於同一民國年度。";
                     return;
                 }
+                if (this.isC23 && this.form.dateMode === "EncounterDate"
+                    && this.form.startDate.substring(0, 7) !== this.form.endDate.substring(0, 7)) {
+                    this.validationMessage = "C23 就診日模式起訖日期必須在同一月份。";
+                    return;
+                }
+                if (this.isC23 && this.form.dateMode === "General"
+                    && this.form.encounterSource === "Inpatient" && !this.form.inpatientType) {
+                    this.validationMessage = "請選擇住院或出院。";
+                    return;
+                }
 
                 this.validationMessage = "";
                 this.currentPage = 1;
@@ -225,7 +313,12 @@
                             cashierCashSortType: this.hasCashierCashSort ? this.form.cashierCashSortType : undefined,
                             billingCode: this.hasBillingCode
                                 ? this.form.billingCode.trim()
-                                : undefined,
+                                : (this.isC21 && this.form.billingCode.trim() ? this.form.billingCode.trim() : undefined),
+                            accountingScope: this.isC21 ? this.form.accountingScope : undefined,
+                            dateMode: this.isC23 ? this.form.dateMode : undefined,
+                            inpatientType: this.isC23 && this.form.dateMode === "General" ? this.form.inpatientType || undefined : undefined,
+                            contractCode: this.isC23 && this.form.contractCode ? this.form.contractCode : undefined,
+                            forceRebuild: (this.isC21 || this.isC23) ? this.form.forceRebuild : undefined,
                             receivableBalanceType: this.hasReceivableBalanceType
                                 ? this.form.receivableBalanceType
                                 : undefined,
@@ -291,6 +384,19 @@
             },
             changeEncounterSource() {
                 this.currentPage = 1;
+                if (this.isC21) {
+                    this.form.accountingScope = this.form.encounterSource === "Inpatient" ? 4 : 0;
+                    this.form.forceRebuild = false;
+                }
+                if (this.isC23) {
+                    this.form.inpatientType = "";
+                    this.form.forceRebuild = false;
+                }
+            },
+            changeC23DateMode() {
+                this.currentPage = 1;
+                this.form.forceRebuild = false;
+                if (this.form.dateMode === "EncounterDate") this.form.inpatientType = "";
             },
             changeReceivableBalanceType() {
                 this.currentPage = 1;

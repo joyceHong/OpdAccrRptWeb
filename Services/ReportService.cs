@@ -24,6 +24,11 @@ public class ReportService : IReportService
     private readonly IAssistiveDeviceDepositBalanceRepository? _assistiveDeviceDepositBalanceRepository;
     private readonly IInpatientReceivableBalanceRepository? _inpatientReceivableBalanceRepository;
     private readonly IContractPaymentDetailRepository? _contractPaymentDetailRepository;
+    private readonly IC21AccountingSummaryRepository? _c21AccountingSummaryRepository;
+    private readonly IC21AccountingSummaryCalculationService? _c21CalculationService;
+    private readonly IC21RebuildService? _c21RebuildService;
+    private readonly IC23ContractAccountingRepository? _c23ContractAccountingRepository;
+    private readonly IC23RebuildService? _c23RebuildService;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -38,7 +43,12 @@ public class ReportService : IReportService
         IInpatientReceivableBalanceRepository? inpatientReceivableBalanceRepository = null,
         IContractPaymentDetailRepository? contractPaymentDetailRepository = null,
         ICashierCashSummaryRepository? cashierCashSummaryRepository = null,
-        IOutpatientReceivableBalanceRepository? outpatientReceivableBalanceRepository = null)
+        IOutpatientReceivableBalanceRepository? outpatientReceivableBalanceRepository = null,
+        IC21AccountingSummaryRepository? c21AccountingSummaryRepository = null,
+        IC21AccountingSummaryCalculationService? c21CalculationService = null,
+        IC21RebuildService? c21RebuildService = null,
+        IC23ContractAccountingRepository? c23ContractAccountingRepository = null,
+        IC23RebuildService? c23RebuildService = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -53,10 +63,25 @@ public class ReportService : IReportService
         _assistiveDeviceDepositBalanceRepository = assistiveDeviceDepositBalanceRepository;
         _inpatientReceivableBalanceRepository = inpatientReceivableBalanceRepository;
         _contractPaymentDetailRepository = contractPaymentDetailRepository;
+        _c21AccountingSummaryRepository = c21AccountingSummaryRepository;
+        _c21CalculationService = c21CalculationService;
+        _c21RebuildService = c21RebuildService;
+        _c23ContractAccountingRepository = c23ContractAccountingRepository;
+        _c23RebuildService = c23RebuildService;
     }
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C21")
+        {
+            return CreateC21Result<T>(searchCondition);
+        }
+
+        if (searchCondition.ReportCode == "C23")
+        {
+            return CreateC23Result<T>(searchCondition);
+        }
+
         if (searchCondition.StartDate is not null)
         {
             searchCondition.StartDate = DateTimeExtensions.ToRocDateString(DateTime.Parse(searchCondition.StartDate));
@@ -381,6 +406,77 @@ public class ReportService : IReportService
             default:
                 throw new ArgumentException($"Invalid report code: {searchCondition.ReportCode}");
         }
+    }
+
+    private ReportDataAndColumns<T> CreateC21Result<T>(SearchReportCondition condition)
+    {
+        var repository = _c21AccountingSummaryRepository
+            ?? throw new InvalidOperationException("C21 repository 尚未設定。");
+        var calculationService = _c21CalculationService
+            ?? throw new InvalidOperationException("C21 calculation service 尚未設定。");
+        var rebuildService = _c21RebuildService
+            ?? throw new InvalidOperationException("C21 rebuild service 尚未設定。");
+
+        if (rebuildService.EnsureData(condition))
+        {
+            _totalCountCache.Invalidate("C21");
+        }
+
+        var canonicalRows = calculationService.Calculate(
+            condition,
+            repository.GetSourceAmounts(condition),
+            repository.GetBillingItems());
+        var filters = new Dictionary<string, string?>
+        {
+            [nameof(condition.StartDate)] = condition.StartDate,
+            [nameof(condition.EndDate)] = condition.EndDate,
+            [nameof(condition.EncounterSource)] = condition.EncounterSource,
+            [nameof(condition.AccountingScope)] = condition.AccountingScope?.ToString(),
+            [nameof(condition.BillingCode)] = condition.BillingCode
+        };
+        var totalCount = _totalCountCache.GetOrCreate("C21", filters, () => canonicalRows.Count);
+        var pageNumber = condition.PageNumber!.Value;
+        var pageSize = condition.PageSize!.Value;
+        var page = canonicalRows.Skip((pageNumber - 1) * pageSize).Take(pageSize).Cast<T>().ToList();
+        return new ReportDataAndColumns<T>
+        {
+            Columns = repository.GetColumns(),
+            Data = page,
+            TotalCount = totalCount,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = CalculateTotalPages(totalCount, pageSize)
+        };
+    }
+
+    private ReportDataAndColumns<T> CreateC23Result<T>(SearchReportCondition condition)
+    {
+        var repository = _c23ContractAccountingRepository
+            ?? throw new InvalidOperationException("C23 repository 尚未設定。");
+        var rebuildService = _c23RebuildService
+            ?? throw new InvalidOperationException("C23 rebuild service 尚未設定。");
+        if (rebuildService.EnsureData(condition)) _totalCountCache.Invalidate("C23");
+        var filters = new Dictionary<string, string?>
+        {
+            [nameof(condition.StartDate)] = condition.StartDate,
+            [nameof(condition.EndDate)] = condition.EndDate,
+            [nameof(condition.EncounterSource)] = condition.EncounterSource,
+            [nameof(condition.DateMode)] = condition.DateMode,
+            [nameof(condition.InpatientType)] = condition.InpatientType,
+            [nameof(condition.ContractCode)] = condition.ContractCode
+        };
+        var totalCount = _totalCountCache.GetOrCreate("C23", filters, () => repository.GetCount(condition));
+        var pageNumber = condition.PageNumber!.Value;
+        var pageSize = condition.PageSize!.Value;
+        return new ReportDataAndColumns<T>
+        {
+            Columns = repository.GetColumns(),
+            Data = repository.GetPage(condition).Cast<T>().ToList(),
+            TotalCount = totalCount,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = CalculateTotalPages(totalCount, pageSize)
+        };
     }
 
     internal static int CalculateTotalPages(int totalCount, int pageSize)

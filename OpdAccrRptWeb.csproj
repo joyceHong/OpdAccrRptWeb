@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);OpdAccrRptWeb.Tests\bin\**;OpdAccrRptWeb.Tests\obj\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +13,8 @@
 
   <ItemGroup>
     <Compile Remove="OpdAccrRptWeb.Tests\**\*.cs" />
+    <Content Remove="OpdAccrRptWeb.Tests\bin\**;OpdAccrRptWeb.Tests\obj\**" />
+    <None Remove="OpdAccrRptWeb.Tests\bin\**;OpdAccrRptWeb.Tests\obj\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +29,10 @@
     <Reference Include="FemhDb">
       <HintPath>Infrastructure\FemhDb.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Sql\C23\*.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

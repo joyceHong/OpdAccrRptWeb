@@ -25,6 +25,18 @@
                 ])
             })
         }),
+        C24: Object.freeze({
+            serverPaged: true,
+            advancedConditions: false,
+            c24: true,
+            encounterSource: Object.freeze({
+                defaultValue: "OpdEr",
+                options: Object.freeze([
+                    Object.freeze({ value: "OpdEr", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        }),
         C22: Object.freeze({
             serverPaged: true,
             cashierUserId: true,
@@ -111,7 +123,13 @@
         dateMode: reportConfiguration.c23 === true ? "General" : "",
         inpatientType: "",
         contractCode: "",
-        receivableBalanceType: reportConfiguration.receivableBalanceType?.defaultValue ?? ""
+        receivableBalanceType: reportConfiguration.receivableBalanceType?.defaultValue ?? "",
+        source: reportConfiguration.c24 === true
+            ? reportConfiguration.encounterSource.defaultValue
+            : "",
+        mode: reportConfiguration.c24 === true ? "Accounting" : "",
+        roomScope: reportConfiguration.c24 === true ? "All" : "",
+        medicalRecordNo: ""
     });
 
     window.ReportComponents = window.ReportComponents || {};
@@ -146,7 +164,8 @@
                     getReportConfiguration(this.selectedReport.code)),
                 columns: []
                 ,c21BillingItems: [],
-                c23Contracts: []
+                c23Contracts: [],
+                summaries: []
             };
         },
         computed: {
@@ -159,6 +178,7 @@
             hasBillingCode() { return this.reportConfiguration.billingCode === true; },
             isC21() { return this.reportConfiguration.c21 === true; },
             isC23() { return this.reportConfiguration.c23 === true; },
+            isC24() { return this.reportConfiguration.c24 === true; },
             c21ScopeOptions() {
                 return this.form.encounterSource === "Inpatient"
                     ? [{ value: 4, label: "全部" }, { value: 5, label: "住院總帳" }, { value: 8, label: "出院總帳" }]
@@ -223,6 +243,7 @@
                 this.hasSearched = false;
                 this.rows = [];
                 this.columns = [];
+                this.summaries = [];
                 this.currentPage = 1;
                 this.pageSize = 10;
                 this.serverTotalCount = 0;
@@ -303,7 +324,7 @@
                             reportCode: this.selectedReport.code,
                             startDate: this.isEndDateOnly ? undefined : this.form.startDate,
                             endDate: this.form.endDate,
-                            encounterSource: this.hasEncounterSource
+                            encounterSource: this.hasEncounterSource && !this.isC24
                                 ? this.form.encounterSource
                                 : undefined,
                             stationOrBedPrefix: this.hasStationOrBedPrefix
@@ -319,6 +340,11 @@
                             inpatientType: this.isC23 && this.form.dateMode === "General" ? this.form.inpatientType || undefined : undefined,
                             contractCode: this.isC23 && this.form.contractCode ? this.form.contractCode : undefined,
                             forceRebuild: (this.isC21 || this.isC23) ? this.form.forceRebuild : undefined,
+                            source: this.isC24 ? this.form.encounterSource : undefined,
+                            mode: this.isC24 ? this.form.mode : undefined,
+                            roomScope: this.isC24 ? this.form.roomScope : undefined,
+                            medicalRecordNo: this.isC24 && this.form.medicalRecordNo.trim()
+                                ? this.form.medicalRecordNo.trim() : undefined,
                             receivableBalanceType: this.hasReceivableBalanceType
                                 ? this.form.receivableBalanceType
                                 : undefined,
@@ -344,6 +370,7 @@
                     const result = await response.json();
                     this.columns = Array.isArray(result.columns) ? result.columns : [];
                     this.rows = Array.isArray(result.data) ? result.data : [];
+                    this.summaries = Array.isArray(result.summary) ? result.summary : [];
                     if (this.isServerPaged) {
                         this.serverTotalCount = Number.isInteger(result.totalCount) ? result.totalCount : 0;
                         this.serverTotalPages = Number.isInteger(result.totalPages) ? result.totalPages : 0;
@@ -356,6 +383,7 @@
                 } catch (error) {
                     this.columns = [];
                     this.rows = [];
+                    this.summaries = [];
                     this.serverTotalCount = 0;
                     this.serverTotalPages = 0;
                     this.hasSearched = true;
@@ -392,6 +420,14 @@
                     this.form.inpatientType = "";
                     this.form.forceRebuild = false;
                 }
+                if (this.isC24) {
+                    this.form.source = this.form.encounterSource;
+                    if (this.form.source === "Inpatient") this.form.roomScope = "All";
+                }
+            },
+            changeC24Source() {
+                this.currentPage = 1;
+                if (this.form.source === "Inpatient") this.form.roomScope = "All";
             },
             changeC23DateMode() {
                 this.currentPage = 1;

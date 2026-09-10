@@ -71,6 +71,12 @@ public sealed class ReportController : Controller
             if (validationResult is not null) return validationResult;
         }
 
+        if (searchCondition.ReportCode == "C24")
+        {
+            IActionResult? validationResult = ValidateC24Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
         if (searchCondition.ReportCode == "C1")
         {
             IActionResult? validationResult = ValidateC1Condition(searchCondition);
@@ -161,7 +167,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C21" or "C22" or "C23" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -194,6 +200,7 @@ public sealed class ReportController : Controller
                 "C1" => Ok(_reportService.ReportDataAndColumns<SurgicalAccountingReportViewModel>(searchCondition)),
                 "C21" => Ok(_reportService.ReportDataAndColumns<C21AccountingSummaryReportViewModel>(searchCondition)),
                 "C23" => Ok(_reportService.ReportDataAndColumns<C23ContractAccountingReportViewModel>(searchCondition)),
+                "C24" => Ok(_reportService.ReportDataAndColumns<C24DebtPaymentDetail>(searchCondition)),
                 "C22" => Ok(_reportService.ReportDataAndColumns<CashierCashReportViewModel>(searchCondition)),
                 "C213" => Ok(_reportService.ReportDataAndColumns<CashierCashSummaryReportViewModel>(searchCondition)),
                 "C214" => Ok(_reportService.ReportDataAndColumns<OutpatientReceivableBalanceReportViewModel>(searchCondition)),
@@ -296,6 +303,29 @@ public sealed class ReportController : Controller
             return BadRequest("C23 手動重建僅適用於一般模式單日查詢。");
         if (condition.ForceRebuild && !(_c23Options?.Value.RebuildEnabled ?? false))
             return BadRequest("C23 手動重建功能未開放。");
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC24Condition(SearchReportCondition condition)
+    {
+        if (!TryParseDate(condition.StartDate, out var startDate)
+            || !TryParseDate(condition.EndDate, out var endDate))
+            return BadRequest("請輸入有效的 C24 ISO 起始日期與截止日期。");
+        if (startDate > endDate) return BadRequest("C24 起始日期不可晚於截止日期。");
+        if (!C24Sources.IsSupported(condition.Source))
+            return BadRequest("C24 來源僅接受門急診或住院。");
+        if (!C24Modes.IsSupported(condition.Mode))
+            return BadRequest("C24 模式僅接受 Accounting 或 Billing。");
+        condition.RoomScope = string.IsNullOrWhiteSpace(condition.RoomScope)
+            ? C24RoomScopes.All : condition.RoomScope;
+        if (!C24RoomScopes.IsSupported(condition.RoomScope)
+            || condition.Source == C24Sources.Inpatient && condition.RoomScope != C24RoomScopes.All)
+            return BadRequest("C24 來源與房別範圍不相容。");
+        if (condition.ForceRebuild) return BadRequest("C24 不支援 RebuildPolicy。");
+        condition.MedicalRecordNo = string.IsNullOrWhiteSpace(condition.MedicalRecordNo)
+            ? null : condition.MedicalRecordNo.Trim().ToUpperInvariant();
+        if (condition.MedicalRecordNo is { Length: > 10 })
+            return BadRequest("C24 病歷號不得超過 10 個字元。");
         return null;
     }
 

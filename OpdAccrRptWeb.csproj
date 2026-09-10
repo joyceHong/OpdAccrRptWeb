@@ -31,8 +31,4 @@
     </Reference>
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Sql\C23\*.sql" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

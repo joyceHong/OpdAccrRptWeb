@@ -15,5 +15,7 @@ namespace OpdAccrRptWeb.ViewModels
         public int? PageSize { get; set; }
 
         public int? TotalPages { get; set; }
+
+        public object? Summary { get; set; }
     }
 }

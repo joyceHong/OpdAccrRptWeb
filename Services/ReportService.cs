@@ -3,6 +3,7 @@ using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using Oracle.ManagedDataAccess.Client;
 
 namespace OpdAccrRptWeb.Services;
 
@@ -29,6 +30,8 @@ public class ReportService : IReportService
     private readonly IC21RebuildService? _c21RebuildService;
     private readonly IC23ContractAccountingRepository? _c23ContractAccountingRepository;
     private readonly IC23RebuildService? _c23RebuildService;
+    private readonly IC24DebtPaymentRepository? _c24Repository;
+    private readonly IC24DebtPaymentCalculationService? _c24CalculationService;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -48,7 +51,9 @@ public class ReportService : IReportService
         IC21AccountingSummaryCalculationService? c21CalculationService = null,
         IC21RebuildService? c21RebuildService = null,
         IC23ContractAccountingRepository? c23ContractAccountingRepository = null,
-        IC23RebuildService? c23RebuildService = null)
+        IC23RebuildService? c23RebuildService = null,
+        IC24DebtPaymentRepository? c24Repository = null,
+        IC24DebtPaymentCalculationService? c24CalculationService = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -68,6 +73,8 @@ public class ReportService : IReportService
         _c21RebuildService = c21RebuildService;
         _c23ContractAccountingRepository = c23ContractAccountingRepository;
         _c23RebuildService = c23RebuildService;
+        _c24Repository = c24Repository;
+        _c24CalculationService = c24CalculationService;
     }
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
@@ -80,6 +87,11 @@ public class ReportService : IReportService
         if (searchCondition.ReportCode == "C23")
         {
             return CreateC23Result<T>(searchCondition);
+        }
+
+        if (searchCondition.ReportCode == "C24")
+        {
+            return CreateC24Result<T>(searchCondition);
         }
 
         if (searchCondition.StartDate is not null)
@@ -476,6 +488,50 @@ public class ReportService : IReportService
             PageNumber = pageNumber,
             PageSize = pageSize,
             TotalPages = CalculateTotalPages(totalCount, pageSize)
+        };
+    }
+
+    private ReportDataAndColumns<T> CreateC24Result<T>(SearchReportCondition condition)
+    {
+        var repository = _c24Repository ?? throw new InvalidOperationException("C24 repository 尚未設定。");
+        var calculation = _c24CalculationService ?? throw new InvalidOperationException("C24 calculation service 尚未設定。");
+        C24RepositoryResult source;
+        var attempt = 0;
+        while (true)
+        {
+            attempt++;
+            try
+            {
+                source = repository.Load(condition);
+                break;
+            }
+            catch (OracleException exception) when (attempt < C24OracleFailurePolicy.MaximumAttempts
+                                                     && C24OracleFailurePolicy.IsTransient(exception.Number))
+            {
+                _logger.LogWarning("C24-DB-001 ReportCode=C24 Stage=Repository OracleCode={OracleCode} Action=Retry RetryCount={RetryCount}",
+                    exception.Number, attempt);
+            }
+            catch (OracleException exception)
+            {
+                _logger.LogError("C24-DB-002 ReportCode=C24 Stage=Repository OracleCode={OracleCode} ExceptionType={ExceptionType} Action=Fail RetryCount={RetryCount}",
+                    exception.Number, exception.GetType().Name, attempt - 1);
+                throw;
+            }
+        }
+        var canonical = calculation.Calculate(condition, source);
+        var pageNumber = condition.PageNumber!.Value;
+        var pageSize = condition.PageSize!.Value;
+        var page = canonical.Details.Skip((pageNumber - 1) * pageSize).Take(pageSize).Cast<T>().ToList();
+        return new ReportDataAndColumns<T>
+        {
+            Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C24DebtPaymentDetail>()
+                .Where(x => x.Key != "sourceBusinessKey").ToList(),
+            Data = page,
+            Summary = canonical.Summaries,
+            TotalCount = canonical.Details.Count,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = CalculateTotalPages(canonical.Details.Count, pageSize)
         };
     }
 

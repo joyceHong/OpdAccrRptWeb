@@ -52,6 +52,18 @@
         /// <summary>C23 選填合約代碼。</summary>
         public string? ContractCode { get; set; }
 
+        /// <summary>C24 資料來源：OpdEr 或 Inpatient。</summary>
+        public string? Source { get; set; }
+
+        /// <summary>C24 作業模式：Accounting 或 Billing。</summary>
+        public string? Mode { get; set; }
+
+        /// <summary>C24 房別範圍：All、Emergency 或 NonEmergency。</summary>
+        public string? RoomScope { get; set; }
+
+        /// <summary>C24 選填病歷號。</summary>
+        public string? MedicalRecordNo { get; set; }
+
         /// <summary>
         /// C214 應收餘額類型，僅接受 SelfPay 或 Insurance。
         /// </summary>
@@ -124,5 +136,27 @@
 
         public static bool IsSupported(string? value) =>
             value is SelfPay or Insurance;
+    }
+
+    public static class C24Sources
+    {
+        public const string OpdEr = "OpdEr";
+        public const string Inpatient = "Inpatient";
+        public static bool IsSupported(string? value) => value is OpdEr or Inpatient;
+    }
+
+    public static class C24Modes
+    {
+        public const string Accounting = "Accounting";
+        public const string Billing = "Billing";
+        public static bool IsSupported(string? value) => value is Accounting or Billing;
+    }
+
+    public static class C24RoomScopes
+    {
+        public const string All = "All";
+        public const string Emergency = "Emergency";
+        public const string NonEmergency = "NonEmergency";
+        public static bool IsSupported(string? value) => value is All or Emergency or NonEmergency;
     }
 }

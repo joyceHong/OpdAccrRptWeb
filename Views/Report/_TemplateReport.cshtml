@@ -75,6 +75,11 @@
                         <label><span>合約代碼</span><select v-model="form.contractCode"><option value="">全部</option><option v-for="item in c23Contracts" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
                         <label v-if="canForceC23Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
+                    <div v-if="isC24" class="advanced-grid">
+                        <label><span>模式 <i>*</i></span><select v-model="form.mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
+                        <label><span>門急診別 <i>*</i></span><select v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="NonEmergency">門診</option></select></label>
+                        <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" maxlength="10" /></label>
+                    </div>
                     <button v-if="hasAdvancedConditions" class="advanced-toggle" type="button" v-on:click="advancedOpen = !advancedOpen">
                         <span><strong>進階條件</strong><small>（選填）</small></span>
                         <span>{{ advancedOpen ? '收合 ︿' : '展開 ﹀' }}</span>
@@ -84,12 +89,12 @@
                         <label v-if="hasCashierUserId"><span>批價員代碼</span><input v-model.trim="form.cashierUserId" placeholder="請輸入批價員代碼" /></label>
                         <label v-if="hasCashierCashSort"><span>排序方式 <i>*</i></span><select v-model="form.cashierCashSortType" required><option v-for="option in cashierCashSortConfiguration.options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
                         <label v-if="hasBillingCode"><span>合約代碼</span><input v-model.trim="form.billingCode" placeholder="空白代表全部合約" /></label>
-                        <template v-if="!hasStationOrBedPrefix && !hasCashierUserId && !hasBillingCode">
+                      @*   <template v-if="!hasStationOrBedPrefix && !hasCashierUserId && !hasBillingCode">
                             <label><span>科別</span><select v-model="form.department"><option value="">全部科別</option><option>內科</option><option>外科</option><option>急診醫學科</option></select></label>
                             <label><span>診間</span><input v-model.trim="form.clinic" placeholder="請輸入診間" /></label>
                             <label><span>醫院代碼</span><input v-model.trim="form.hospitalCode" placeholder="請輸入醫院代碼" /></label>
                             <label><span>批價碼</span><input v-model.trim="form.billingCode" placeholder="請輸入批價碼" /></label>
-                        </template>
+                        </template> *@
                     </div>
                     <p v-if="validationMessage" class="validation-message">{{ validationMessage }}</p>
                     <div class="form-actions">
@@ -100,6 +105,9 @@
             </div>
         </section>
         <section class="panel result-panel" :aria-busy="isLoading ? 'true' : 'false'">
+            <div v-if="isC24 && summaries.length" class="result-heading">
+                <span v-for="item in summaries" :key="item.roomCategory">{{ item.roomCategory }}：欠款 {{ item.debtAmount }}／補繳 {{ item.paymentAmount }}／未清 {{ item.outstandingAmount }}</span>
+            </div>
             <div class="result-heading">
                 <div>
                     <strong>查詢結果</strong>

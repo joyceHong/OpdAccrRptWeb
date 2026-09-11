@@ -495,37 +495,41 @@ public class ReportService : IReportService
     {
         var repository = _c24Repository ?? throw new InvalidOperationException("C24 repository 尚未設定。");
         var calculation = _c24CalculationService ?? throw new InvalidOperationException("C24 calculation service 尚未設定。");
-        C24RepositoryResult source;
-        var attempt = 0;
-        while (true)
+        var start = DateOnly.ParseExact(condition.StartDate!, "yyyy-MM-dd");
+        var end = DateOnly.ParseExact(condition.EndDate!, "yyyy-MM-dd");
+        C24CanonicalResult canonical;
+        if (condition.Mode == C24Modes.Billing)
         {
-            attempt++;
-            try
-            {
-                source = repository.Load(condition);
-                break;
-            }
-            catch (OracleException exception) when (attempt < C24OracleFailurePolicy.MaximumAttempts
-                                                     && C24OracleFailurePolicy.IsTransient(exception.Number))
-            {
-                _logger.LogWarning("C24-DB-001 ReportCode=C24 Stage=Repository OracleCode={OracleCode} Action=Retry RetryCount={RetryCount}",
-                    exception.Number, attempt);
-            }
-            catch (OracleException exception)
-            {
-                _logger.LogError("C24-DB-002 ReportCode=C24 Stage=Repository OracleCode={OracleCode} ExceptionType={ExceptionType} Action=Fail RetryCount={RetryCount}",
-                    exception.Number, exception.GetType().Name, attempt - 1);
-                throw;
-            }
+            var source = ExecuteC24ReadWithRetry(() => repository.Load(condition), "BillingSource");
+            canonical = calculation.Calculate(condition, source);
         }
-        var canonical = calculation.Calculate(condition, source);
+        else
+        {
+            var isSingleDay = start == end;
+            var hasLegacy = isSingleDay && !condition.ForceRebuild
+                && ExecuteC24ReadWithRetry(() => repository.HasLegacyResult(condition.Source!, start),
+                    "LegacyExists");
+            if (isSingleDay && !hasLegacy)
+            {
+                var source = ExecuteC24ReadWithRetry(() => repository.Load(condition), "AccountingSource");
+                var rebuilt = calculation.Calculate(condition, source);
+                ValidateLegacyPublication(rebuilt);
+                PublishLegacyWithRetry(repository, condition.Source!, start,
+                    rebuilt.LegacyDetails.Where(x => x.AccountingDate == start).ToList(),
+                    rebuilt.LegacySummaries.Where(x => x.AccountingDate == start).ToList());
+            }
+            var legacy = ExecuteC24ReadWithRetry(
+                () => repository.LoadLegacy(condition.Source!, start, end), "LegacyRead");
+            canonical = CreateCanonicalFromLegacy(condition, legacy);
+        }
         var pageNumber = condition.PageNumber!.Value;
         var pageSize = condition.PageSize!.Value;
         var page = canonical.Details.Skip((pageNumber - 1) * pageSize).Take(pageSize).Cast<T>().ToList();
         return new ReportDataAndColumns<T>
         {
             Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C24DebtPaymentDetail>()
-                .Where(x => x.Key != "sourceBusinessKey").ToList(),
+                .Where(x => x.Key is not "sourceBusinessKey" and not "legacyRoomType"
+                    and not "legacyDischargeFlag").ToList(),
             Data = page,
             Summary = canonical.Summaries,
             TotalCount = canonical.Details.Count,
@@ -533,6 +537,129 @@ public class ReportService : IReportService
             PageSize = pageSize,
             TotalPages = CalculateTotalPages(canonical.Details.Count, pageSize)
         };
+    }
+
+    private T ExecuteC24ReadWithRetry<T>(Func<T> operation, string stage)
+    {
+        var attempt = 0;
+        while (true)
+        {
+            attempt++;
+            try
+            {
+                return operation();
+            }
+            catch (OracleException exception) when (attempt < C24OracleFailurePolicy.MaximumAttempts
+                                                     && C24OracleFailurePolicy.IsTransient(exception.Number))
+            {
+                _logger.LogWarning("C24-DB-001 ReportCode=C24 Stage={Stage} OracleCode={OracleCode} Action=Retry RetryCount={RetryCount}",
+                    stage, exception.Number, attempt);
+            }
+            catch (OracleException exception)
+            {
+                _logger.LogError("C24-DB-002 ReportCode=C24 Stage={Stage} OracleCode={OracleCode} ExceptionType={ExceptionType} Action=Fail RetryCount={RetryCount}",
+                    stage, exception.Number, exception.GetType().Name, attempt - 1);
+                throw;
+            }
+        }
+    }
+
+    private static C24CanonicalResult CreateCanonicalFromLegacy(
+        SearchReportCondition condition, C24LegacyResult legacy)
+    {
+        var details = legacy.Details.Select(ToC24Detail)
+            .Where(x => MatchesC24Filter(condition, x))
+            .OrderBy(x => x.RoomCategory).ThenBy(x => x.MedicalRecordNo, StringComparer.Ordinal)
+            .ThenBy(x => x.DepartmentCode, StringComparer.Ordinal)
+            .ThenBy(x => x.ChargeItemCode, StringComparer.Ordinal).ThenBy(x => x.VisitDate)
+            .ThenBy(x => x.SourceBusinessKey, StringComparer.Ordinal).ToList();
+        IReadOnlyList<C24Summary> summaries = condition.RoomScope == C24RoomScopes.All
+                                               && condition.MedicalRecordNo is null
+            ? legacy.Summaries.GroupBy(x => RoomCategory(x.RoomType, condition.Source!))
+                .OrderBy(x => x.Key)
+                .Select(x => new C24Summary(x.Key, x.Sum(y => y.DebtAmount),
+                    decimal.ToInt32(x.Sum(y => y.DebtCount)), x.Sum(y => y.PaymentAmount),
+                    decimal.ToInt32(x.Sum(y => y.PaymentCount)), x.Sum(y => y.OutstandingAmount),
+                    decimal.ToInt32(x.Sum(y => y.OutstandingCount)))).ToList()
+            : C24DebtPaymentCalculationService.Summarize(details, C24Modes.Accounting).ToList();
+        var id = Guid.NewGuid().ToString("N");
+        return new C24CanonicalResult
+        {
+            Details = details, Summaries = summaries, LegacyDetails = legacy.Details,
+            LegacySummaries = legacy.Summaries, RunId = id, CorrelationId = id
+        };
+    }
+
+    private static C24DebtPaymentDetail ToC24Detail(C24LegacyDetailRow row)
+    {
+        var sourceKind = row.ChargeItemCode == "69" ? C24SourceKind.Acc69 : C24SourceKind.Ord;
+        return new C24DebtPaymentDetail
+        {
+            AccountingDate = row.AccountingDate, VisitDate = row.VisitDate,
+            RoomCategory = RoomCategory(row.RoomType, null), MedicalRecordNo = row.MedicalRecordNo,
+            PatientName = row.PatientName, MaskedPhone = row.Phone, DepartmentCode = row.DepartmentCode,
+            PayerClassCode = row.PayerClassCode, CardSequenceNo = row.CardSequenceNo,
+            ChargeItemCode = row.ChargeItemCode, ChargeItemName = row.ChargeItemName,
+            EventAmount = row.SignedAmount, DiscountAmount = row.SignedDiscount,
+            AmountDue = row.AmountDue, CreatedBy = row.CreatedBy, SourceKind = sourceKind,
+            SourceBusinessKey = string.Join('|', row.AccountingDate, row.VisitDate,
+                row.MedicalRecordNo, row.ChargeItemCode, row.CreatedBy),
+            LegacyRoomType = row.RoomType, LegacyDischargeFlag = row.DischargeFlag
+        };
+    }
+
+    private static bool MatchesC24Filter(SearchReportCondition condition, C24DebtPaymentDetail row) =>
+        (condition.RoomScope == C24RoomScopes.All
+         || condition.RoomScope == C24RoomScopes.Emergency && row.RoomCategory == C24RoomCategory.Emergency
+         || condition.RoomScope == C24RoomScopes.NonEmergency && row.RoomCategory != C24RoomCategory.Emergency)
+        && (condition.MedicalRecordNo is null || condition.MedicalRecordNo == row.MedicalRecordNo);
+
+    private static C24RoomCategory RoomCategory(string? roomType, string? source) =>
+        source == C24Sources.Inpatient || roomType == "I" ? C24RoomCategory.Inpatient
+        : roomType == "E" ? C24RoomCategory.Emergency : C24RoomCategory.Outpatient;
+
+    internal static void ValidateLegacyPublication(C24CanonicalResult result)
+    {
+        if (result.LegacyDetails.Any(x => string.IsNullOrWhiteSpace(x.RoomType)
+                                          || string.IsNullOrWhiteSpace(x.RoomTypeName)
+                                          || string.IsNullOrWhiteSpace(x.MedicalRecordNo)
+                                          || string.IsNullOrWhiteSpace(x.PatientName)))
+            throw new C24LegacyPublicationException("C24 Legacy 明細必要欄位不完整。");
+
+        var expected = C24DebtPaymentCalculationService.SummarizeLegacy(result.LegacyDetails)
+            .OrderBy(x => x.AccountingDate).ThenBy(x => x.RoomType, StringComparer.Ordinal).ToList();
+        var actual = result.LegacySummaries
+            .OrderBy(x => x.AccountingDate).ThenBy(x => x.RoomType, StringComparer.Ordinal).ToList();
+        if (!expected.SequenceEqual(actual))
+            throw new C24LegacyPublicationException("C24 Legacy 明細與摘要不一致。");
+    }
+
+    private void PublishLegacyWithRetry(IC24DebtPaymentRepository repository, string source,
+        DateOnly accountingDate, IReadOnlyList<C24LegacyDetailRow> details,
+        IReadOnlyList<C24LegacySummaryRow> summaries)
+    {
+        var attempt = 0;
+        while (true)
+        {
+            attempt++;
+            try
+            {
+                repository.PublishLegacy(source, accountingDate, details, summaries);
+                return;
+            }
+            catch (OracleException exception) when (attempt < C24OracleFailurePolicy.MaximumAttempts
+                                                     && C24OracleFailurePolicy.IsTransient(exception.Number))
+            {
+                _logger.LogWarning("C24-DB-003 ReportCode=C24 Stage=LegacyPublish OracleCode={OracleCode} Action=Retry RetryCount={RetryCount}",
+                    exception.Number, attempt);
+            }
+            catch (OracleException exception)
+            {
+                _logger.LogError("C24-DB-004 ReportCode=C24 Stage=LegacyPublish OracleCode={OracleCode} ExceptionType={ExceptionType} Action=Fail RetryCount={RetryCount}",
+                    exception.Number, exception.GetType().Name, attempt - 1);
+                throw;
+            }
+        }
     }
 
     internal static int CalculateTotalPages(int totalCount, int pageSize)
@@ -551,3 +678,5 @@ public class ReportService : IReportService
         };
     }
 }
+
+public sealed class C24LegacyPublicationException(string message) : Exception(message);

@@ -194,6 +194,10 @@
                     && this.form.dateMode === "General"
                     && this.form.startDate === this.form.endDate;
             },
+            canForceC24Rebuild() {
+                return this.isC24 && this.form.mode === "Accounting"
+                    && this.form.startDate === this.form.endDate;
+            },
             receivableBalanceTypeConfiguration() { return this.reportConfiguration.receivableBalanceType ?? null; },
             hasReceivableBalanceType() { return this.receivableBalanceTypeConfiguration !== null; },
             hasAdvancedConditions() { return this.reportConfiguration.advancedConditions !== false; },
@@ -339,7 +343,8 @@
                             dateMode: this.isC23 ? this.form.dateMode : undefined,
                             inpatientType: this.isC23 && this.form.dateMode === "General" ? this.form.inpatientType || undefined : undefined,
                             contractCode: this.isC23 && this.form.contractCode ? this.form.contractCode : undefined,
-                            forceRebuild: (this.isC21 || this.isC23) ? this.form.forceRebuild : undefined,
+                            forceRebuild: (this.isC21 || this.isC23 || this.canForceC24Rebuild)
+                                ? this.form.forceRebuild : undefined,
                             source: this.isC24 ? this.form.encounterSource : undefined,
                             mode: this.isC24 ? this.form.mode : undefined,
                             roomScope: this.isC24 ? this.form.roomScope : undefined,
@@ -428,6 +433,10 @@
             changeC24Source() {
                 this.currentPage = 1;
                 if (this.form.source === "Inpatient") this.form.roomScope = "All";
+            },
+            changeC24Mode() {
+                this.currentPage = 1;
+                this.form.forceRebuild = false;
             },
             changeC23DateMode() {
                 this.currentPage = 1;

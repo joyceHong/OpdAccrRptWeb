@@ -40,7 +40,7 @@
         /// <summary>C21 帳務範圍；依來源接受 0-3 或 4/5/8。</summary>
         public int? AccountingScope { get; set; }
 
-        /// <summary>C21 或 C23 是否強制重新計算／重建。</summary>
+        /// <summary>C21、C23 或 C24 是否強制重新計算／重建。</summary>
         public bool ForceRebuild { get; set; }
 
         /// <summary>C23 日期模式：General 或 EncounterDate。</summary>

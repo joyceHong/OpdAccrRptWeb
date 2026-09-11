@@ -76,9 +76,10 @@
                         <label v-if="canForceC23Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
                     <div v-if="isC24" class="advanced-grid">
-                        <label><span>模式 <i>*</i></span><select v-model="form.mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
+                        <label><span>模式 <i>*</i></span><select v-model="form.mode" v-on:change="changeC24Mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
                         <label><span>門急診別 <i>*</i></span><select v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="NonEmergency">門診</option></select></label>
                         <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" maxlength="10" /></label>
+                        <label v-if="canForceC24Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
                     <button v-if="hasAdvancedConditions" class="advanced-toggle" type="button" v-on:click="advancedOpen = !advancedOpen">
                         <span><strong>進階條件</strong><small>（選填）</small></span>

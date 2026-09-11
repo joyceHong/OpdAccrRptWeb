@@ -321,7 +321,8 @@ public sealed class ReportController : Controller
         if (!C24RoomScopes.IsSupported(condition.RoomScope)
             || condition.Source == C24Sources.Inpatient && condition.RoomScope != C24RoomScopes.All)
             return BadRequest("C24 來源與房別範圍不相容。");
-        if (condition.ForceRebuild) return BadRequest("C24 不支援 RebuildPolicy。");
+        if (condition.ForceRebuild && (condition.Mode != C24Modes.Accounting || startDate != endDate))
+            return BadRequest("C24 手動重建僅適用於 Accounting 單日查詢。");
         condition.MedicalRecordNo = string.IsNullOrWhiteSpace(condition.MedicalRecordNo)
             ? null : condition.MedicalRecordNo.Trim().ToUpperInvariant();
         if (condition.MedicalRecordNo is { Length: > 10 })

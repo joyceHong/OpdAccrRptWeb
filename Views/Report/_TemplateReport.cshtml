@@ -7,9 +7,10 @@
                 <h1>{{ selectedReport ? selectedReport.name : '請從左側選擇報表' }}</h1>
                 <p>設定查詢區間與條件，送出後即可檢視報表資料。</p>
             </div>
-            <button class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
+            <button v-if="!isPrintableLegacyReport" class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
+            <button v-else class="outline-button no-print" type="button" :disabled="!hasResults" v-on:click="printC211">列印</button>
         </section>
         <section v-if="exportJob" class="export-status" role="status" aria-live="polite">
             <strong>Excel 匯出：{{ exportJob.status }}</strong>
@@ -75,6 +76,10 @@
                         <label><span>合約代碼</span><select v-model="form.contractCode"><option value="">全部</option><option v-for="item in c23Contracts" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
                         <label v-if="canForceC23Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
+                    <div v-if="isC211" class="advanced-grid c211-contract-input">
+                        <label><span>合約單位</span><input v-model="form.contractCode" list="c211-contract-list" placeholder="全部／可直接輸入代碼" /></label>
+                        <datalist id="c211-contract-list"><option v-for="item in c211Contracts" :key="item.code" :value="item.code">{{ item.name }}</option></datalist>
+                    </div>
                     <div v-if="isC24" class="advanced-grid">
                         <label><span>模式 <i>*</i></span><select v-model="form.mode" v-on:change="changeC24Mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
                         <label><span>門急診別 <i>*</i></span><select v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="NonEmergency">門診</option></select></label>
@@ -114,7 +119,7 @@
                     <strong>查詢結果</strong>
                     <span v-if="!isLoading && hasResults">共 {{ totalCount }} 筆</span>
                 </div>
-                <label v-if="!isLoading && hasResults">
+                <label v-if="!isLoading && hasResults && !isPrintableLegacyReport">
                     每頁顯示
                     <select v-model.number="pageSize" :disabled="isLoading" v-on:change="changePageSize">
                         <option :value="10">10 筆</option>
@@ -129,8 +134,37 @@
             </template>
             <div v-else-if="!hasResults" class="empty-result">
                 <div>▤</div>
-                <strong>{{ hasSearched ? '查無資料' : '尚無查詢結果' }}</strong>
+                <strong>{{ hasSearched ? (isPrintableLegacyReport ? '查無資料！' : '查無資料') : '尚無查詢結果' }}</strong>
                 <p>{{ hasSearched ? '目前條件沒有符合的資料。' : '請設定上方查詢條件後按下「查詢」。' }}</p>
+            </div>
+            <div v-else-if="isC211" class="c211-report">
+                <header class="c211-report-header">
+                    <h2>{{ c211Summary.title }}</h2>
+                    <p>{{ c211Summary.reportDate }}</p>
+                    <small>{{ c211Summary.programNo }}／{{ c211Summary.reportNo }}　{{ c211Summary.processDateTime }}　{{ c211Summary.editUser }}</small>
+                </header>
+                <section v-for="group in c211Groups" :key="group.contractCode" class="c211-group">
+                    <h3>合約身分：{{ group.contractCode }}</h3>
+                    <table>
+                        <thead><tr><th>病歷號</th><th>就診日期</th><th class="amount">一般身分合約金額</th><th class="amount">健保身分合約金額</th></tr></thead>
+                        <tbody><tr v-for="(row, index) in group.rows" :key="`${group.contractCode}-${index}`"><td>{{ row.medicalRecordNo }}</td><td>{{ row.visitDate }}</td><td class="amount">{{ row.selfAmount }}</td><td class="amount">{{ row.claimAmount }}</td></tr></tbody>
+                        <tfoot><tr><th colspan="2">合約小計</th><th class="amount">{{ group.selfAmount }}</th><th class="amount">{{ group.claimAmount }}</th></tr></tfoot>
+                    </table>
+                </section>
+                <footer class="c211-grand-total"><strong>報表總計</strong><span>一般：{{ c211Summary.selfGrandTotal }}</span><span>健保：{{ c211Summary.claimGrandTotal }}</span></footer>
+            </div>
+            <div v-else-if="isC212" class="c212-report">
+                <header class="c211-report-header">
+                    <h2>{{ c212Summary.title }}</h2>
+                    <p>{{ c212Summary.reportDate }}</p>
+                    <small>{{ c212Summary.programNo }}／{{ c212Summary.reportNo }}　{{ c212Summary.processDateTime }}　{{ c212Summary.editUser }}</small>
+                    <p class="c212-freshness-warning" role="alert">{{ c212Summary.dataStatusMessage }}</p>
+                </header>
+                <table>
+                    <thead><tr><th>日期</th><th>病歷號</th><th>姓名</th><th class="amount">金額</th></tr></thead>
+                    <tbody><tr v-for="(row, index) in rows" :key="index"><td>{{ row.accountingDate }}</td><td>{{ row.medicalRecordNo }}</td><td>{{ row.patientName }}</td><td class="amount">{{ row.amount }}</td></tr></tbody>
+                    <tfoot><tr><th colspan="3">合計</th><th class="amount">{{ c212Summary.totalAmount }}</th></tr></tfoot>
+                </table>
             </div>
             <div v-else class="table-wrap">
                 <table>
@@ -138,14 +172,16 @@
                     <tbody><tr v-for="row in pagedRows" :key="row.id"><td v-for="column in columns" :key="column.key">{{ row[column.key] }}</td></tr></tbody>
                 </table>
             </div>
-            <div v-if="!isLoading && hasResults" class="pagination">
-                <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
-                <div>
-                    <button type="button" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(currentPage - 1)">‹</button>
-                    <button class="active" type="button">{{ currentPage }}</button>
-                    <button type="button" :disabled="isLoading || currentPage === totalPages" v-on:click="goToPage(currentPage + 1)">›</button>
+            <template v-if="!isPrintableLegacyReport">
+                <div v-if="!isLoading && hasResults" class="pagination">
+                    <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
+                    <div>
+                        <button type="button" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(currentPage - 1)">‹</button>
+                        <button class="active" type="button">{{ currentPage }}</button>
+                        <button type="button" :disabled="isLoading || currentPage === totalPages" v-on:click="goToPage(currentPage + 1)">›</button>
+                    </div>
                 </div>
-            </div>
+            </template>
         </section>
     </div>
 </template>

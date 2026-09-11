@@ -64,6 +64,25 @@
         C25: Object.freeze({ serverPaged: true }),
         C27: Object.freeze({ serverPaged: true, endDateOnly: true }),
         C28: Object.freeze({ serverPaged: true, endDateOnly: true }),
+        C211: Object.freeze({
+            serverPaged: false,
+            endDateOnly: true,
+            advancedConditions: false,
+            c211: true,
+            encounterSource: Object.freeze({
+                defaultValue: "O",
+                options: Object.freeze([
+                    Object.freeze({ value: "O", label: "門急" }),
+                    Object.freeze({ value: "I", label: "住院" })
+                ])
+            })
+        }),
+        C212: Object.freeze({
+            serverPaged: false,
+            endDateOnly: true,
+            advancedConditions: false,
+            c212: true
+        }),
         C29: Object.freeze({
             serverPaged: true,
             billingCode: true,
@@ -105,9 +124,15 @@
     });
     const getReportConfiguration = reportCode => reportConfigurations[reportCode]
         ?? Object.freeze({ serverPaged: false });
+    const previousDate = value => {
+        const date = new Date(`${value}T12:00:00`);
+        date.setDate(date.getDate() - 1);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    };
     const createInitialForm = (startDate, endDate, reportConfiguration) => ({
         startDate,
-        endDate,
+        endDate: reportConfiguration.c211 === true || reportConfiguration.c212 === true
+            ? previousDate(endDate) : endDate,
         encounterSource: reportConfiguration.encounterSource?.defaultValue ?? "",
         stationOrBedPrefix: "",
         cashierUserId: "",
@@ -165,7 +190,10 @@
                 columns: []
                 ,c21BillingItems: [],
                 c23Contracts: [],
-                summaries: []
+                c211Contracts: [],
+                summaries: [],
+                c211Summary: null,
+                c212Summary: null
             };
         },
         computed: {
@@ -179,6 +207,9 @@
             isC21() { return this.reportConfiguration.c21 === true; },
             isC23() { return this.reportConfiguration.c23 === true; },
             isC24() { return this.reportConfiguration.c24 === true; },
+            isC211() { return this.reportConfiguration.c211 === true; },
+            isC212() { return this.reportConfiguration.c212 === true; },
+            isPrintableLegacyReport() { return this.isC211 || this.isC212; },
             c21ScopeOptions() {
                 return this.form.encounterSource === "Inpatient"
                     ? [{ value: 4, label: "全部" }, { value: 5, label: "住院總帳" }, { value: 8, label: "出院總帳" }]
@@ -214,11 +245,19 @@
                     : Math.max(1, Math.ceil(this.filteredRows.length / this.pageSize));
             },
             pagedRows() {
+                if (this.isPrintableLegacyReport) return this.rows;
                 if (this.isServerPaged) {
                     return this.rows;
                 }
                 const start = (this.currentPage - 1) * this.pageSize;
                 return this.filteredRows.slice(start, start + this.pageSize);
+            },
+            c211Groups() {
+                if (!this.isC211 || !this.c211Summary) return [];
+                return this.c211Summary.groups.map(group => ({
+                    ...group,
+                    rows: this.rows.filter(row => row.contractCode === group.contractCode)
+                }));
             }
         },
         watch: {
@@ -226,11 +265,13 @@
                 this.resetForm();
                 this.loadC21BillingItems();
                 this.loadC23Contracts();
+                this.loadC211Contracts();
             }
         },
         mounted() {
             this.loadC21BillingItems();
             this.loadC23Contracts();
+            this.loadC211Contracts();
         },
         beforeUnmount() {
             this.stopExportPolling();
@@ -248,6 +289,8 @@
                 this.rows = [];
                 this.columns = [];
                 this.summaries = [];
+                this.c211Summary = null;
+                this.c212Summary = null;
                 this.currentPage = 1;
                 this.pageSize = 10;
                 this.serverTotalCount = 0;
@@ -273,6 +316,16 @@
                     if (response.ok) this.c23Contracts = await response.json();
                 } catch {
                     this.c23Contracts = [];
+                }
+            },
+            async loadC211Contracts() {
+                this.c211Contracts = [];
+                if (!this.isC211) return;
+                try {
+                    const response = await fetch("/Report/C211/Contracts", { cache: "no-store" });
+                    if (response.ok) this.c211Contracts = await response.json();
+                } catch {
+                    this.c211Contracts = [];
                 }
             },
             async search() {
@@ -342,7 +395,8 @@
                             accountingScope: this.isC21 ? this.form.accountingScope : undefined,
                             dateMode: this.isC23 ? this.form.dateMode : undefined,
                             inpatientType: this.isC23 && this.form.dateMode === "General" ? this.form.inpatientType || undefined : undefined,
-                            contractCode: this.isC23 && this.form.contractCode ? this.form.contractCode : undefined,
+                            contractCode: (this.isC23 || this.isC211) && this.form.contractCode.trim()
+                                ? this.form.contractCode.trim() : undefined,
                             forceRebuild: (this.isC21 || this.isC23 || this.canForceC24Rebuild)
                                 ? this.form.forceRebuild : undefined,
                             source: this.isC24 ? this.form.encounterSource : undefined,
@@ -356,8 +410,8 @@
                             chop1sec: this.hasAdvancedConditions
                                 ? this.form.department
                                 : undefined,
-                            pageNumber: this.isServerPaged ? this.currentPage : null,
-                            pageSize: this.isServerPaged ? this.pageSize : null
+                            pageNumber: this.isServerPaged ? this.currentPage : undefined,
+                            pageSize: this.isServerPaged ? this.pageSize : undefined
                         })
                     });
 
@@ -376,6 +430,10 @@
                     this.columns = Array.isArray(result.columns) ? result.columns : [];
                     this.rows = Array.isArray(result.data) ? result.data : [];
                     this.summaries = Array.isArray(result.summary) ? result.summary : [];
+                    this.c211Summary = this.isC211 && result.summary && !Array.isArray(result.summary)
+                        ? result.summary : null;
+                    this.c212Summary = this.isC212 && result.summary && !Array.isArray(result.summary)
+                        ? result.summary : null;
                     if (this.isServerPaged) {
                         this.serverTotalCount = Number.isInteger(result.totalCount) ? result.totalCount : 0;
                         this.serverTotalPages = Number.isInteger(result.totalPages) ? result.totalPages : 0;
@@ -389,6 +447,8 @@
                     this.columns = [];
                     this.rows = [];
                     this.summaries = [];
+                    this.c211Summary = null;
+                    this.c212Summary = null;
                     this.serverTotalCount = 0;
                     this.serverTotalPages = 0;
                     this.hasSearched = true;
@@ -451,6 +511,9 @@
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
                 this.validationMessage = "";
+            },
+            printC211() {
+                if (this.isPrintableLegacyReport && this.hasResults) window.print();
             },
             async exportResults() {
                 if (!this.canExport) return;

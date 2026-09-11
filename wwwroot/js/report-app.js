@@ -12,6 +12,8 @@
         C25: window.ReportComponents.ReportTemplate,
         C27: window.ReportComponents.ReportTemplate,
         C28: window.ReportComponents.ReportTemplate,
+        C211: window.ReportComponents.ReportTemplate,
+        C212: window.ReportComponents.ReportTemplate,
         C29: window.ReportComponents.ReportTemplate,
         C171: window.ReportComponents.ReportTemplate,
         C172: window.ReportComponents.ReportTemplate,

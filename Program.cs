@@ -40,9 +40,14 @@ builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, Inpatie
 builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
 builder.Services.AddSingleton<IInpatientReceivableBalanceRepository, InpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IContractPaymentDetailRepository, ContractPaymentDetailRepository>();
+builder.Services.AddScoped<IC211ContractBalanceRepository, C211ContractBalanceRepository>();
+builder.Services.AddScoped<IC212BoneBankBalanceRepository, C212BoneBankBalanceRepository>();
 builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
 builder.Services.AddSingleton<IC21AccountingSummaryCalculationService, C21AccountingSummaryCalculationService>();
 builder.Services.AddSingleton<IC24DebtPaymentCalculationService, C24DebtPaymentCalculationService>();
+builder.Services.AddScoped<IC211ContractBalanceReportService, C211ContractBalanceReportService>();
+builder.Services.AddSingleton<IC212AmountCompatibilityPolicy, C212PreserveDecimalAmountPolicy>();
+builder.Services.AddScoped<IC212BoneBankBalanceReportService, C212BoneBankBalanceReportService>();
 builder.Services.AddSingleton<IC24CanonicalResultRenderer, C24HtmlRenderer>();
 builder.Services.AddSingleton<IC24CanonicalResultRenderer, C24JsonRenderer>();
 builder.Services.AddSingleton<IC24CanonicalResultRenderer, C24PdfRenderer>();
@@ -57,7 +62,7 @@ builder.Services.AddSingleton<IC23RebuildAuthorizationService, C23RebuildAuthori
 builder.Services.AddSingleton<IC23RebuildService, C23RebuildService>();
 builder.Services.AddOptions<C23Options>()
     .Bind(builder.Configuration.GetSection(C23Options.SectionName));
-builder.Services.AddSingleton<IReportService, ReportService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();
 builder.Services.AddSingleton<IReportExportJobStore, ReportExportJobStore>();
 builder.Services.AddSingleton<ReportExportWorkQueue>();

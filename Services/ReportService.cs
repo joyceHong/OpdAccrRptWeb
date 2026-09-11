@@ -32,6 +32,8 @@ public class ReportService : IReportService
     private readonly IC23RebuildService? _c23RebuildService;
     private readonly IC24DebtPaymentRepository? _c24Repository;
     private readonly IC24DebtPaymentCalculationService? _c24CalculationService;
+    private readonly IC211ContractBalanceReportService? _c211ReportService;
+    private readonly IC212BoneBankBalanceReportService? _c212ReportService;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -53,7 +55,9 @@ public class ReportService : IReportService
         IC23ContractAccountingRepository? c23ContractAccountingRepository = null,
         IC23RebuildService? c23RebuildService = null,
         IC24DebtPaymentRepository? c24Repository = null,
-        IC24DebtPaymentCalculationService? c24CalculationService = null)
+        IC24DebtPaymentCalculationService? c24CalculationService = null,
+        IC211ContractBalanceReportService? c211ReportService = null,
+        IC212BoneBankBalanceReportService? c212ReportService = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -75,7 +79,24 @@ public class ReportService : IReportService
         _c23RebuildService = c23RebuildService;
         _c24Repository = c24Repository;
         _c24CalculationService = c24CalculationService;
+        _c211ReportService = c211ReportService;
+        _c212ReportService = c212ReportService;
     }
+
+    public Task<ReportDataAndColumns<C211ContractBalanceReportViewModel>> ReportC211Async(
+        SearchReportCondition searchCondition,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        (_c211ReportService ?? throw new InvalidOperationException("C211 report service 尚未設定。"))
+            .CreateAsync(searchCondition, userId, cancellationToken);
+
+    public Task<ReportDataAndColumns<C212BoneBankBalanceReportViewModel>> ReportC212Async(
+        C212Query query,
+        string userId,
+        string correlationId,
+        CancellationToken cancellationToken = default) =>
+        (_c212ReportService ?? throw new InvalidOperationException("C212 report service 尚未設定。"))
+            .CreateAsync(query, userId, correlationId, cancellationToken);
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
     {

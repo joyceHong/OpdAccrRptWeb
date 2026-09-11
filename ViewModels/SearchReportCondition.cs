@@ -49,7 +49,7 @@
         /// <summary>C23 住院別：Inpatient 或 Discharged；就診日模式必須為空。</summary>
         public string? InpatientType { get; set; }
 
-        /// <summary>C23 選填合約代碼。</summary>
+        /// <summary>C23、C211 選填合約代碼。</summary>
         public string? ContractCode { get; set; }
 
         /// <summary>C24 資料來源：OpdEr 或 Inpatient。</summary>

@@ -4,6 +4,7 @@ using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
 using System.Globalization;
+using Oracle.ManagedDataAccess.Client;
 
 namespace OpdAccrRptWeb.Controllers;
 
@@ -17,6 +18,7 @@ public sealed class ReportController : Controller
     private readonly IOptions<C21Options>? _c21Options;
     private readonly IC23ContractAccountingRepository? _c23Repository;
     private readonly IOptions<C23Options>? _c23Options;
+    private readonly IC211ContractBalanceRepository? _c211Repository;
 
     public ReportController(
         IReportCatalogService reportCatalogService,
@@ -26,7 +28,8 @@ public sealed class ReportController : Controller
         IC21AccountingSummaryRepository? c21Repository = null,
         IOptions<C21Options>? c21Options = null,
         IC23ContractAccountingRepository? c23Repository = null,
-        IOptions<C23Options>? c23Options = null)
+        IOptions<C23Options>? c23Options = null,
+        IC211ContractBalanceRepository? c211Repository = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -36,6 +39,7 @@ public sealed class ReportController : Controller
         _c21Options = c21Options;
         _c23Repository = c23Repository;
         _c23Options = c23Options;
+        _c211Repository = c211Repository;
     }
 
     [HttpGet("/")]
@@ -56,6 +60,16 @@ public sealed class ReportController : Controller
     [HttpPost("Report/GetReportData")]
     public IActionResult GetReportData([FromBody] SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C211")
+        {
+            IActionResult? validationResult = ValidateC211Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+        if (searchCondition.ReportCode == "C212")
+        {
+            IActionResult? validationResult = ValidateC212Condition(searchCondition, out _);
+            if (validationResult is not null) return validationResult;
+        }
         if (searchCondition.ReportCode == "C21")
         {
             IActionResult? validationResult = ValidateC21Condition(searchCondition);
@@ -195,6 +209,26 @@ public sealed class ReportController : Controller
 
         try
         {
+            if (searchCondition.ReportCode == "C211")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                var userId = User.Identity?.IsAuthenticated == true
+                    ? User.Identity.Name ?? string.Empty
+                    : string.Empty;
+                return Ok(_reportService.ReportC211Async(
+                    searchCondition, userId, HttpContext.RequestAborted).GetAwaiter().GetResult());
+            }
+            if (searchCondition.ReportCode == "C212")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                ValidateC212Condition(searchCondition, out C212Query query);
+                var userId = User.Identity?.IsAuthenticated == true
+                    ? User.Identity.Name ?? string.Empty
+                    : string.Empty;
+                return Ok(_reportService.ReportC212Async(
+                    query, userId, HttpContext.TraceIdentifier, HttpContext.RequestAborted)
+                    .GetAwaiter().GetResult());
+            }
             return searchCondition.ReportCode switch
             {
                 "C1" => Ok(_reportService.ReportDataAndColumns<SurgicalAccountingReportViewModel>(searchCondition)),
@@ -233,9 +267,42 @@ public sealed class ReportController : Controller
                 Title = exception.Message
             });
         }
+        catch (OperationCanceledException) when (searchCondition.ReportCode is "C211" or "C212")
+        {
+            return StatusCode(499);
+        }
+        catch (OracleException exception) when (searchCondition.ReportCode is "C211" or "C212")
+        {
+            var traceId = HttpContext.TraceIdentifier;
+            var unavailable = IsOracleConnectionFailure(exception.Number);
+            _logger.LogWarning(
+                "{ReportCode} Oracle 查詢失敗。TraceId: {TraceId}, ErrorNumber: {ErrorNumber}, Category: {Category}",
+                searchCondition.ReportCode, traceId, exception.Number, unavailable ? "Unavailable" : "TimeoutOrQueryFailure");
+            var status = unavailable ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status504GatewayTimeout;
+            var details = new ProblemDetails
+            {
+                Status = status,
+                Title = unavailable ? "資料庫服務暫時無法使用，請稍後再試。" : "查詢逾時，請稍後再試。"
+            };
+            details.Extensions["traceId"] = traceId;
+            return StatusCode(status, details);
+        }
         catch (Exception exception)
         {
             var traceId = HttpContext.TraceIdentifier;
+            if (searchCondition.ReportCode is "C211" or "C212")
+            {
+                _logger.LogError(
+                    "{ReportCode} 查詢發生未預期錯誤。TraceId: {TraceId}, ExceptionType: {ExceptionType}",
+                    searchCondition.ReportCode, traceId, exception.GetType().FullName);
+                var safeDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status500InternalServerError,
+                    Title = "查詢報表時發生錯誤，請提供追蹤碼給系統管理人員。"
+                };
+                safeDetails.Extensions["traceId"] = traceId;
+                return StatusCode(StatusCodes.Status500InternalServerError, safeDetails);
+            }
             _logger.LogError(
                 exception,
                 "報表查詢失敗。TraceId: {TraceId}, ReportCode: {ReportCode}, StartDate: {StartDate}, EndDate: {EndDate}, EncounterSource: {EncounterSource}, PageNumber: {PageNumber}, PageSize: {PageSize}",
@@ -272,6 +339,49 @@ public sealed class ReportController : Controller
     {
         if (_c23Repository is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
         return Ok(_c23Repository.GetContracts());
+    }
+
+    [HttpGet("Report/C211/Contracts")]
+    public async Task<IActionResult> GetC211Contracts(CancellationToken cancellationToken)
+    {
+        if (_c211Repository is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        Response.Headers.CacheControl = "private, no-store";
+        return Ok(await _c211Repository.GetContractChoicesAsync(cancellationToken));
+    }
+
+    private BadRequestObjectResult? ValidateC211Condition(SearchReportCondition condition)
+    {
+        if (!C211Sources.IsSupported(condition.EncounterSource))
+            return BadRequest("C211 資料來源僅接受門急或住院。");
+        if (!TryParseDate(condition.EndDate, out _))
+            return BadRequest("請輸入有效的資料迄日。");
+        if (!string.IsNullOrWhiteSpace(condition.StartDate))
+            return BadRequest("C211 不接受起始日期。");
+        condition.StartDate = null;
+        condition.ContractCode = string.IsNullOrWhiteSpace(condition.ContractCode)
+            ? null
+            : condition.ContractCode.Trim();
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC212Condition(
+        SearchReportCondition condition,
+        out C212Query query)
+    {
+        query = default!;
+        if (!string.IsNullOrWhiteSpace(condition.StartDate))
+        {
+            return BadRequest("C212 不接受起始日期。");
+        }
+        condition.StartDate = null;
+        if (!TryParseDate(condition.EndDate, out DateOnly endDate)
+            || endDate.Year > 2910)
+        {
+            return BadRequest("請輸入有效的 C212 資料迄日。");
+        }
+
+        query = new C212Query(endDate);
+        return null;
     }
 
     private BadRequestObjectResult? ValidateC23Condition(SearchReportCondition condition)
@@ -675,4 +785,7 @@ public sealed class ReportController : Controller
             out date);
         return parsed && date.Year >= 1912;
     }
+
+    private static bool IsOracleConnectionFailure(int number) =>
+        number is 12154 or 12170 or 12514 or 12537 or 12541 or 12543 or 12545 or 12547 or 12560;
 }

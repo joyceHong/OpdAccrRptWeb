@@ -80,9 +80,9 @@
                         <label><span>合約單位</span><input v-model="form.contractCode" list="c211-contract-list" placeholder="全部／可直接輸入代碼" /></label>
                         <datalist id="c211-contract-list"><option v-for="item in c211Contracts" :key="item.code" :value="item.code">{{ item.name }}</option></datalist>
                     </div>
-                    <div v-if="isC24" class="advanced-grid">
-                        <label><span>模式 <i>*</i></span><select v-model="form.mode" v-on:change="changeC24Mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
-                        <label><span>門急診別 <i>*</i></span><select v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="NonEmergency">門診</option></select></label>
+                    <div v-if="isC24 || isC10" class="advanced-grid">
+                        <label v-if="isC24"><span>模式 <i>*</i></span><select v-model="form.mode" v-on:change="changeC24Mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
+                        <label><span>門急診別 <i>*</i></span><select v-if="isC10" v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="Outpatient">門診</option></select><select v-else v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="NonEmergency">門診</option></select></label>
                         <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" maxlength="10" /></label>
                         <label v-if="canForceC24Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>

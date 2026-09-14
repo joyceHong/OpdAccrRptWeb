@@ -3,6 +3,7 @@
     const { createApp } = Vue;
     const reportComponentMap = Object.freeze({
         C1: window.ReportComponents.ReportTemplate,
+        C10: window.ReportComponents.ReportTemplate,
         C21: window.ReportComponents.ReportTemplate,
         C23: window.ReportComponents.ReportTemplate,
         C24: window.ReportComponents.ReportTemplate,

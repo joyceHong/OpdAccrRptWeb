@@ -6,6 +6,11 @@ namespace OpdAccrRptWeb.Services
     {
         ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition);
 
+        Task<ReportDataAndColumns<C10ReceivableDetailRow>> ReportC10Async(
+            SearchReportCondition searchCondition,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("C10 report service 尚未設定。");
+
         Task<ReportDataAndColumns<C211ContractBalanceReportViewModel>> ReportC211Async(
             SearchReportCondition searchCondition,
             string userId,

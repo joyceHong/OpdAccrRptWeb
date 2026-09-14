@@ -1,6 +1,18 @@
 (() => {
     const reportConfigurations = Object.freeze({
         C1: Object.freeze({ serverPaged: true }),
+        C10: Object.freeze({
+            serverPaged: true,
+            advancedConditions: false,
+            c10: true,
+            encounterSource: Object.freeze({
+                defaultValue: "OpdEr",
+                options: Object.freeze([
+                    Object.freeze({ value: "OpdEr", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        }),
         C21: Object.freeze({
             serverPaged: true,
             advancedConditions: false,
@@ -149,11 +161,11 @@
         inpatientType: "",
         contractCode: "",
         receivableBalanceType: reportConfiguration.receivableBalanceType?.defaultValue ?? "",
-        source: reportConfiguration.c24 === true
+        source: reportConfiguration.c24 === true || reportConfiguration.c10 === true
             ? reportConfiguration.encounterSource.defaultValue
             : "",
         mode: reportConfiguration.c24 === true ? "Accounting" : "",
-        roomScope: reportConfiguration.c24 === true ? "All" : "",
+        roomScope: reportConfiguration.c24 === true || reportConfiguration.c10 === true ? "All" : "",
         medicalRecordNo: ""
     });
 
@@ -207,6 +219,7 @@
             isC21() { return this.reportConfiguration.c21 === true; },
             isC23() { return this.reportConfiguration.c23 === true; },
             isC24() { return this.reportConfiguration.c24 === true; },
+            isC10() { return this.reportConfiguration.c10 === true; },
             isC211() { return this.reportConfiguration.c211 === true; },
             isC212() { return this.reportConfiguration.c212 === true; },
             isPrintableLegacyReport() { return this.isC211 || this.isC212; },
@@ -237,7 +250,7 @@
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
-            canExport() { return this.selectedReport.code === "C174" && this.hasResults && !this.isExporting; },
+            canExport() { return ["C10", "C174"].includes(this.selectedReport.code) && this.hasResults && !this.isExporting; },
             totalCount() { return this.isServerPaged ? this.serverTotalCount : this.filteredRows.length; },
             totalPages() {
                 return this.isServerPaged
@@ -381,7 +394,7 @@
                             reportCode: this.selectedReport.code,
                             startDate: this.isEndDateOnly ? undefined : this.form.startDate,
                             endDate: this.form.endDate,
-                            encounterSource: this.hasEncounterSource && !this.isC24
+                            encounterSource: this.hasEncounterSource && !this.isC24 && !this.isC10
                                 ? this.form.encounterSource
                                 : undefined,
                             stationOrBedPrefix: this.hasStationOrBedPrefix
@@ -399,10 +412,10 @@
                                 ? this.form.contractCode.trim() : undefined,
                             forceRebuild: (this.isC21 || this.isC23 || this.canForceC24Rebuild)
                                 ? this.form.forceRebuild : undefined,
-                            source: this.isC24 ? this.form.encounterSource : undefined,
+                            source: this.isC24 || this.isC10 ? this.form.encounterSource : undefined,
                             mode: this.isC24 ? this.form.mode : undefined,
-                            roomScope: this.isC24 ? this.form.roomScope : undefined,
-                            medicalRecordNo: this.isC24 && this.form.medicalRecordNo.trim()
+                            roomScope: this.isC24 || this.isC10 ? this.form.roomScope : undefined,
+                            medicalRecordNo: (this.isC24 || this.isC10) && this.form.medicalRecordNo.trim()
                                 ? this.form.medicalRecordNo.trim() : undefined,
                             receivableBalanceType: this.hasReceivableBalanceType
                                 ? this.form.receivableBalanceType
@@ -485,7 +498,7 @@
                     this.form.inpatientType = "";
                     this.form.forceRebuild = false;
                 }
-                if (this.isC24) {
+                if (this.isC24 || this.isC10) {
                     this.form.source = this.form.encounterSource;
                     if (this.form.source === "Inpatient") this.form.roomScope = "All";
                 }
@@ -527,14 +540,18 @@
                         body: JSON.stringify({
                             reportCode: this.selectedReport.code,
                             startDate: this.form.startDate,
-                            endDate: this.form.endDate
+                            endDate: this.form.endDate,
+                            source: this.isC10 ? this.form.encounterSource : undefined,
+                            roomScope: this.isC10 ? this.form.roomScope : undefined,
+                            medicalRecordNo: this.isC10 && this.form.medicalRecordNo.trim()
+                                ? this.form.medicalRecordNo.trim() : undefined
                         })
                     });
                     if (response.status === 200) {
                         const blob = await response.blob();
                         const disposition = response.headers?.get("Content-Disposition") ?? "";
                         const match = /filename\*?=(?:UTF-8''|\")?([^\";]+)/i.exec(disposition);
-                        this.downloadBlob(blob, match ? decodeURIComponent(match[1]) : "C174.xlsx");
+                        this.downloadBlob(blob, match ? decodeURIComponent(match[1]) : `${this.selectedReport.code}.xlsx`);
                         this.isExporting = false;
                         this.$emit("show-toast", "Excel 匯出完成。");
                         return;

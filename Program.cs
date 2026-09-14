@@ -35,6 +35,7 @@ builder.Services.AddSingleton<ICashierCashSummaryRepository, CashierCashSummaryR
 builder.Services.AddSingleton<IC21AccountingSummaryRepository, C21AccountingSummaryRepository>();
 builder.Services.AddSingleton<IC23ContractAccountingRepository, C23ContractAccountingRepository>();
 builder.Services.AddSingleton<IC24DebtPaymentRepository, C24DebtPaymentRepository>();
+builder.Services.AddScoped<IC10ReceivableDetailRepository, C10ReceivableDetailRepository>();
 builder.Services.AddSingleton<IOutpatientReceivableBalanceRepository, OutpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, InpatientAdvancePaymentBalanceRepository>();
 builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
@@ -45,6 +46,8 @@ builder.Services.AddScoped<IC212BoneBankBalanceRepository, C212BoneBankBalanceRe
 builder.Services.AddSingleton<IReportTotalCountCache, ReportTotalCountCache>();
 builder.Services.AddSingleton<IC21AccountingSummaryCalculationService, C21AccountingSummaryCalculationService>();
 builder.Services.AddSingleton<IC24DebtPaymentCalculationService, C24DebtPaymentCalculationService>();
+builder.Services.AddSingleton<IC10AmountCalculationService, C10AmountCalculationService>();
+builder.Services.AddSingleton<IC10PatientAccessAuditWriter, C10SerilogPatientAccessAuditWriter>();
 builder.Services.AddScoped<IC211ContractBalanceReportService, C211ContractBalanceReportService>();
 builder.Services.AddSingleton<IC212AmountCompatibilityPolicy, C212PreserveDecimalAmountPolicy>();
 builder.Services.AddScoped<IC212BoneBankBalanceReportService, C212BoneBankBalanceReportService>();

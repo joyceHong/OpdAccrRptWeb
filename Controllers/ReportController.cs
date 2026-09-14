@@ -60,6 +60,12 @@ public sealed class ReportController : Controller
     [HttpPost("Report/GetReportData")]
     public IActionResult GetReportData([FromBody] SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C10")
+        {
+            IActionResult? validationResult = ValidateC10Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
         if (searchCondition.ReportCode == "C211")
         {
             IActionResult? validationResult = ValidateC211Condition(searchCondition);
@@ -181,7 +187,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C10" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -209,6 +215,13 @@ public sealed class ReportController : Controller
 
         try
         {
+            if (searchCondition.ReportCode == "C10")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                return Ok(_reportService.ReportC10Async(
+                    searchCondition,
+                    HttpContext.RequestAborted).GetAwaiter().GetResult());
+            }
             if (searchCondition.ReportCode == "C211")
             {
                 Response.Headers.CacheControl = "private, no-store";
@@ -267,11 +280,11 @@ public sealed class ReportController : Controller
                 Title = exception.Message
             });
         }
-        catch (OperationCanceledException) when (searchCondition.ReportCode is "C211" or "C212")
+        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C211" or "C212")
         {
             return StatusCode(499);
         }
-        catch (OracleException exception) when (searchCondition.ReportCode is "C211" or "C212")
+        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C211" or "C212")
         {
             var traceId = HttpContext.TraceIdentifier;
             var unavailable = IsOracleConnectionFailure(exception.Number);
@@ -290,7 +303,7 @@ public sealed class ReportController : Controller
         catch (Exception exception)
         {
             var traceId = HttpContext.TraceIdentifier;
-            if (searchCondition.ReportCode is "C211" or "C212")
+            if (searchCondition.ReportCode is "C10" or "C211" or "C212")
             {
                 _logger.LogError(
                     "{ReportCode} 查詢發生未預期錯誤。TraceId: {TraceId}, ExceptionType: {ExceptionType}",
@@ -440,15 +453,43 @@ public sealed class ReportController : Controller
         return null;
     }
 
+    private BadRequestObjectResult? ValidateC10Condition(SearchReportCondition condition)
+    {
+        if (!TryParseDate(condition.StartDate, out var startDate)
+            || !TryParseDate(condition.EndDate, out var endDate))
+            return BadRequest("請輸入有效的 C10 ISO 起始日期與截止日期。");
+        if (startDate > endDate) return BadRequest("C10 起始日期不可晚於截止日期。");
+        if (!C10Sources.IsSupported(condition.Source))
+            return BadRequest("C10 來源僅接受門急診或住院。");
+
+        condition.RoomScope = string.IsNullOrWhiteSpace(condition.RoomScope)
+            ? C10RoomScopes.All
+            : condition.RoomScope;
+        if (!C10RoomScopes.IsSupported(condition.RoomScope)
+            || condition.Source == C10Sources.Inpatient && condition.RoomScope != C10RoomScopes.All)
+            return BadRequest("C10 來源與門急診別不相容。");
+
+        condition.MedicalRecordNo = string.IsNullOrWhiteSpace(condition.MedicalRecordNo)
+            ? null
+            : condition.MedicalRecordNo.Trim().ToUpperInvariant();
+        if (condition.MedicalRecordNo is { Length: > 10 })
+            return BadRequest("C10 病歷號不得超過 10 個字元。");
+        return null;
+    }
+
     [HttpPost("Report/Export")]
     public IActionResult Export([FromBody] SearchReportCondition searchCondition)
     {
-        if (searchCondition.ReportCode != "C174"
+        IActionResult? c10Validation = searchCondition.ReportCode == "C10"
+            ? ValidateC10Condition(searchCondition)
+            : null;
+        if (c10Validation is not null) return c10Validation;
+        if (searchCondition.ReportCode is not ("C10" or "C174")
             || !TryParseDate(searchCondition.StartDate, out var startDate)
             || !TryParseDate(searchCondition.EndDate, out var endDate)
             || startDate > endDate)
         {
-            return BadRequest("僅支援有效日期區間的 C174 報表匯出。");
+            return BadRequest("僅支援有效日期區間的 C10 或 C174 報表匯出。");
         }
 
         try

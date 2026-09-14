@@ -34,6 +34,9 @@ public class ReportService : IReportService
     private readonly IC24DebtPaymentCalculationService? _c24CalculationService;
     private readonly IC211ContractBalanceReportService? _c211ReportService;
     private readonly IC212BoneBankBalanceReportService? _c212ReportService;
+    private readonly IC10ReceivableDetailRepository? _c10Repository;
+    private readonly IC10AmountCalculationService? _c10CalculationService;
+    private readonly IC10PatientAccessAuditWriter? _c10AuditWriter;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -57,7 +60,10 @@ public class ReportService : IReportService
         IC24DebtPaymentRepository? c24Repository = null,
         IC24DebtPaymentCalculationService? c24CalculationService = null,
         IC211ContractBalanceReportService? c211ReportService = null,
-        IC212BoneBankBalanceReportService? c212ReportService = null)
+        IC212BoneBankBalanceReportService? c212ReportService = null,
+        IC10ReceivableDetailRepository? c10Repository = null,
+        IC10AmountCalculationService? c10CalculationService = null,
+        IC10PatientAccessAuditWriter? c10AuditWriter = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -81,6 +87,49 @@ public class ReportService : IReportService
         _c24CalculationService = c24CalculationService;
         _c211ReportService = c211ReportService;
         _c212ReportService = c212ReportService;
+        _c10Repository = c10Repository;
+        _c10CalculationService = c10CalculationService;
+        _c10AuditWriter = c10AuditWriter;
+    }
+
+    public Task<ReportDataAndColumns<C10ReceivableDetailRow>> ReportC10Async(
+        SearchReportCondition searchCondition,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var repository = _c10Repository
+            ?? throw new InvalidOperationException("C10 repository 尚未設定。");
+        var calculation = _c10CalculationService
+            ?? throw new InvalidOperationException("C10 calculation service 尚未設定。");
+        var auditWriter = _c10AuditWriter
+            ?? throw new C10AuditNotConfiguredException();
+        var stopwatch = Stopwatch.StartNew();
+        C10RepositoryResult sourceData = repository.Load(searchCondition, cancellationToken);
+        foreach (C10DebtVisit visit in sourceData.Visits)
+        {
+            auditWriter.Write(visit, cancellationToken);
+        }
+        IReadOnlyList<C10ReceivableDetailRow> rows = calculation.Calculate(
+            searchCondition.Source!,
+            sourceData);
+        int pageNumber = searchCondition.PageNumber ?? 1;
+        int pageSize = searchCondition.PageSize ?? 10;
+        var result = new ReportDataAndColumns<C10ReceivableDetailRow>
+        {
+            Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C10ReceivableDetailRow>(),
+            Data = rows.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList(),
+            TotalCount = rows.Count,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = CalculateTotalPages(rows.Count, pageSize)
+        };
+        _logger.LogInformation(
+            "C10 report completed. Source={Source}, VisitCount={VisitCount}, RowCount={RowCount}, DurationMs={DurationMs}",
+            searchCondition.Source,
+            sourceData.Visits.Count,
+            rows.Count,
+            stopwatch.ElapsedMilliseconds);
+        return Task.FromResult(result);
     }
 
     public Task<ReportDataAndColumns<C211ContractBalanceReportViewModel>> ReportC211Async(
@@ -100,6 +149,13 @@ public class ReportService : IReportService
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C10")
+        {
+            return ReportC10Async(searchCondition).GetAwaiter().GetResult()
+                as ReportDataAndColumns<T>
+                ?? throw new InvalidOperationException("C10 result type 不正確。");
+        }
+
         if (searchCondition.ReportCode == "C21")
         {
             return CreateC21Result<T>(searchCondition);

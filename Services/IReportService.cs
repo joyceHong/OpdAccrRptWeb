@@ -11,6 +11,12 @@ namespace OpdAccrRptWeb.Services
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("C10 report service 尚未設定。");
 
+        Task<C11ReceivablesCollectionReportViewModel> ReportC11Async(
+            SearchReportCondition searchCondition,
+            string generatedBy,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("C11 report service 尚未設定。");
+
         Task<ReportDataAndColumns<C211ContractBalanceReportViewModel>> ReportC211Async(
             SearchReportCondition searchCondition,
             string userId,

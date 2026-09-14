@@ -52,7 +52,7 @@
         /// <summary>C23、C211 選填合約代碼。</summary>
         public string? ContractCode { get; set; }
 
-        /// <summary>C24、C10 資料來源：OpdEr 或 Inpatient。</summary>
+        /// <summary>C24、C10、C11 資料來源：OpdEr 或 Inpatient。</summary>
         public string? Source { get; set; }
 
         /// <summary>C24 作業模式：Accounting 或 Billing。</summary>

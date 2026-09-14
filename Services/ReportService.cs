@@ -37,6 +37,7 @@ public class ReportService : IReportService
     private readonly IC10ReceivableDetailRepository? _c10Repository;
     private readonly IC10AmountCalculationService? _c10CalculationService;
     private readonly IC10PatientAccessAuditWriter? _c10AuditWriter;
+    private readonly IC11ReceivablesCollectionReportService? _c11ReportService;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -63,7 +64,8 @@ public class ReportService : IReportService
         IC212BoneBankBalanceReportService? c212ReportService = null,
         IC10ReceivableDetailRepository? c10Repository = null,
         IC10AmountCalculationService? c10CalculationService = null,
-        IC10PatientAccessAuditWriter? c10AuditWriter = null)
+        IC10PatientAccessAuditWriter? c10AuditWriter = null,
+        IC11ReceivablesCollectionReportService? c11ReportService = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -90,6 +92,7 @@ public class ReportService : IReportService
         _c10Repository = c10Repository;
         _c10CalculationService = c10CalculationService;
         _c10AuditWriter = c10AuditWriter;
+        _c11ReportService = c11ReportService;
     }
 
     public Task<ReportDataAndColumns<C10ReceivableDetailRow>> ReportC10Async(
@@ -138,6 +141,13 @@ public class ReportService : IReportService
         CancellationToken cancellationToken = default) =>
         (_c211ReportService ?? throw new InvalidOperationException("C211 report service 尚未設定。"))
             .CreateAsync(searchCondition, userId, cancellationToken);
+
+    public Task<C11ReceivablesCollectionReportViewModel> ReportC11Async(
+        SearchReportCondition searchCondition,
+        string generatedBy,
+        CancellationToken cancellationToken = default) =>
+        (_c11ReportService ?? throw new InvalidOperationException("C11 report service 尚未設定。"))
+            .CreateAsync(searchCondition, generatedBy, cancellationToken);
 
     public Task<ReportDataAndColumns<C212BoneBankBalanceReportViewModel>> ReportC212Async(
         C212Query query,

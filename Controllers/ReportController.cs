@@ -66,6 +66,12 @@ public sealed class ReportController : Controller
             if (validationResult is not null) return validationResult;
         }
 
+        if (searchCondition.ReportCode == "C11")
+        {
+            IActionResult? validationResult = ValidateC11Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
         if (searchCondition.ReportCode == "C211")
         {
             IActionResult? validationResult = ValidateC211Condition(searchCondition);
@@ -187,7 +193,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C10" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C10" or "C11" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -221,6 +227,15 @@ public sealed class ReportController : Controller
                 return Ok(_reportService.ReportC10Async(
                     searchCondition,
                     HttpContext.RequestAborted).GetAwaiter().GetResult());
+            }
+            if (searchCondition.ReportCode == "C11")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                string generatedBy = User.Identity?.IsAuthenticated == true
+                    ? User.Identity.Name ?? string.Empty
+                    : string.Empty;
+                return Ok(_reportService.ReportC11Async(
+                    searchCondition, generatedBy, HttpContext.RequestAborted).GetAwaiter().GetResult());
             }
             if (searchCondition.ReportCode == "C211")
             {
@@ -280,11 +295,11 @@ public sealed class ReportController : Controller
                 Title = exception.Message
             });
         }
-        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C211" or "C212")
+        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C11" or "C211" or "C212")
         {
             return StatusCode(499);
         }
-        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C211" or "C212")
+        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C11" or "C211" or "C212")
         {
             var traceId = HttpContext.TraceIdentifier;
             var unavailable = IsOracleConnectionFailure(exception.Number);
@@ -303,7 +318,7 @@ public sealed class ReportController : Controller
         catch (Exception exception)
         {
             var traceId = HttpContext.TraceIdentifier;
-            if (searchCondition.ReportCode is "C10" or "C211" or "C212")
+            if (searchCondition.ReportCode is "C10" or "C11" or "C211" or "C212")
             {
                 _logger.LogError(
                     "{ReportCode} 查詢發生未預期錯誤。TraceId: {TraceId}, ExceptionType: {ExceptionType}",
@@ -450,6 +465,23 @@ public sealed class ReportController : Controller
             ? null : condition.MedicalRecordNo.Trim().ToUpperInvariant();
         if (condition.MedicalRecordNo is { Length: > 10 })
             return BadRequest("C24 病歷號不得超過 10 個字元。");
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC11Condition(SearchReportCondition condition)
+    {
+        condition.StartDate = condition.StartDate?.Trim();
+        condition.EndDate = condition.EndDate?.Trim();
+        condition.Source = string.IsNullOrWhiteSpace(condition.Source)
+            ? C10Sources.OpdEr
+            : condition.Source.Trim();
+        if (string.IsNullOrEmpty(condition.StartDate) || string.IsNullOrEmpty(condition.EndDate))
+            return BadRequest("C11 起始日期與截止日期不得空白。");
+        if (!C10Sources.IsSupported(condition.Source))
+            return BadRequest("C11 來源僅接受門急診或住院。");
+        if (LegacyC11NumberConverter.VbVal(condition.StartDate) >
+            LegacyC11NumberConverter.VbVal(condition.EndDate))
+            return BadRequest("C11 起始日期不可晚於截止日期。");
         return null;
     }
 

@@ -1,0 +1,47 @@
+<template id="c11-report-template">
+    <div>
+        <section class="page-title">
+            <div><span class="eyebrow">C11</span><h1>{{ selectedReport.name }}</h1><p>設定查詢區間與來源，送出後即可檢視報表明細。</p></div>
+            <button class="outline-button no-print" type="button" :disabled="!hasSearched" v-on:click="openPreview">預覽／列印</button>
+        </section>
+        <section class="panel query-panel"><div>
+            <div class="panel-title"><span>查詢條件</span><small><i>*</i> 為必填欄位</small></div>
+            <form v-on:submit.prevent="search">
+                <div class="date-row"><label><span>起始日期 <i>*</i></span><input v-model="form.startDate" v-on:blur="form.endDate = form.startDate" type="date" required /></label><span class="date-arrow">→</span><label><span>截止日期 <i>*</i></span><input v-model="form.endDate" type="date" required /></label></div>
+                <fieldset class="source-fieldset"><legend>資料來源 <i>*</i></legend><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="OpdEr" /><span>門急診</span></label><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="Inpatient" /><span>住院</span></label></fieldset>
+                <p v-if="error" class="validation-message">{{ error }}</p>
+                <div class="form-actions"><button class="ghost-button" type="button" :disabled="loading" v-on:click="resetForm">重設</button><button class="primary-button" type="submit" :disabled="loading">{{ loading ? '查詢中…' : '⌕ 查詢' }}</button></div>
+            </form>
+        </div></section>
+        <section class="panel result-panel" :aria-busy="loading ? 'true' : 'false'">
+            <div class="result-heading"><div><strong>查詢結果</strong><span v-if="!loading && detailRows.length">共 {{ detailRows.length }} 筆</span></div><label v-if="!loading && detailRows.length">每頁顯示<select v-model.number="pageSize" v-on:change="currentPage = 1"><option :value="10">10 筆</option><option :value="30">30 筆</option><option :value="50">50 筆</option></select></label></div>
+            <template v-if="loading"><span class="visually-hidden" role="status">資料查詢中</span><partial name="_TableSkeleton" /></template>
+            <div v-else-if="!detailRows.length" class="empty-result"><div>▤</div><strong>{{ hasSearched ? '查無資料' : '尚無查詢結果' }}</strong><p>{{ hasSearched ? '目前條件沒有符合的資料。' : '請設定上方查詢條件後按下「查詢」。' }}</p></div>
+            <div v-else class="table-wrap"><table><thead><tr><th>診別</th><th>年度</th><th>催收款</th><th>1～30天</th><th>30天以上</th><th>本期欠款人數</th><th>本期欠款金額</th></tr></thead><tbody><tr v-for="row in pagedRows" :key="row.id"><td>{{ row.roomTypeName }}</td><td>{{ row.year }}</td><td>{{ number(row.outstandingToEnd) }}</td><td>{{ number(row.within30DaysAmount) }}</td><td>{{ number(row.over30DaysAmount) }}</td><td>{{ number(row.periodPatientCount) }}</td><td>{{ number(row.periodDebtAmount) }}</td></tr></tbody></table></div>
+            <div v-if="detailRows.length" class="pagination"><span>第 {{ currentPage }} / {{ totalPages }} 頁</span><div><button type="button" :disabled="currentPage === 1" v-on:click="currentPage--">‹</button><button class="active" type="button">{{ currentPage }}</button><button type="button" :disabled="currentPage === totalPages" v-on:click="currentPage++">›</button></div></div>
+        </section>
+        <div v-if="previewOpen" class="c11-preview-overlay" role="dialog" aria-modal="true" aria-label="C11 列印預覽">
+            <div class="c11-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="previewOpen = false">關閉預覽</button><button class="primary-button" type="button" v-on:click="printReport">列印</button></div>
+            <article class="c11-paper"><header><h1>{{ report.title }}</h1><div class="c11-meta"><span>資料日期：{{ displayRoc(report.startDate) }} - {{ displayRoc(report.endDate) }}</span><span>{{ report.programNo }}</span><span>{{ report.reportNo }}</span></div><div class="c11-meta"><span>處理時間：{{ formatGeneratedAt(report.generatedAt) }}</span><span>製表人：{{ report.generatedBy || '—' }}</span></div></header>
+                <section v-for="group in report.groups" :key="`${group.roomType}-${group.roomTypeName}`" class="c11-group"><h2>{{ group.roomTypeName }}</h2><table><thead><tr><th>年度</th><th>催收款</th><th>1～30天</th><th>30天以上</th></tr></thead><tbody><tr v-for="(row,index) in group.rows" :key="`${row.year}-${index}`"><td>{{ row.year }}</td><td>{{ number(row.outstandingToEnd) }}</td><td>{{ number(row.within30DaysAmount) }}</td><td>{{ number(row.over30DaysAmount) }}</td></tr></tbody><tfoot><tr><th>診別合計</th><td>{{ number(group.totals.outstandingToEnd) }}</td><td>{{ number(group.totals.within30DaysAmount) }}</td><td></td></tr><tr><th>本期欠款人數</th><td>{{ number(group.totals.periodPatientCount) }}</td><th>本期欠款金額</th><td>{{ number(group.totals.periodDebtAmount) }}</td></tr><tr><th>本期收回金額</th><td>{{ number(group.totals.recoveredAmount) }}</td><th>本期與上期增減</th><td>{{ number(group.totals.adjustmentAmount) }}</td></tr></tfoot></table></section><div v-if="report.groups.length === 0" class="c11-empty"></div>
+            </article>
+        </div>
+    </div>
+</template>
+<script>
+window.ReportComponents = window.ReportComponents || {};
+window.ReportComponents.C11Report = {
+    template: "#c11-report-template", props: ["selectedReport", "defaultStartDate", "defaultEndDate"],
+    data() { return { form: { startDate: "", endDate: "", source: "OpdEr" }, report: null, loading: false, error: "", hasSearched: false, pageSize: 10, currentPage: 1, previewOpen: false }; },
+    computed: { detailRows() { if (!this.report) return []; return this.report.groups.flatMap((group, groupIndex) => group.rows.map((row, rowIndex) => ({ ...row, roomTypeName: group.roomTypeName, id: `${groupIndex}-${rowIndex}` }))); }, totalPages() { return Math.max(1, Math.ceil(this.detailRows.length / this.pageSize)); }, pagedRows() { const start = (this.currentPage - 1) * this.pageSize; return this.detailRows.slice(start, start + this.pageSize); } },
+    mounted() { this.setDefaultDates(); },
+    methods: {
+        setDefaultDates() { this.form.startDate = this.defaultStartDate || ""; this.form.endDate = this.defaultEndDate || this.form.startDate; },
+        toRocDate(value) { const [year, month, day] = value.split("-"); return `${String(Number(year) - 1911).padStart(3, "0")}${month}${day}`; },
+        resetForm() { this.setDefaultDates(); this.form.source = "OpdEr"; this.report = null; this.error = ""; this.hasSearched = false; this.currentPage = 1; this.previewOpen = false; },
+        async search() { this.loading = true; this.error = ""; this.previewOpen = false; try { const response = await fetch("/Report/GetReportData", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reportCode: "C11", startDate: this.toRocDate(this.form.startDate), endDate: this.toRocDate(this.form.endDate), source: this.form.source, pageNumber: 1, pageSize: 10 }) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.title || payload || "查詢失敗"); this.report = payload; this.hasSearched = true; this.currentPage = 1; } catch (error) { this.error = error.message || "查詢失敗"; this.report = null; this.hasSearched = false; } finally { this.loading = false; } },
+        openPreview() { if (this.hasSearched && this.report) this.previewOpen = true; }, printReport() { window.print(); },
+        number(value) { return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }).format(value || 0); }, displayRoc(value) { const text = value || ""; return text.length >= 7 ? `${text.slice(0,3)}/${text.slice(3,5)}/${text.slice(5,7)}` : text; }, formatGeneratedAt(value) { return value ? new Date(value).toLocaleString("zh-TW") : ""; }
+    }
+};
+</script>

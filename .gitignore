@@ -12,3 +12,6 @@ openspec/.vector-search.db*
 .openspec/
 /openspec
 ./logs
+.tmp/
+/.gitignore
+/document

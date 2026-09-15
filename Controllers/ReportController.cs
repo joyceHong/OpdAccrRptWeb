@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
+using OpdAccrRptWeb.Help;
 using System.Globalization;
 using Oracle.ManagedDataAccess.Client;
 
@@ -19,6 +20,7 @@ public sealed class ReportController : Controller
     private readonly IC23ContractAccountingRepository? _c23Repository;
     private readonly IOptions<C23Options>? _c23Options;
     private readonly IC211ContractBalanceRepository? _c211Repository;
+    private readonly IC12ReportService? _c12ReportService;
 
     public ReportController(
         IReportCatalogService reportCatalogService,
@@ -29,7 +31,8 @@ public sealed class ReportController : Controller
         IOptions<C21Options>? c21Options = null,
         IC23ContractAccountingRepository? c23Repository = null,
         IOptions<C23Options>? c23Options = null,
-        IC211ContractBalanceRepository? c211Repository = null)
+        IC211ContractBalanceRepository? c211Repository = null,
+        IC12ReportService? c12ReportService = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -40,6 +43,7 @@ public sealed class ReportController : Controller
         _c23Repository = c23Repository;
         _c23Options = c23Options;
         _c211Repository = c211Repository;
+        _c12ReportService = c12ReportService;
     }
 
     [HttpGet("/")]
@@ -69,6 +73,12 @@ public sealed class ReportController : Controller
         if (searchCondition.ReportCode == "C11")
         {
             IActionResult? validationResult = ValidateC11Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
+        if (searchCondition.ReportCode == "C12")
+        {
+            IActionResult? validationResult = ValidateC12Condition(searchCondition, out _);
             if (validationResult is not null) return validationResult;
         }
 
@@ -237,6 +247,15 @@ public sealed class ReportController : Controller
                 return Ok(_reportService.ReportC11Async(
                     searchCondition, generatedBy, HttpContext.RequestAborted).GetAwaiter().GetResult());
             }
+            if (searchCondition.ReportCode == "C12")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                ValidateC12Condition(searchCondition, out C12ReportRequest request);
+                string userId = User.Identity?.IsAuthenticated == true ? User.Identity.Name ?? string.Empty : string.Empty;
+                C12MedicalReceiptSummaryViewModel result = (_c12ReportService ?? throw new InvalidOperationException("C12 report service 尚未設定。"))
+                    .CreateAsync(request,userId,HttpContext.RequestAborted).GetAwaiter().GetResult();
+                return result.HasVisits ? Ok(result) : NotFound(new ProblemDetails { Status=404,Title="找不到資料！" });
+            }
             if (searchCondition.ReportCode == "C211")
             {
                 Response.Headers.CacheControl = "private, no-store";
@@ -295,11 +314,15 @@ public sealed class ReportController : Controller
                 Title = exception.Message
             });
         }
-        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C11" or "C211" or "C212")
+        catch (C12AccessDeniedException exception)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,new ProblemDetails{Status=403,Title=exception.Message});
+        }
+        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C211" or "C212")
         {
             return StatusCode(499);
         }
-        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C11" or "C211" or "C212")
+        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C211" or "C212")
         {
             var traceId = HttpContext.TraceIdentifier;
             var unavailable = IsOracleConnectionFailure(exception.Number);
@@ -318,7 +341,7 @@ public sealed class ReportController : Controller
         catch (Exception exception)
         {
             var traceId = HttpContext.TraceIdentifier;
-            if (searchCondition.ReportCode is "C10" or "C11" or "C211" or "C212")
+            if (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C211" or "C212")
             {
                 _logger.LogError(
                     "{ReportCode} 查詢發生未預期錯誤。TraceId: {TraceId}, ExceptionType: {ExceptionType}",
@@ -506,6 +529,29 @@ public sealed class ReportController : Controller
             : condition.MedicalRecordNo.Trim().ToUpperInvariant();
         if (condition.MedicalRecordNo is { Length: > 10 })
             return BadRequest("C10 病歷號不得超過 10 個字元。");
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC12Condition(SearchReportCondition condition, out C12ReportRequest request)
+    {
+        request = new C12ReportRequest(string.Empty,string.Empty,C12Source.OutpatientAndEmergency,0,string.Empty,null,null);
+        if (!TryParseDate(condition.StartDate,out DateOnly startDate) || !TryParseDate(condition.EndDate,out DateOnly endDate))
+            return BadRequest("請輸入有效的 C12 起始日期與截止日期。");
+        if (startDate>endDate) return BadRequest("C12 起始日期不可晚於截止日期。");
+        condition.Source=condition.Source?.Trim();
+        condition.RoomScope=string.IsNullOrWhiteSpace(condition.RoomScope)?C12RoomScopes.All:condition.RoomScope.Trim();
+        condition.MedicalRecordNo=condition.MedicalRecordNo?.Trim().ToUpperInvariant();
+        condition.Chop1sec=string.IsNullOrWhiteSpace(condition.Chop1sec)?null:condition.Chop1sec.Trim().ToUpperInvariant();
+        condition.NewSectionCode=string.IsNullOrWhiteSpace(condition.NewSectionCode)?null:condition.NewSectionCode.Trim().ToUpperInvariant();
+        if(!C12Sources.IsSupported(condition.Source)) return BadRequest("C12 來源僅接受門急診或住院。");
+        if(!C12RoomScopes.IsSupported(condition.RoomScope) || condition.Source==C12Sources.Inpatient && condition.RoomScope!=C12RoomScopes.All)
+            return BadRequest("C12 來源與門急診別不相容。");
+        if(string.IsNullOrWhiteSpace(condition.MedicalRecordNo)) return BadRequest("請輸入病歷號！");
+        if(condition.MedicalRecordNo.Length>10) return BadRequest("C12 病歷號或身分證號不得超過 10 個字元。");
+        int roomType=condition.RoomScope switch { C12RoomScopes.Emergency=>1,C12RoomScopes.Outpatient=>2,_=>0 };
+        string startRoc=DateTimeExtensions.ToRocDateString(startDate.ToDateTime(TimeOnly.MinValue));
+        string endRoc=DateTimeExtensions.ToRocDateString(endDate.ToDateTime(TimeOnly.MinValue));
+        request=new(startRoc,endRoc,condition.Source==C12Sources.Inpatient?C12Source.Inpatient:C12Source.OutpatientAndEmergency,roomType,condition.MedicalRecordNo,condition.Chop1sec,condition.NewSectionCode);
         return null;
     }
 

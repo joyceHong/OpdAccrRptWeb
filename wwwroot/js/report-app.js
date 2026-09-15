@@ -5,6 +5,7 @@
         C1: window.ReportComponents.ReportTemplate,
         C10: window.ReportComponents.ReportTemplate,
         C11: window.ReportComponents.C11Report,
+        C12: window.ReportComponents.C12Report,
         C21: window.ReportComponents.ReportTemplate,
         C23: window.ReportComponents.ReportTemplate,
         C24: window.ReportComponents.ReportTemplate,

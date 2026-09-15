@@ -61,8 +61,11 @@
         /// <summary>C24 房別範圍：All、Emergency 或 NonEmergency；C10 使用 All、Emergency 或 Outpatient。</summary>
         public string? RoomScope { get; set; }
 
-        /// <summary>C24、C10 選填病歷號。</summary>
+        /// <summary>C24、C10 選填病歷號；C12 為必填病歷號或身分證號。</summary>
         public string? MedicalRecordNo { get; set; }
+
+        /// <summary>C12 選填新科別碼。</summary>
+        public string? NewSectionCode { get; set; }
 
         /// <summary>
         /// C214 應收餘額類型，僅接受 SelfPay 或 Insurance。
@@ -168,6 +171,21 @@
     }
 
     public static class C10RoomScopes
+    {
+        public const string All = "All";
+        public const string Emergency = "Emergency";
+        public const string Outpatient = "Outpatient";
+        public static bool IsSupported(string? value) => value is All or Emergency or Outpatient;
+    }
+
+    public static class C12Sources
+    {
+        public const string OpdEr = "OpdEr";
+        public const string Inpatient = "Inpatient";
+        public static bool IsSupported(string? value) => value is OpdEr or Inpatient;
+    }
+
+    public static class C12RoomScopes
     {
         public const string All = "All";
         public const string Emergency = "Emergency";

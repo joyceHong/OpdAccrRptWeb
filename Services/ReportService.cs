@@ -38,6 +38,7 @@ public class ReportService : IReportService
     private readonly IC10AmountCalculationService? _c10CalculationService;
     private readonly IC10PatientAccessAuditWriter? _c10AuditWriter;
     private readonly IC11ReceivablesCollectionReportService? _c11ReportService;
+    private readonly IC13HighRiskEmergencyRepository? _c13Repository;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -65,7 +66,8 @@ public class ReportService : IReportService
         IC10ReceivableDetailRepository? c10Repository = null,
         IC10AmountCalculationService? c10CalculationService = null,
         IC10PatientAccessAuditWriter? c10AuditWriter = null,
-        IC11ReceivablesCollectionReportService? c11ReportService = null)
+        IC11ReceivablesCollectionReportService? c11ReportService = null,
+        IC13HighRiskEmergencyRepository? c13Repository = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -93,6 +95,7 @@ public class ReportService : IReportService
         _c10CalculationService = c10CalculationService;
         _c10AuditWriter = c10AuditWriter;
         _c11ReportService = c11ReportService;
+        _c13Repository = c13Repository;
     }
 
     public Task<ReportDataAndColumns<C10ReceivableDetailRow>> ReportC10Async(
@@ -179,6 +182,11 @@ public class ReportService : IReportService
         if (searchCondition.ReportCode == "C24")
         {
             return CreateC24Result<T>(searchCondition);
+        }
+
+        if (searchCondition.ReportCode == "C13")
+        {
+            return CreateC13Result<T>(searchCondition);
         }
 
         if (searchCondition.StartDate is not null)
@@ -505,6 +513,35 @@ public class ReportService : IReportService
             default:
                 throw new ArgumentException($"Invalid report code: {searchCondition.ReportCode}");
         }
+    }
+
+    private ReportDataAndColumns<T> CreateC13Result<T>(SearchReportCondition condition)
+    {
+        var repository = _c13Repository
+            ?? throw new InvalidOperationException("C13 repository 尚未設定。");
+        int pageNumber = condition.PageNumber ?? 1;
+        int pageSize = condition.PageSize ?? 10;
+        string startDate = condition.StartDate?.Trim() ?? string.Empty;
+        string endDate = condition.EndDate?.Trim() ?? string.Empty;
+        condition.StartDate = startDate;
+        condition.EndDate = endDate;
+        int totalCount = _totalCountCache.GetOrCreate(
+            "C13",
+            new Dictionary<string, string?>
+            {
+                [nameof(SearchReportCondition.StartDate)] = startDate,
+                [nameof(SearchReportCondition.EndDate)] = endDate
+            },
+            () => repository.GetCount(condition));
+        return new ReportDataAndColumns<T>
+        {
+            Columns = repository.GetColumns(),
+            Data = repository.GetPage(condition).Cast<T>().ToList(),
+            TotalCount = totalCount,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = CalculateTotalPages(totalCount, pageSize)
+        };
     }
 
     private ReportDataAndColumns<T> CreateC21Result<T>(SearchReportCondition condition)

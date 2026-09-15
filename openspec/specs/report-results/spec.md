@@ -8,13 +8,48 @@
 
 ### Requirement: Dynamic report columns
 
-系統 SHALL 依報表定義回傳並顯示該報表專屬的欄位與資料列。
+Every enabled query report SHALL return and display its report-specific detail rows in a normal browsable TABLE result area. The TABLE SHALL display a total row count and SHALL use the established server-side or client-side pagination contract for that report. Report-specific summary, preview, print, chart, or document layouts SHALL be additional views and SHALL NOT replace the normal TABLE result.
 
 #### Scenario: Display successful query results
 
-- **WHEN** 報表查詢成功並回傳欄位及資料
-- **THEN** 系統 SHALL 按回傳欄位呈現表格表頭
-- **AND** 系統 SHALL 將每筆資料呈現於對應欄位
+- **WHEN** any enabled report query succeeds with detail rows
+- **THEN** the normal result area displays a TABLE header and every returned detail row in its corresponding columns
+- **AND** the result area displays total row count and pagination controls when multiple pages exist
+
+#### Scenario: Display a report with a specialized preview
+
+- **WHEN** an enabled report also provides a report-specific preview, print document, summary, or chart
+- **THEN** users can still browse the normal TABLE detail result
+- **AND** opening and closing the specialized view does not discard or replace the TABLE result state
+
+
+<!-- @trace
+source: add-c12-medical-receipt-summary
+updated: 2026-09-15
+code:
+  - wwwroot/css/site.css
+  - OpdAccrRptWeb.Tests/C12ReportControllerTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/C12LegacyAmountConverterTests.cs
+  - OpdAccrRptWeb.Tests/C12ReportServiceTests.cs
+  - Services/C12ReportService.cs
+  - Services/IC12PatientAccessAuditWriter.cs
+  - Services/IC12PatientAccessAuthorizer.cs
+  - Services/IC12ReportService.cs
+  - wwwroot/js/report-app.js
+  - Program.cs
+  - Repositories/C12Sql.cs
+  - Services/IC12LegacyAmountConverter.cs
+  - OpdAccrRptWeb.Tests/C12ReportRepositoryTests.cs
+  - ViewModels/SearchReportCondition.cs
+  - Repositories/C12ReportRepository.cs
+  - Repositories/IC12ReportRepository.cs
+  - ViewModels/C12MedicalReceiptSummaryViewModel.cs
+  - Views/Report/_C12MedicalReceiptSummary.cshtml
+  - Views/Report/Index.cshtml
+tests:
+  - OpdAccrRptWeb.Tests/c12-report.test.js
+-->
 
 ---
 ### Requirement: Empty result feedback

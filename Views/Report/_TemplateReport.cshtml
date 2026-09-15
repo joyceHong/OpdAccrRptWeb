@@ -7,7 +7,8 @@
                 <h1>{{ selectedReport ? selectedReport.name : '請從左側選擇報表' }}</h1>
                 <p>設定查詢區間與條件，送出後即可檢視報表資料。</p>
             </div>
-            <button v-if="!isPrintableLegacyReport" class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
+            <button v-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="previewC13">預覽／列印</button>
+            <button v-else-if="!isPrintableLegacyReport" class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
             <button v-else class="outline-button no-print" type="button" :disabled="!hasResults" v-on:click="printC211">列印</button>

@@ -1,0 +1,45 @@
+@model OpdAccrRptWeb.ViewModels.C13PreviewViewModel
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>C13 社服需求急診高危險群個案明細表</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; margin: 16px; color: #111; }
+        .actions { text-align: right; margin-bottom: 12px; }
+        h1, h2 { text-align: center; margin: 4px 0; }
+        h1 { font-size: 20px; } h2 { font-size: 18px; }
+        .meta { display: flex; justify-content: space-between; font-size: 12px; margin: 12px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th, td { border: 1px solid #222; padding: 4px; overflow-wrap: anywhere; }
+        th { background: #eee; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; }
+        .page-number::after { content: counter(page); }
+        @@page { size: A4 landscape; margin: 12mm; }
+        @@media print { .no-print { display: none; } body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <div class="actions no-print"><button type="button" onclick="window.print()">列印</button></div>
+    <header>
+        <h1>亞東紀念醫院</h1>
+        <h2>社服需求急診高危險群個案明細表</h2>
+        <div class="meta">
+            <span>查詢期間：@Model.StartDate ～ @Model.EndDate</span>
+            <span>處理日期：@Model.GeneratedAt</span>
+            <span>頁碼：<span class="page-number"></span></span>
+        </div>
+    </header>
+    <table>
+        <thead><tr><th>就診日期</th><th>病歷號</th><th>姓名</th><th>就診身份</th><th>部份負擔</th><th>生日</th><th>身分證字號</th><th>地址</th><th>電話</th><th>急診床號</th></tr></thead>
+        <tbody>
+        @foreach (var row in Model.Rows)
+        {
+            <tr><td>@row.VisitDate</td><td>@row.MedicalRecordNumber</td><td>@row.PatientName</td><td>@row.IdentityName</td><td>@row.PartialPaymentName</td><td>@row.BirthDate</td><td>@row.NationalId</td><td>@row.Address</td><td>@row.Telephone</td><td>@row.EmergencyBedNumber</td></tr>
+        }
+        </tbody>
+    </table>
+</body>
+</html>

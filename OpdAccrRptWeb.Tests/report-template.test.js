@@ -1345,6 +1345,52 @@ async function verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavio
     assert.match(appSource, /C212:\s*window\.ReportComponents\.ReportTemplate/);
 }
 
+async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
+    const configuration = window.ReportConfigurations.C13;
+    assert.equal(configuration.serverPaged, true);
+    assert.equal(configuration.c13, true);
+    assert.equal(component.computed.hasAdvancedConditions.call({ reportConfiguration: configuration }), false);
+    assert.equal(component.computed.hasAdvancedConditions.call({
+        reportConfiguration: window.ReportConfigurations.C22
+    }), true);
+    assert.equal(component.computed.isServerPaged.call({ selectedReport: { code: "C13" } }), true);
+    assert.equal(component.computed.isC13.call({ reportConfiguration: configuration }), true);
+    const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    const preview = fs.readFileSync("Views/Report/_C13HighRiskEmergencyPreview.cshtml", "utf8");
+    assert.match(appSource, /C13:\s*window\.ReportComponents\.ReportTemplate/);
+    assert.match(markup, /v-if="isC13"[\s\S]*?previewC13/);
+    assert.match(markup, /v-if="hasAdvancedConditions" class="advanced-toggle"/);
+    assert.match(markup, /v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid"/);
+    assert.match(markup, /<partial name="_TableSkeleton" \/>/);
+    assert.match(preview, /社服需求急診高危險群個案明細表/);
+    assert.match(preview, /處理日期/);
+    assert.match(preview, /急診床號/);
+    assert.doesNotMatch(preview, /@Model\.GeneratedBy/);
+
+    let requestBody;
+    global.fetch = async (_url, options) => {
+        requestBody = JSON.parse(options.body);
+        return { ok: true, json: async () => ({ columns: [], data: [], totalCount: 28, totalPages: 3, pageNumber: 2 }) };
+    };
+    const context = {
+        selectedReport: { code: "C13" },
+        form: { startDate: "2026-09-14", endDate: "2026-09-15", department: "" },
+        currentPage: 2, pageSize: 10, isLoading: false, hasSearched: false,
+        columns: [], rows: [], serverTotalCount: 0, serverTotalPages: 0, validationMessage: "",
+        hasEncounterSource: false, hasStationOrBedPrefix: false, hasCashierUserId: false,
+        hasCashierCashSort: false, hasBillingCode: false, hasReceivableBalanceType: false,
+        isEndDateOnly: false, isServerPaged: true
+    };
+    await component.methods.fetchResults.call(context);
+    assert.deepEqual(requestBody, {
+        reportCode: "C13", startDate: "2026-09-14", endDate: "2026-09-15",
+        pageNumber: 2, pageSize: 10
+    });
+    assert.equal(context.serverTotalCount, 28);
+    assert.equal(context.serverTotalPages, 3);
+}
+
 verifiesC171RequestsServerPages()
     .then(verifiesC1RequestsDateRangeAndServerPageOnly)
     .then(verifiesC25UsesSharedServerPagedLifecycle)
@@ -1378,4 +1424,5 @@ verifiesC171RequestsServerPages()
     .then(verifiesC10UsesSharedQueryAndExportContracts)
     .then(verifiesC211CutoffSourceContractAndCompletePrintMarkup)
     .then(verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavior)
+    .then(verifiesC13SharedPaginationSkeletonAndPreviewContract)
     .then(() => console.log("report-template pagination tests passed"));

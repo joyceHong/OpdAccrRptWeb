@@ -8,13 +8,48 @@
 
 ### Requirement: Shared simple report component
 
-格式單純的報表 SHALL 優先共用查詢條件、查詢狀態、結果表格、分頁及錯誤訊息元件；個別報表 SHALL 以設定與欄位定義表達差異。
+All standard report query pages SHALL reuse the established page title, query panel, panel title, date row, source fieldset, advanced-condition grid, required-field marker, form actions, shared table skeleton, result heading, and empty-state structures and their shared CSS behavior. Report-specific query controls SHALL express differences through configuration and field composition rather than divergent visual behavior. Print-preview documents SHALL be permitted to use report-specific layout and print styles.
 
 #### Scenario: Open reports with the same interaction pattern
 
-- **WHEN** 兩張報表都只需要日期條件及表格結果
-- **THEN** 系統 SHALL 使用相同的共用報表互動流程
-- **AND** 畫面 SHALL 顯示各自的報表代碼、名稱及結果欄位
+- **WHEN** users open two standard report query pages with different query fields
+- **THEN** both pages use the same shared query structure, spacing, input styling, action placement, pending skeleton, result heading, and empty-state behavior
+- **AND** each page displays its own report code, name, conditions, and result content
+
+#### Scenario: Open a report-specific print preview
+
+- **WHEN** a report has an approved document-specific print contract
+- **THEN** its print preview can use report-specific layout and print styles
+- **AND** its normal query page continues to use the global shared UI behavior
+
+
+<!-- @trace
+source: add-c12-medical-receipt-summary
+updated: 2026-09-15
+code:
+  - wwwroot/css/site.css
+  - OpdAccrRptWeb.Tests/C12ReportControllerTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/C12LegacyAmountConverterTests.cs
+  - OpdAccrRptWeb.Tests/C12ReportServiceTests.cs
+  - Services/C12ReportService.cs
+  - Services/IC12PatientAccessAuditWriter.cs
+  - Services/IC12PatientAccessAuthorizer.cs
+  - Services/IC12ReportService.cs
+  - wwwroot/js/report-app.js
+  - Program.cs
+  - Repositories/C12Sql.cs
+  - Services/IC12LegacyAmountConverter.cs
+  - OpdAccrRptWeb.Tests/C12ReportRepositoryTests.cs
+  - ViewModels/SearchReportCondition.cs
+  - Repositories/C12ReportRepository.cs
+  - Repositories/IC12ReportRepository.cs
+  - ViewModels/C12MedicalReceiptSummaryViewModel.cs
+  - Views/Report/_C12MedicalReceiptSummary.cshtml
+  - Views/Report/Index.cshtml
+tests:
+  - OpdAccrRptWeb.Tests/c12-report.test.js
+-->
 
 ---
 ### Requirement: Required date range

@@ -13,6 +13,7 @@
                 ])
             })
         }),
+        C13: Object.freeze({ serverPaged: true, c13: true }),
         C21: Object.freeze({
             serverPaged: true,
             advancedConditions: false,
@@ -136,6 +137,12 @@
     });
     const getReportConfiguration = reportCode => reportConfigurations[reportCode]
         ?? Object.freeze({ serverPaged: false });
+    const advancedConditionKeys = Object.freeze([
+        "stationOrBedPrefix",
+        "cashierUserId",
+        "cashierCashSort",
+        "billingCode"
+    ]);
     const previousDate = value => {
         const date = new Date(`${value}T12:00:00`);
         date.setDate(date.getDate() - 1);
@@ -244,13 +251,16 @@
             },
             receivableBalanceTypeConfiguration() { return this.reportConfiguration.receivableBalanceType ?? null; },
             hasReceivableBalanceType() { return this.receivableBalanceTypeConfiguration !== null; },
-            hasAdvancedConditions() { return this.reportConfiguration.advancedConditions !== false; },
+            hasAdvancedConditions() {
+                return advancedConditionKeys.some(key => this.reportConfiguration[key] !== undefined);
+            },
             cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
             isEndDateOnly() { return this.reportConfiguration.endDateOnly === true; },
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
             canExport() { return ["C10", "C174"].includes(this.selectedReport.code) && this.hasResults && !this.isExporting; },
+            isC13() { return this.reportConfiguration.c13 === true; },
             totalCount() { return this.isServerPaged ? this.serverTotalCount : this.filteredRows.length; },
             totalPages() {
                 return this.isServerPaged
@@ -486,6 +496,35 @@
                 this.currentPage = 1;
                 if (this.isServerPaged && this.hasSearched) {
                     await this.fetchResults();
+                }
+            },
+            async previewC13() {
+                if (!this.isC13 || !this.hasResults || this.isLoading) return;
+                this.isLoading = true;
+                this.validationMessage = "";
+                try {
+                    const response = await fetch("/Report/C13/Preview", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            reportCode: "C13",
+                            startDate: this.form.startDate,
+                            endDate: this.form.endDate
+                        })
+                    });
+                    if (!response.ok) {
+                        const problem = await response.json().catch(() => null);
+                        throw new Error(problem?.title ?? "無法建立 C13 預覽。");
+                    }
+                    const previewWindow = window.open("", "_blank");
+                    if (!previewWindow) throw new Error("瀏覽器已封鎖預覽視窗，請允許彈出視窗後重試。");
+                    previewWindow.opener = null;
+                    previewWindow.document.write(await response.text());
+                    previewWindow.document.close();
+                } catch (error) {
+                    this.validationMessage = error instanceof Error ? error.message : "無法建立 C13 預覽。";
+                } finally {
+                    this.isLoading = false;
                 }
             },
             changeEncounterSource() {

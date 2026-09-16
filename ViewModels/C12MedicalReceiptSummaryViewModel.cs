@@ -3,7 +3,9 @@ namespace OpdAccrRptWeb.ViewModels;
 public enum C12Source { OutpatientAndEmergency, Inpatient }
 
 public sealed record C12ReportRequest(string StartDate, string EndDate, C12Source Source,
-    int RoomType, string PatientIdentity, string? OldSectionCode, string? NewSectionCode);
+    int RoomType, string PatientIdentity, string? NewSectionCode);
+
+public sealed record C12SectionOption(string Code, string Name);
 
 public sealed record C12VisitKey(string Date, string Time, string Room, decimal Number);
 public sealed record C12VisitRow(C12VisitKey Key, string SectionCode, string DoctorName,
@@ -20,7 +22,7 @@ public sealed record C12ReportItem(int Sequence, string Name, int InsuranceAmoun
 public sealed record C12VisitModel(C12VisitKey Key, string SectionCode, string SectionName,
     string DoctorName, bool IsCurrentlyInpatient, IReadOnlyList<C12ReportItem> Items);
 public sealed record C12ReportCriteria(string StartDate, string EndDate, C12Source Source,
-    string RoomTypeLabel, string? OldSectionPrefix);
+    string RoomTypeLabel, string? NewSectionCode);
 public sealed record C12ReportModel(C12PatientRow Patient, C12ReportCriteria Criteria,
     IReadOnlyList<string> Warnings, IReadOnlyList<C12VisitModel> Visits);
 public sealed record C12PackedItemRow(C12ReportItem? Item1, C12ReportItem? Item2, C12ReportItem? Item3);

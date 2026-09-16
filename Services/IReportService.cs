@@ -29,5 +29,20 @@ namespace OpdAccrRptWeb.Services
             string correlationId,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("C212 report service 尚未設定。");
+
+        Task<ReportDataAndColumns<C143AccountingBalanceDebtReportViewModel>> ReportC143Async(
+            SearchReportCondition searchCondition,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("C143 report service 尚未設定。");
+
+        Task<ReportDataAndColumns<C144DebtDetailReportViewModel>> ReportC144Async(
+            SearchReportCondition searchCondition,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("C144 report service 尚未設定。");
+
+        Task<ReportDataAndColumns<C15AssistiveDeviceDepositDetailReportViewModel>> ReportC15Async(
+            SearchReportCondition searchCondition,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("C15 report service 尚未設定。");
     }
 }

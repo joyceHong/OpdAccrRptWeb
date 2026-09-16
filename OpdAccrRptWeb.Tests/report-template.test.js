@@ -1294,6 +1294,23 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
     const styles = fs.readFileSync("wwwroot/css/site.css", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
     assert.match(markup, /v-if="isC211"[^>]*c211-contract-input/);
+    assert.doesNotMatch(markup, /<datalist id="c211-contract-list"/);
+    assert.match(markup, /ref="c211Autocomplete" class="report-autocomplete"/);
+    assert.match(markup, /id="c211-contract-list" class="report-autocomplete-panel" role="listbox"/);
+    assert.match(markup, /class="report-autocomplete-option"/);
+    assert.match(markup, /role="combobox"/);
+    assert.match(styles, /\.report-autocomplete-panel\{[^}]*width:100%/);
+    assert.match(styles, /\.report-autocomplete-panel\{[^}]*border-radius:10px/);
+    const contracts=[{code:"AA",name:"甲合約"},{code:"BB",name:"乙合約"}];
+    assert.deepEqual(component.computed.filteredC211Contracts.call({form:{contractCode:"bb"},c211Contracts:contracts}),[contracts[1]]);
+    const autocompleteContext={filteredC211Contracts:contracts,c211ContractOpen:true,c211ContractActiveIndex:-1,form:{contractCode:""},selectC211Contract:component.methods.selectC211Contract};
+    component.methods.onC211ContractKeydown.call(autocompleteContext,{key:"ArrowDown",preventDefault(){}});
+    assert.equal(autocompleteContext.c211ContractActiveIndex,0);
+    component.methods.onC211ContractKeydown.call(autocompleteContext,{key:"Enter",preventDefault(){}});
+    assert.equal(autocompleteContext.form.contractCode,"AA");
+    autocompleteContext.c211ContractOpen=true;
+    component.methods.onC211ContractKeydown.call(autocompleteContext,{key:"Escape",preventDefault(){}});
+    assert.equal(autocompleteContext.c211ContractOpen,false);
     assert.match(markup, /c211Summary\.selfGrandTotal/);
     assert.match(markup, /group\.rows/);
     assert.match(styles, /@media print/);
@@ -1391,6 +1408,228 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     assert.equal(context.serverTotalPages, 3);
 }
 
+async function verifiesC143SharedQueryPagingAndResetContract() {
+    const configuration = window.ReportConfigurations.C143;
+    assert.equal(configuration.serverPaged, true);
+    assert.equal(configuration.encounterSource.defaultValue, "OpdEr");
+    assert.equal(configuration.reportType.defaultValue, "Difference");
+    const initial = component.data.call({
+        selectedReport: { code: "C143" }, defaultStartDate: "2026-09-15", defaultEndDate: "2026-09-15"
+    });
+    assert.equal(initial.form.startDate, "2026-09-14");
+    assert.equal(initial.form.endDate, "2026-09-14");
+    assert.equal(initial.form.encounterSource, "OpdEr");
+    assert.equal(initial.form.reportType, "Difference");
+
+    let requestBody;
+    global.fetch = async (_url, options) => {
+        requestBody = JSON.parse(options.body);
+        return { ok: true, json: async () => ({
+            columns: [{ key: "visitDate", label: "就診日" }], data: [{ visitDate: "1150914" }],
+            totalCount: 31, totalPages: 4, pageNumber: 2
+        }) };
+    };
+    const context = {
+        ...initial, selectedReport: { code: "C143" }, currentPage: 2, pageSize: 10,
+        isLoading: false, hasSearched: false, columns: [], rows: [], serverTotalCount: 0,
+        serverTotalPages: 0, validationMessage: "", isEndDateOnly: false, isServerPaged: true,
+        hasEncounterSource: true, isC24: false, isC10: false, isC143: true,
+        hasStationOrBedPrefix: false, hasCashierUserId: false, hasCashierCashSort: false,
+        hasBillingCode: false, hasReceivableBalanceType: false, isC21: false, isC23: false,
+        isC211: false, canForceC24Rebuild: false, hasAdvancedConditions: false
+    };
+    await component.methods.fetchResults.call(context);
+    assert.equal(requestBody.source, "OpdEr");
+    assert.equal(requestBody.reportType, "Difference");
+    assert.equal(requestBody.pageNumber, 2);
+    assert.equal(requestBody.pageSize, 10);
+    assert.equal(context.serverTotalCount, 31);
+    assert.equal(context.serverTotalPages, 4);
+
+    const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    assert.match(appSource, /C143:\s*window\.ReportComponents\.ReportTemplate/);
+    assert.match(markup, /v-if="hasReportType"/);
+    assert.match(markup, /v-model="form\.reportType"/);
+    assert.match(markup, /v-if="isC143"[\s\S]*?改成昨天/);
+    assert.match(markup, /<partial name="_TableSkeleton" \/>/);
+}
+
+async function verifiesC144SharedQueryPagingAndExportContract() {
+    const configuration = window.ReportConfigurations.C144;
+    assert.equal(configuration.serverPaged, true);
+    assert.equal(configuration.encounterSource.defaultValue, "OpdEr");
+    const initial = component.data.call({
+        selectedReport: { code: "C144" }, defaultStartDate: "2026-09-15", defaultEndDate: "2026-09-16"
+    });
+    assert.equal(initial.form.startDate, "2026-09-15");
+    assert.equal(initial.form.endDate, "2026-09-16");
+    assert.equal(initial.form.encounterSource, "OpdEr");
+
+    let requestBody;
+    global.fetch = async (_url, options) => {
+        requestBody = JSON.parse(options.body);
+        return { ok: true, json: async () => ({
+            columns: [{ key: "encounterType", label: "診別" }],
+            data: [{ encounterType: "E" }], totalCount: 31, totalPages: 4, pageNumber: 2
+        }) };
+    };
+    const context = {
+        ...initial, selectedReport: { code: "C144" }, currentPage: 2, pageSize: 10,
+        isLoading: false, hasSearched: false, columns: [], rows: [], serverTotalCount: 0,
+        serverTotalPages: 0, validationMessage: "", isEndDateOnly: false, isServerPaged: true,
+        hasEncounterSource: true, isC24: false, isC10: false, isC143: false, isC144: true,
+        hasStationOrBedPrefix: false, hasCashierUserId: false, hasCashierCashSort: false,
+        hasBillingCode: false, hasReceivableBalanceType: false, isC21: false, isC23: false,
+        isC211: false, canForceC24Rebuild: false, hasAdvancedConditions: false
+    };
+    await component.methods.fetchResults.call(context);
+    assert.equal(requestBody.source, "OpdEr");
+    assert.equal(requestBody.pageNumber, 2);
+    assert.equal(requestBody.pageSize, 10);
+    assert.equal(context.serverTotalCount, 31);
+
+    const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
+    const templateSource = fs.readFileSync("wwwroot/js/reports/report-template.js", "utf8");
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    assert.match(appSource, /C144:\s*window\.ReportComponents\.ReportTemplate/);
+    assert.match(templateSource, /\["C10",\s*"C144",\s*"C174"\]/);
+    assert.match(templateSource, /this\.isC10 \|\| this\.isC144 \? this\.form\.encounterSource/);
+    assert.match(markup, /<partial name="_TableSkeleton" \/>/);
+}
+
+async function verifiesFirstAndLastPageControlsReuseExistingPagination() {
+    const sharedMarkup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    const searchMarkup = fs.readFileSync("Views/Report/_SearchResults.cshtml", "utf8");
+    const c11Markup = fs.readFileSync("Views/Report/_C11ReceivablesCollectionReport.cshtml", "utf8");
+
+    assert.match(sharedMarkup, /aria-label="第一頁"[^>]*goToPage\(1\)[^>]*>‹‹<\/button>[\s\S]*aria-label="最後一頁"[^>]*goToPage\(totalPages\)[^>]*>››<\/button>/);
+    assert.match(sharedMarkup, /aria-label="第一頁"[^>]*:disabled="isLoading \|\| currentPage === 1"/);
+    assert.match(sharedMarkup, /aria-label="最後一頁"[^>]*:disabled="isLoading \|\| currentPage === totalPages"/);
+    assert.match(searchMarkup, /aria-label="第一頁"[^>]*currentPage = 1[^>]*>‹‹<\/button>[\s\S]*aria-label="最後一頁"[^>]*currentPage = totalPages[^>]*>››<\/button>/);
+    assert.match(c11Markup, /aria-label="第一頁"[^>]*currentPage = 1[^>]*>‹‹<\/button>[\s\S]*aria-label="最後一頁"[^>]*currentPage = totalPages[^>]*>››<\/button>/);
+
+    let fetchCount = 0;
+    const serverContext = {
+        isLoading: false, totalPages: 12, currentPage: 5, isServerPaged: true,
+        async fetchResults() { fetchCount++; }
+    };
+    await component.methods.goToPage.call(serverContext, 12);
+    assert.equal(serverContext.currentPage, 12);
+    assert.equal(fetchCount, 1);
+    assert.equal(serverContext.totalPages, 12);
+}
+
+async function verifiesC15SharedPagingGroupingAndPrintContract() {
+    let requestBody;
+    global.fetch = async (_url, options) => {
+        requestBody = JSON.parse(options.body);
+        return {
+            ok: true,
+            json: async () => ({
+                columns: [],
+                data: [{ type: "1", encounterOrdinal: 0, rl001: 100 }],
+                totalCount: 31,
+                totalPages: 4,
+                pageNumber: 2,
+                pageSize: 10,
+                summary: { groups: [{ type: "1", title: "社工室生活輔具租借月報表" }] }
+            })
+        };
+    };
+    const context = {
+        selectedReport: { code: "C15" },
+        form: { startDate: "2026-09-01", endDate: "2026-09-16" },
+        currentPage: 2, pageSize: 10, isLoading: false, hasSearched: false,
+        columns: [], rows: [], summaries: [], c211Summary: null, c212Summary: null,
+        c15Summary: null, serverTotalCount: 0, serverTotalPages: 0,
+        validationMessage: "", isServerPaged: true, isC15: true, isC211: false,
+        isC212: false, hasEncounterSource: false, hasAdvancedConditions: false,
+        hasReceivableBalanceType: false, hasReportType: false, isC21: false,
+        isC23: false, isC24: false, isC10: false, isC143: false, isC144: false,
+        canForceC24Rebuild: false, $emit: () => {}
+    };
+
+    await component.methods.fetchResults.call(context);
+
+    assert.equal(requestBody.reportCode, "C15");
+    assert.equal(requestBody.startDate, "2026-09-01");
+    assert.equal(requestBody.endDate, "2026-09-16");
+    assert.equal(requestBody.pageNumber, 2);
+    assert.equal(requestBody.pageSize, 10);
+    assert.equal(context.serverTotalCount, 31);
+    assert.equal(context.c15Summary.groups[0].type, "1");
+
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
+    const css = fs.readFileSync("wwwroot/css/site.css", "utf8");
+    assert.match(appSource, /C15:\s*window\.ReportComponents\.ReportTemplate/);
+    assert.match(markup, /v-else-if="isC15" class="c15-report"/);
+    const resultStart = markup.indexOf('<div v-else-if="isC15" class="c15-report">');
+    const previewStart = markup.indexOf('<div v-if="c15PreviewOpen" class="c15-preview-overlay"');
+    const resultMarkup = markup.slice(resultStart, previewStart);
+    assert.doesNotMatch(resultMarkup, /group\.title/);
+    assert.match(markup, /租借日期[\s\S]*病歷號[\s\S]*租借人[\s\S]*輔具編號[\s\S]*租借期限[\s\S]*amount001Label[\s\S]*歸還日期[\s\S]*amount002Label[\s\S]*amount004Label[\s\S]*amount003Label/);
+    assert.match(markup, /class="c15-preview-overlay"[\s\S]*c15PreviewPages[\s\S]*亞東紀念醫院[\s\S]*page\.title[\s\S]*資料日期[\s\S]*處理時間[\s\S]*page\.pageNumber[\s\S]*class="c15-print-table"/);
+    assert.match(markup, /<partial name="_TableSkeleton" \/>/);
+    assert.match(markup, /aria-label="第一頁"[\s\S]*aria-label="最後一頁"/);
+    assert.match(css, /@page c15-landscape \{ size:A4 landscape;/);
+    assert.match(css, /@media print\{\.c15-preview-overlay,\.c15-preview-overlay \*\{visibility:visible!important\}/);
+    assert.match(css, /\.c15-preview-overlay\{[^}]*overflow-y:auto/);
+    assert.match(css, /\.c15-paper\{[^}]*break-after:page/);
+
+    const previewRows = Array.from({ length: 37 }, (_, encounterOrdinal) => ({
+        type: "1", encounterOrdinal, rl001: encounterOrdinal + 1
+    }));
+    let previewRequestBody;
+    global.fetch = async (_url, options) => {
+        previewRequestBody = JSON.parse(options.body);
+        return {
+            ok: true,
+            json: async () => ({
+                data: previewRows,
+                totalCount: 37,
+                summary: { groups: [{ type: "1", title: "社工室生活輔具租借月報表", rl001Total: 703 }] }
+            })
+        };
+    };
+    const previewContext = {
+        isC15: true, hasResults: true, c15PreviewOpen: false, c15PreviewLoading: false,
+        c15PreviewRows: [], c15PreviewSummary: null, c15PrintGeneratedAt: "",
+        validationMessage: "", serverTotalCount: 37, currentPage: 2, pageSize: 10,
+        form: { startDate: "2026-09-01", endDate: "2026-09-16" }
+    };
+    await component.methods.openC15Preview.call(previewContext);
+    assert.deepEqual(previewRequestBody, {
+        reportCode: "C15", startDate: "2026-09-01", endDate: "2026-09-16",
+        pageNumber: 1, pageSize: 37
+    });
+    assert.equal(previewContext.c15PreviewOpen, true);
+    assert.equal(previewContext.c15PreviewRows.length, 37);
+    assert.equal(previewContext.currentPage, 2);
+    assert.equal(previewContext.pageSize, 10);
+    assert.ok(previewContext.c15PrintGeneratedAt.length > 0);
+    const previewPages = component.computed.c15PreviewPages.call(previewContext);
+    assert.equal(previewPages.length, 3);
+    assert.deepEqual(previewPages.map(page => page.rows.length), [18, 18, 1]);
+    assert.deepEqual(previewPages.map(page => page.pageNumber), [1, 2, 3]);
+    assert.deepEqual(previewPages.map(page => page.totalPages), [3, 3, 3]);
+    assert.deepEqual(previewPages.map(page => page.showTotals), [false, false, true]);
+    component.methods.closeC15Preview.call(previewContext);
+    assert.equal(previewContext.c15PreviewOpen, false);
+
+    global.fetch = async () => ({
+        ok: false, status: 500, json: async () => ({ title: "預覽暫時無法使用" })
+    });
+    previewContext.c15PreviewRows = previewRows;
+    await component.methods.openC15Preview.call(previewContext);
+    assert.equal(previewContext.c15PreviewOpen, false);
+    assert.deepEqual(previewContext.c15PreviewRows, []);
+    assert.equal(previewContext.currentPage, 2);
+    assert.match(previewContext.validationMessage, /預覽暫時無法使用/);
+    assert.equal(component.methods.displayRocDate.call({}, "2026-09-16"), "115/09/16");
+}
+
 verifiesC171RequestsServerPages()
     .then(verifiesC1RequestsDateRangeAndServerPageOnly)
     .then(verifiesC25UsesSharedServerPagedLifecycle)
@@ -1425,4 +1664,8 @@ verifiesC171RequestsServerPages()
     .then(verifiesC211CutoffSourceContractAndCompletePrintMarkup)
     .then(verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavior)
     .then(verifiesC13SharedPaginationSkeletonAndPreviewContract)
+    .then(verifiesC143SharedQueryPagingAndResetContract)
+    .then(verifiesC144SharedQueryPagingAndExportContract)
+    .then(verifiesC15SharedPagingGroupingAndPrintContract)
+    .then(verifiesFirstAndLastPageControlsReuseExistingPagination)
     .then(() => console.log("report-template pagination tests passed"));

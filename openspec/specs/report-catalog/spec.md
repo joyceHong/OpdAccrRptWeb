@@ -6,6 +6,16 @@
 
 ## Requirements
 
+### Requirement: Available C144 catalog entry
+The outpatient accounting report catalog SHALL expose C144 as an available `欠款明細報表` entry and SHALL route selection to the C144-specific query controls.
+
+#### Scenario: Select C144 from the catalog
+- **WHEN** a user selects C144 in the outpatient accounting report catalog
+- **THEN** the application displays Gregorian start and end dates plus outpatient/emergency and inpatient source controls
+- **AND** the application permits a validated C144 query submission
+
+---
+
 ### Requirement: Outpatient accounting report catalog
 
 「門診批價統計報表」分類 SHALL 包含下列群組與報表代碼：

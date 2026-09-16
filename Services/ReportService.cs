@@ -3,6 +3,7 @@ using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using OpdAccrRptWeb.Models;
 using Oracle.ManagedDataAccess.Client;
 
 namespace OpdAccrRptWeb.Services;
@@ -39,6 +40,10 @@ public class ReportService : IReportService
     private readonly IC10PatientAccessAuditWriter? _c10AuditWriter;
     private readonly IC11ReceivablesCollectionReportService? _c11ReportService;
     private readonly IC13HighRiskEmergencyRepository? _c13Repository;
+    private readonly IC143AccountingBalanceDebtReportService? _c143ReportService;
+    private readonly IC144DebtDetailReportService? _c144ReportService;
+    private readonly IC15AssistiveDeviceDepositDetailRepository? _c15Repository;
+    private readonly IC15LegacyReducer? _c15Reducer;
 
     public ReportService(
         IHealthCenterRepository healthCenterRepository,
@@ -67,7 +72,11 @@ public class ReportService : IReportService
         IC10AmountCalculationService? c10CalculationService = null,
         IC10PatientAccessAuditWriter? c10AuditWriter = null,
         IC11ReceivablesCollectionReportService? c11ReportService = null,
-        IC13HighRiskEmergencyRepository? c13Repository = null)
+        IC13HighRiskEmergencyRepository? c13Repository = null,
+        IC143AccountingBalanceDebtReportService? c143ReportService = null,
+        IC144DebtDetailReportService? c144ReportService = null,
+        IC15AssistiveDeviceDepositDetailRepository? c15Repository = null,
+        IC15LegacyReducer? c15Reducer = null)
     {
         _healthCenterRepository = healthCenterRepository;
         _referralMemberRepository = referralMemberRepository;
@@ -96,6 +105,90 @@ public class ReportService : IReportService
         _c10AuditWriter = c10AuditWriter;
         _c11ReportService = c11ReportService;
         _c13Repository = c13Repository;
+        _c143ReportService = c143ReportService;
+        _c144ReportService = c144ReportService;
+        _c15Repository = c15Repository;
+        _c15Reducer = c15Reducer;
+    }
+
+    public Task<ReportDataAndColumns<C15AssistiveDeviceDepositDetailReportViewModel>> ReportC15Async(
+        SearchReportCondition searchCondition,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var repository = _c15Repository
+            ?? throw new InvalidOperationException("C15 repository 尚未設定。");
+        var reducer = _c15Reducer
+            ?? throw new InvalidOperationException("C15 reducer 尚未設定。");
+
+        IReadOnlyList<C15SourceRow> sourceRows = repository.Query(searchCondition, cancellationToken);
+        IReadOnlyList<C15WorkingRow> canonicalRows = reducer.Reduce(sourceRows);
+        List<C15WorkingRow> orderedRows = canonicalRows
+            .OrderBy(row => row.Type, StringComparer.Ordinal)
+            .ThenBy(row => row.EncounterOrdinal)
+            .ToList();
+        var period = C15AssistiveDeviceDepositDetailRepository.BuildPeriod(searchCondition);
+        int totalCount = _totalCountCache.GetOrCreate(
+            "C15",
+            new Dictionary<string, string?>
+            {
+                [nameof(SearchReportCondition.StartDate)] = period.StartDate,
+                [nameof(SearchReportCondition.EndDate)] = period.EndDate
+            },
+            () => orderedRows.Count);
+        int pageNumber = searchCondition.PageNumber ?? 1;
+        int pageSize = searchCondition.PageSize ?? 10;
+
+        var result = new ReportDataAndColumns<C15AssistiveDeviceDepositDetailReportViewModel>
+        {
+            Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C15AssistiveDeviceDepositDetailReportViewModel>()
+                .Where(column => column.Key is not "type" and not "encounterOrdinal")
+                .ToList(),
+            Data = orderedRows
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(ToC15ViewModel)
+                .ToList(),
+            TotalCount = totalCount,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = CalculateTotalPages(totalCount, pageSize),
+            Summary = new C15ReportSummary(orderedRows
+                .GroupBy(row => row.Type, StringComparer.Ordinal)
+                .Select(CreateC15GroupSummary)
+                .ToList())
+        };
+        return Task.FromResult(result);
+    }
+
+    private static C15AssistiveDeviceDepositDetailReportViewModel ToC15ViewModel(C15WorkingRow row) => new()
+    {
+        VisitDate = row.VisitDate,
+        MedicalRecordNumber = row.MedicalRecordNumber,
+        PatientName = row.PatientName,
+        ReturnDate = row.ReturnDate,
+        Rl001 = row.Rl001,
+        Rl002 = row.Rl002,
+        Rl003 = row.Rl003,
+        Rl004 = row.Rl004,
+        Type = row.Type,
+        EncounterOrdinal = row.EncounterOrdinal
+    };
+
+    private static C15GroupSummary CreateC15GroupSummary(IGrouping<string, C15WorkingRow> group)
+    {
+        bool typeOne = group.Key == "1";
+        return new C15GroupSummary(
+            group.Key,
+            typeOne ? "社工室生活輔具租借月報表" : "小兒外科輔具租借月報表",
+            typeOne ? "保證金696-001" : "保證金696-008",
+            typeOne ? "輔具租金696-002" : "輔具租金696-007",
+            typeOne ? "輔具租金696-004" : string.Empty,
+            typeOne ? "輔具維修696-003" : string.Empty,
+            group.Sum(row => row.Rl001 ?? 0m),
+            group.Sum(row => row.Rl002 ?? 0m),
+            group.Sum(row => row.Rl004 ?? 0m),
+            group.Sum(row => row.Rl003 ?? 0m));
     }
 
     public Task<ReportDataAndColumns<C10ReceivableDetailRow>> ReportC10Async(
@@ -159,6 +252,18 @@ public class ReportService : IReportService
         CancellationToken cancellationToken = default) =>
         (_c212ReportService ?? throw new InvalidOperationException("C212 report service 尚未設定。"))
             .CreateAsync(query, userId, correlationId, cancellationToken);
+
+    public Task<ReportDataAndColumns<C143AccountingBalanceDebtReportViewModel>> ReportC143Async(
+        SearchReportCondition searchCondition,
+        CancellationToken cancellationToken = default) =>
+        (_c143ReportService ?? throw new InvalidOperationException("C143 report service 尚未設定。"))
+            .QueryAsync(searchCondition, cancellationToken);
+
+    public Task<ReportDataAndColumns<C144DebtDetailReportViewModel>> ReportC144Async(
+        SearchReportCondition searchCondition,
+        CancellationToken cancellationToken = default) =>
+        (_c144ReportService ?? throw new InvalidOperationException("C144 report service 尚未設定。"))
+            .QueryAsync(searchCondition, cancellationToken);
 
     public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition)
     {

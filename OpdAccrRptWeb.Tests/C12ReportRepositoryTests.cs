@@ -3,6 +3,11 @@ using Oracle.ManagedDataAccess.Client;
 namespace OpdAccrRptWeb.Tests;
 public sealed class C12ReportRepositoryTests
 {
+    [Fact] public void SectionOptions_AreDistinctNonblankAndStablyOrdered()
+    { Assert.Contains("SELECT DISTINCT RTRIM(S.chNewSecNo) Code",C12Sql.SectionOptions);Assert.Contains("RTRIM(S.chSecName) Name",C12Sql.SectionOptions);Assert.Contains("RTRIM(S.chNewSecNo) IS NOT NULL",C12Sql.SectionOptions);Assert.Contains("ORDER BY Code, Name",C12Sql.SectionOptions); }
+    [Theory][InlineData(nameof(C12Sql.OutpatientVisits))][InlineData(nameof(C12Sql.InpatientVisits))]
+    public void Visits_FilterNewSectionThroughParameterizedMapping(string source)
+    { string sql=source==nameof(C12Sql.OutpatientVisits)?C12Sql.OutpatientVisits:C12Sql.InpatientVisits;Assert.Contains(":ApplySection=0 OR EXISTS",sql);Assert.Contains("RTRIM(S.chSecNo)=RTRIM(B.chOp1Sec)",sql);Assert.Contains("RTRIM(S.chNewSecNo)=:NewSectionCode",sql);Assert.DoesNotContain("SectionPrefix",sql); }
     [Fact] public void Visits_UseFourKeyCancellationAndBindParameters()
     { Assert.Contains(":StartDate",C12Sql.OutpatientVisits);Assert.Contains("NOT EXISTS",C12Sql.OutpatientVisits);Assert.Contains("R.intOp0No=B.intOp1No",C12Sql.OutpatientVisits); }
     [Fact] public void Charges_UseUnionDistinctAndLegacyNullExpression()

@@ -9,11 +9,9 @@ public sealed class C12ReportService(IC12ReportRepository repository, IC12Legacy
     public async Task<C12MedicalReceiptSummaryViewModel> CreateAsync(C12ReportRequest request,string userId,CancellationToken ct=default)
     {
         if (!await authorizer.AuthorizeAsync(userId,ct)) { await auditWriter.WriteAsync(userId,C12AuditOutcome.Denied,ct); throw new C12AccessDeniedException(); }
-        string? oldSection=request.OldSectionCode;
-        if (!string.IsNullOrWhiteSpace(request.NewSectionCode)) oldSection=await repository.ResolveOldSectionCodeAsync(request.NewSectionCode,ct);
         string input=request.PatientIdentity.Trim().ToUpperInvariant();
         string mrNo=await repository.ResolveMedicalRecordNoAsync(input,ct) ?? input;
-        C12ReportRequest normalized=request with { PatientIdentity=input,OldSectionCode=oldSection };
+        C12ReportRequest normalized=request with { PatientIdentity=input };
         IReadOnlyList<C12VisitRow> visits=await repository.QueryVisitsAsync(normalized,mrNo,ct);
         if(visits.Count==0)
         {
@@ -38,7 +36,7 @@ public sealed class C12ReportService(IC12ReportRepository repository, IC12Legacy
     }
 
     private static C12MedicalReceiptSummaryViewModel Empty(C12ReportRequest r,string mrNo)=>new(new(mrNo,"",""),Criteria(r),[],[],[],[],new(0,0,0,0),new(0,0,0,0),false);
-    private static C12ReportCriteria Criteria(C12ReportRequest r)=>new(r.StartDate,r.EndDate,r.Source,r.Source==C12Source.Inpatient?"住院":r.RoomType switch{1=>"急診",2=>"門診",_=>"門急診"},r.OldSectionCode);
+    private static C12ReportCriteria Criteria(C12ReportRequest r)=>new(r.StartDate,r.EndDate,r.Source,r.Source==C12Source.Inpatient?"住院":r.RoomType switch{1=>"急診",2=>"門診",_=>"門急診"},r.NewSectionCode);
     private static C12MedicalReceiptSummaryViewModel Project(C12ReportModel model)
     {
         List<C12VisitDetail> detail=model.Visits.Select(v=>

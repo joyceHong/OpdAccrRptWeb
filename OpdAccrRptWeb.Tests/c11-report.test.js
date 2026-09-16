@@ -34,4 +34,6 @@ assert.match(view, /<partial name="_TableSkeleton"\s*\/>/);
 assert.match(view, /class="visually-hidden" role="status">資料查詢中/);
 assert.doesNotMatch(view, /⌛/);
 assert.match(view, /^<template id="c11-report-template">/);
+assert.match(view, /aria-label="第一頁"[^>]*>‹‹<\/button>/);
+assert.match(view, /aria-label="最後一頁"[^>]*>››<\/button>/);
 console.log("C11 report component contract tests passed");

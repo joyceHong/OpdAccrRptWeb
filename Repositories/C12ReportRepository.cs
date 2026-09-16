@@ -7,25 +7,14 @@ namespace OpdAccrRptWeb.Repositories;
 
 public sealed class C12ReportRepository(IConnectionStringProvider connectionStringProvider) : IC12ReportRepository
 {
-    private static readonly IReadOnlyDictionary<string, string> FixedMappings =
-        new Dictionary<string, string>(StringComparer.Ordinal)
-        { ["11910"]="0201", ["11920"]="0281", ["11930"]="0220", ["11309"]="0230" };
-    private static readonly HashSet<string> FixedIdentityMappings = new(
-        new[] { "15HD3","15HD4","1013P","150MI","15OPD","1OR4F","12710","1510M","15WD1" }
-            .Concat(Enumerable.Range(1,27).Select(value=>$"1OR{value:00}"))
-            .Concat(Enumerable.Range(1,4).Select(value=>$"1CV{value:00}"))
-            .Concat(Enumerable.Range(1,4).Select(value=>$"1XA{value:00}"))
-            .Concat(Enumerable.Range(1,20).Select(value=>$"1ED{value:00}")), StringComparer.Ordinal);
-
-    public async Task<string?> ResolveOldSectionCodeAsync(string code, CancellationToken ct)
+    public async Task<IReadOnlyList<C12SectionOption>> QuerySectionOptionsAsync(CancellationToken ct)
     {
-        code = code.Trim().ToUpperInvariant();
-        if (FixedMappings.TryGetValue(code, out string? mapped)) return mapped;
-        if (FixedIdentityMappings.Contains(code)) return code;
         await using OracleConnection connection = CreateConnection(); await connection.OpenAsync(ct);
-        await using OracleCommand command = CreateCommand(connection, C12Sql.SectionMapping);
-        Add(command, "NewSectionCode", OracleDbType.Varchar2, code);
-        return Trim(await command.ExecuteScalarAsync(ct));
+        await using OracleCommand command = CreateCommand(connection, C12Sql.SectionOptions);
+        await using OracleDataReader reader = await command.ExecuteReaderAsync(ct);
+        var options = new List<C12SectionOption>();
+        while (await reader.ReadAsync(ct)) options.Add(new(Text(reader,0),Text(reader,1)));
+        return options;
     }
 
     public async Task<string?> ResolveMedicalRecordNoAsync(string identity, CancellationToken ct)
@@ -41,8 +30,8 @@ public sealed class C12ReportRepository(IConnectionStringProvider connectionStri
         await using OracleConnection connection = CreateConnection(); await connection.OpenAsync(ct);
         await using OracleCommand command = CreateCommand(connection, request.Source == C12Source.Inpatient ? C12Sql.InpatientVisits : C12Sql.OutpatientVisits);
         Add(command,"StartDate",OracleDbType.Char,request.StartDate); Add(command,"EndDate",OracleDbType.Char,request.EndDate);
-        Add(command,"ApplySection",OracleDbType.Int32,string.IsNullOrWhiteSpace(request.OldSectionCode)?0:1);
-        Add(command,"SectionPrefix",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(request.OldSectionCode)?DBNull.Value:request.OldSectionCode.Trim()+"%");
+        Add(command,"ApplySection",OracleDbType.Int32,string.IsNullOrWhiteSpace(request.NewSectionCode)?0:1);
+        Add(command,"NewSectionCode",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(request.NewSectionCode)?DBNull.Value:request.NewSectionCode.Trim());
         command.Parameters.Add(CreateMedicalRecordParameter(mrNo));
         if (request.Source == C12Source.OutpatientAndEmergency) Add(command,"RoomType",OracleDbType.Int32,request.RoomType);
         await using OracleDataReader reader = await command.ExecuteReaderAsync(ct);

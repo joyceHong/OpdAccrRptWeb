@@ -11,6 +11,19 @@ assert.match(css,/\.c12-visit\{break-inside:avoid/);
 assert.equal((catalog.match(/Report\("C12"/g)||[]).length,1,"C12 must appear once in the menu");
 assert.match(view,/病歷號 <i>\*<\/i>/);assert.doesNotMatch(view,/病歷號／身分證號/);
 assert.match(view,/class="advanced-grid c12-query-grid"/);
+assert.doesNotMatch(view,/舊科別碼/);
+assert.doesNotMatch(view,/chop1sec/);
+assert.doesNotMatch(view,/<datalist/);
+assert.match(view,/class="report-autocomplete"/);
+assert.match(view,/class="report-autocomplete-panel" role="listbox"/);
+assert.match(view,/class="report-autocomplete-option"/);
+assert.match(view,/role="combobox"/);
+assert.match(view,/aria-label="第一頁"[^>]*:disabled="loading\|\|currentPage===1"[^>]*@@click="currentPage=1"[^>]*>‹‹<\/button>/);
+assert.match(view,/aria-label="最後一頁"[^>]*:disabled="loading\|\|currentPage===totalPages"[^>]*@@click="currentPage=totalPages"[^>]*>››<\/button>/);
+assert.match(view,/role="option"/);
+assert.match(css,/\.report-autocomplete-panel\{[^}]*width:100%/);
+assert.match(css,/\.report-autocomplete-panel\{[^}]*border-radius:10px/);
+assert.match(view,/fetch\("\/Report\/GetC12SectionOptions"\)/);
 assert.match(view,/v-for="row in pagedRows"/);
 for(const heading of ["日期","時段","診間","序號","科別","醫師","科目","健保","自付","優待／記帳","實收"]) assert.ok(view.includes(`<th>${heading}</th>`),`missing table heading: ${heading}`);
 assert.match(view,/共 \{\{detailRows\.length\}\} 筆/);
@@ -79,4 +92,44 @@ assert.equal(previewContext.printDate,"2026/09/14");
 assert.equal(previewContext.currentPage,3);
 assert.equal(previewContext.pageSize,10);
 assert.equal(component.methods.formatTaipeiDate.call({},new Date("2026-09-13T16:30:00Z")),"2026/09/14");
-console.log("C12 report UI contract tests passed.");
+(async()=>{
+    const originalFetch=global.fetch;
+    try{
+        global.fetch=async()=>({ok:true,json:async()=>[{code:"11910",name:"心臟內科"}]});
+        const optionContext={sectionOptions:[],sectionError:""};
+        await component.methods.loadSectionOptions.call(optionContext);
+        assert.deepEqual(optionContext.sectionOptions,[{code:"11910",name:"心臟內科"}]);
+        assert.equal(optionContext.sectionError,"");
+
+        const filterContext={form:{newSection:"11910"},sectionOptions:[{code:"11910",name:"一般內科"},{code:"11920",name:"急診外科"}]};
+        const filtered=component.computed.filteredSectionOptions.call(filterContext);
+        assert.deepEqual(filtered,[{code:"11910",name:"一般內科"}]);
+        const keyboardContext={filteredSectionOptions:filtered,sectionOpen:true,sectionActiveIndex:-1,form:{newSection:""},selectSectionOption:component.methods.selectSectionOption};
+        component.methods.onSectionKeydown.call(keyboardContext,{key:"ArrowDown",preventDefault(){}});
+        assert.equal(keyboardContext.sectionActiveIndex,0);
+        component.methods.onSectionKeydown.call(keyboardContext,{key:"Enter",preventDefault(){}});
+        assert.equal(keyboardContext.form.newSection,"11910");
+        assert.equal(keyboardContext.sectionOpen,false);
+        keyboardContext.sectionOpen=true;
+        component.methods.onSectionKeydown.call(keyboardContext,{key:"Escape",preventDefault(){}});
+        assert.equal(keyboardContext.sectionOpen,false);
+        const outsideContext={$refs:{sectionAutocomplete:{contains:()=>false}},sectionOpen:true,sectionActiveIndex:0};
+        component.methods.closeSectionOptionsFromOutside.call(outsideContext,{target:{}});
+        assert.equal(outsideContext.sectionOpen,false);
+
+        global.fetch=async()=>({ok:false,json:async()=>({title:"database details"})});
+        await component.methods.loadSectionOptions.call(optionContext);
+        assert.deepEqual(optionContext.sectionOptions,[]);
+        assert.equal(optionContext.sectionError,"無法載入科別清單，仍可直接輸入科別代碼。");
+
+        let submitted;
+        global.fetch=async(url,request)=>{submitted={url,body:JSON.parse(request.body)};return{ok:true,json:async()=>({hasVisits:false,detailRows:[]})}};
+        const searchContext={form:{startDate:"2026-09-01",endDate:"2026-09-14",source:"OpdEr",roomScope:"All",newSection:"11910",identity:"AB12"},loading:false,error:"",report:null,preview:null,searched:false,currentPage:3,sectionOpen:true};
+        await component.methods.search.call(searchContext);
+        assert.equal(submitted.url,"/Report/GetReportData");
+        assert.equal(submitted.body.newSectionCode,"11910");
+        assert.equal(Object.hasOwn(submitted.body,"chop1sec"),false);
+        assert.equal(searchContext.currentPage,1);
+    }finally{global.fetch=originalFetch}
+    console.log("C12 report UI contract tests passed.");
+})().catch(error=>{console.error(error);process.exitCode=1});

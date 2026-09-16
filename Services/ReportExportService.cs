@@ -40,6 +40,16 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
 
     public ReportExportDispatchResult Dispatch(SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C144")
+        {
+            using var stream = new MemoryStream();
+            GenerateC144Workbook(searchCondition, stream);
+            string source = searchCondition.Source == C144Sources.Inpatient ? "I" : "O";
+            return new ReportExportDispatchResult(
+                stream.ToArray(),
+                $"C144_{source}_{searchCondition.StartDate}_{searchCondition.EndDate}.xlsx",
+                null);
+        }
         if (searchCondition.ReportCode == "C10")
         {
             using var stream = new MemoryStream();
@@ -88,6 +98,11 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
 
     public void GenerateWorkbook(SearchReportCondition searchCondition, Stream destination)
     {
+        if (searchCondition.ReportCode == "C144")
+        {
+            GenerateC144Workbook(searchCondition, destination);
+            return;
+        }
         if (searchCondition.ReportCode == "C10")
         {
             GenerateC10Workbook(searchCondition, destination);
@@ -173,6 +188,37 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             WriteRow(worksheetWriter, columns.Select(column => properties[column.Key].GetValue(row)));
         worksheetWriter.WriteEndElement();
         worksheetWriter.WriteEndElement();
+    }
+
+    private void GenerateC144Workbook(SearchReportCondition condition, Stream destination)
+    {
+        if (_scopeFactory is null)
+            throw new InvalidOperationException("C144 匯出服務尚未設定 scope factory。");
+        SearchReportCondition normalized = NormalizeC144(condition);
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IC144DebtDetailReportService reportService =
+            scope.ServiceProvider.GetRequiredService<IC144DebtDetailReportService>();
+        IC144XlsxRenderer renderer = scope.ServiceProvider.GetRequiredService<IC144XlsxRenderer>();
+        IReadOnlyList<C144DebtDetailReportViewModel> rows = reportService
+            .QueryAllAsync(normalized).GetAwaiter().GetResult();
+        string sourceLabel = normalized.Source == C144Sources.Inpatient ? "住院" : "門急";
+        C144Query query = C144DebtDetailReportService.CreateQuery(normalized, allowUnpaged: true);
+        byte[] workbook = renderer.Render(rows, $"{sourceLabel} {query.StartDate}~{query.EndDate}");
+        destination.Write(workbook);
+    }
+
+    internal static SearchReportCondition NormalizeC144(SearchReportCondition condition)
+    {
+        _ = C144DebtDetailReportService.CreateQuery(condition, allowUnpaged: true);
+        return new SearchReportCondition
+        {
+            ReportCode = "C144",
+            StartDate = condition.StartDate,
+            EndDate = condition.EndDate,
+            Source = condition.Source,
+            PageNumber = 1,
+            PageSize = 10
+        };
     }
 
     internal static SearchReportCondition NormalizeC10(SearchReportCondition condition)

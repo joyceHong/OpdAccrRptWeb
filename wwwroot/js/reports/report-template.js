@@ -14,6 +14,38 @@
             })
         }),
         C13: Object.freeze({ serverPaged: true, c13: true }),
+        C15: Object.freeze({ serverPaged: true, c15: true }),
+        C143: Object.freeze({
+            serverPaged: true,
+            advancedConditions: false,
+            c143: true,
+            encounterSource: Object.freeze({
+                defaultValue: "OpdEr",
+                options: Object.freeze([
+                    Object.freeze({ value: "OpdEr", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            }),
+            reportType: Object.freeze({
+                defaultValue: "Difference",
+                options: Object.freeze([
+                    Object.freeze({ value: "Difference", label: "差異帳表" }),
+                    Object.freeze({ value: "All", label: "全部帳表" })
+                ])
+            })
+        }),
+        C144: Object.freeze({
+            serverPaged: true,
+            advancedConditions: false,
+            c144: true,
+            encounterSource: Object.freeze({
+                defaultValue: "OpdEr",
+                options: Object.freeze([
+                    Object.freeze({ value: "OpdEr", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            })
+        }),
         C21: Object.freeze({
             serverPaged: true,
             advancedConditions: false,
@@ -149,9 +181,9 @@
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     };
     const createInitialForm = (startDate, endDate, reportConfiguration) => ({
-        startDate,
+        startDate: reportConfiguration.c143 === true ? previousDate(startDate) : startDate,
         endDate: reportConfiguration.c211 === true || reportConfiguration.c212 === true
-            ? previousDate(endDate) : endDate,
+            || reportConfiguration.c143 === true ? previousDate(endDate) : endDate,
         encounterSource: reportConfiguration.encounterSource?.defaultValue ?? "",
         stationOrBedPrefix: "",
         cashierUserId: "",
@@ -173,7 +205,8 @@
             : "",
         mode: reportConfiguration.c24 === true ? "Accounting" : "",
         roomScope: reportConfiguration.c24 === true || reportConfiguration.c10 === true ? "All" : "",
-        medicalRecordNo: ""
+        medicalRecordNo: "",
+        reportType: reportConfiguration.reportType?.defaultValue ?? ""
     });
 
     window.ReportComponents = window.ReportComponents || {};
@@ -210,9 +243,17 @@
                 ,c21BillingItems: [],
                 c23Contracts: [],
                 c211Contracts: [],
+                c211ContractOpen: false,
+                c211ContractActiveIndex: -1,
                 summaries: [],
                 c211Summary: null,
-                c212Summary: null
+                c212Summary: null,
+                c15Summary: null,
+                c15PreviewOpen: false,
+                c15PreviewLoading: false,
+                c15PreviewRows: [],
+                c15PreviewSummary: null,
+                c15PrintGeneratedAt: ""
             };
         },
         computed: {
@@ -259,8 +300,13 @@
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
-            canExport() { return ["C10", "C174"].includes(this.selectedReport.code) && this.hasResults && !this.isExporting; },
+            canExport() { return ["C10", "C144", "C174"].includes(this.selectedReport.code) && this.hasResults && !this.isExporting; },
             isC13() { return this.reportConfiguration.c13 === true; },
+            isC15() { return this.reportConfiguration.c15 === true; },
+            isC143() { return this.reportConfiguration.c143 === true; },
+            isC144() { return this.reportConfiguration.c144 === true; },
+            reportTypeConfiguration() { return this.reportConfiguration.reportType ?? null; },
+            hasReportType() { return this.reportTypeConfiguration !== null; },
             totalCount() { return this.isServerPaged ? this.serverTotalCount : this.filteredRows.length; },
             totalPages() {
                 return this.isServerPaged
@@ -275,12 +321,50 @@
                 const start = (this.currentPage - 1) * this.pageSize;
                 return this.filteredRows.slice(start, start + this.pageSize);
             },
+            c15Groups() {
+                if (!this.isC15) return [];
+                const summaries = Array.isArray(this.c15Summary?.groups) ? this.c15Summary.groups : [];
+                return summaries
+                    .map(summary => ({
+                        ...summary,
+                        rows: this.pagedRows.filter(row => row.type === summary.type)
+                    }))
+                    .filter(group => group.rows.length > 0);
+            },
+            c15PreviewPages() {
+                if (!this.isC15) return [];
+                const rowsPerPage = 18;
+                const summaries = Array.isArray(this.c15PreviewSummary?.groups)
+                    ? this.c15PreviewSummary.groups : [];
+                const pages = [];
+                summaries.forEach(summary => {
+                    const groupRows = this.c15PreviewRows.filter(row => row.type === summary.type);
+                    for (let start = 0; start < groupRows.length; start += rowsPerPage) {
+                        pages.push({
+                            ...summary,
+                            rows: groupRows.slice(start, start + rowsPerPage),
+                            showTotals: start + rowsPerPage >= groupRows.length
+                        });
+                    }
+                });
+                return pages.map((page, index) => ({
+                    ...page,
+                    pageNumber: index + 1,
+                    totalPages: pages.length
+                }));
+            },
             c211Groups() {
                 if (!this.isC211 || !this.c211Summary) return [];
                 return this.c211Summary.groups.map(group => ({
                     ...group,
                     rows: this.rows.filter(row => row.contractCode === group.contractCode)
                 }));
+            },
+            filteredC211Contracts() {
+                const query = (this.form.contractCode ?? "").trim().toUpperCase();
+                return this.c211Contracts.filter(item => !query
+                    || item.code.toUpperCase().includes(query)
+                    || item.name.toUpperCase().includes(query));
             }
         },
         watch: {
@@ -295,9 +379,11 @@
             this.loadC21BillingItems();
             this.loadC23Contracts();
             this.loadC211Contracts();
+            if (typeof document !== "undefined") document.addEventListener("pointerdown", this.closeC211ContractsFromOutside);
         },
         beforeUnmount() {
             this.stopExportPolling();
+            if (typeof document !== "undefined") document.removeEventListener("pointerdown", this.closeC211ContractsFromOutside);
         },
         methods: {
             resetForm() {
@@ -314,6 +400,14 @@
                 this.summaries = [];
                 this.c211Summary = null;
                 this.c212Summary = null;
+                this.c15Summary = null;
+                this.c15PreviewOpen = false;
+                this.c15PreviewLoading = false;
+                this.c15PreviewRows = [];
+                this.c15PreviewSummary = null;
+                this.c15PrintGeneratedAt = "";
+                this.c211ContractOpen = false;
+                this.c211ContractActiveIndex = -1;
                 this.currentPage = 1;
                 this.pageSize = 10;
                 this.serverTotalCount = 0;
@@ -349,6 +443,42 @@
                     if (response.ok) this.c211Contracts = await response.json();
                 } catch {
                     this.c211Contracts = [];
+                }
+            },
+            openC211Contracts() {
+                this.c211ContractOpen = true;
+                this.c211ContractActiveIndex = -1;
+            },
+            selectC211Contract(item) {
+                this.form.contractCode = item.code;
+                this.c211ContractOpen = false;
+                this.c211ContractActiveIndex = -1;
+            },
+            onC211ContractKeydown(event) {
+                const count = this.filteredC211Contracts.length;
+                if (event.key === "Escape") {
+                    this.c211ContractOpen = false;
+                    this.c211ContractActiveIndex = -1;
+                    return;
+                }
+                if (!count) return;
+                if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    this.c211ContractOpen = true;
+                    this.c211ContractActiveIndex = (this.c211ContractActiveIndex + 1) % count;
+                } else if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    this.c211ContractOpen = true;
+                    this.c211ContractActiveIndex = (this.c211ContractActiveIndex - 1 + count) % count;
+                } else if (event.key === "Enter" && this.c211ContractOpen && this.c211ContractActiveIndex >= 0) {
+                    event.preventDefault();
+                    this.selectC211Contract(this.filteredC211Contracts[this.c211ContractActiveIndex]);
+                }
+            },
+            closeC211ContractsFromOutside(event) {
+                if (!this.$refs.c211Autocomplete?.contains(event.target)) {
+                    this.c211ContractOpen = false;
+                    this.c211ContractActiveIndex = -1;
                 }
             },
             async search() {
@@ -404,7 +534,7 @@
                             reportCode: this.selectedReport.code,
                             startDate: this.isEndDateOnly ? undefined : this.form.startDate,
                             endDate: this.form.endDate,
-                            encounterSource: this.hasEncounterSource && !this.isC24 && !this.isC10
+                            encounterSource: this.hasEncounterSource && !this.isC24 && !this.isC10 && !this.isC143 && !this.isC144
                                 ? this.form.encounterSource
                                 : undefined,
                             stationOrBedPrefix: this.hasStationOrBedPrefix
@@ -422,7 +552,8 @@
                                 ? this.form.contractCode.trim() : undefined,
                             forceRebuild: (this.isC21 || this.isC23 || this.canForceC24Rebuild)
                                 ? this.form.forceRebuild : undefined,
-                            source: this.isC24 || this.isC10 ? this.form.encounterSource : undefined,
+                            source: this.isC24 || this.isC10 || this.isC143 || this.isC144 ? this.form.encounterSource : undefined,
+                            reportType: this.isC143 ? this.form.reportType : undefined,
                             mode: this.isC24 ? this.form.mode : undefined,
                             roomScope: this.isC24 || this.isC10 ? this.form.roomScope : undefined,
                             medicalRecordNo: (this.isC24 || this.isC10) && this.form.medicalRecordNo.trim()
@@ -457,6 +588,8 @@
                         ? result.summary : null;
                     this.c212Summary = this.isC212 && result.summary && !Array.isArray(result.summary)
                         ? result.summary : null;
+                    this.c15Summary = this.isC15 && result.summary && !Array.isArray(result.summary)
+                        ? result.summary : null;
                     if (this.isServerPaged) {
                         this.serverTotalCount = Number.isInteger(result.totalCount) ? result.totalCount : 0;
                         this.serverTotalPages = Number.isInteger(result.totalPages) ? result.totalPages : 0;
@@ -472,6 +605,7 @@
                     this.summaries = [];
                     this.c211Summary = null;
                     this.c212Summary = null;
+                    this.c15Summary = null;
                     this.serverTotalCount = 0;
                     this.serverTotalPages = 0;
                     this.hasSearched = true;
@@ -542,6 +676,21 @@
                     if (this.form.source === "Inpatient") this.form.roomScope = "All";
                 }
             },
+            changeC143ReportType() {
+                this.currentPage = 1;
+                this.hasSearched = false;
+                this.rows = [];
+                this.columns = [];
+                this.serverTotalCount = 0;
+                this.serverTotalPages = 0;
+                this.validationMessage = "";
+            },
+            useYesterday() {
+                const today = new Date();
+                const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                this.form.endDate = previousDate(localToday);
+                this.currentPage = 1;
+            },
             changeC24Source() {
                 this.currentPage = 1;
                 if (this.form.source === "Inpatient") this.form.roomScope = "All";
@@ -567,6 +716,63 @@
             printC211() {
                 if (this.isPrintableLegacyReport && this.hasResults) window.print();
             },
+            async openC15Preview() {
+                if (!this.isC15 || !this.hasResults || this.c15PreviewLoading) return;
+                this.c15PreviewLoading = true;
+                this.validationMessage = "";
+                this.c15PreviewOpen = false;
+                this.c15PreviewRows = [];
+                this.c15PreviewSummary = null;
+                try {
+                    const response = await fetch("/Report/GetReportData", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            reportCode: "C15",
+                            startDate: this.form.startDate,
+                            endDate: this.form.endDate,
+                            pageNumber: 1,
+                            pageSize: this.serverTotalCount
+                        })
+                    });
+                    if (!response.ok) {
+                        const problem = await response.json().catch(() => null);
+                        const traceId = problem && typeof problem.traceId === "string"
+                            ? `（追蹤碼：${problem.traceId}）` : "";
+                        const title = problem && typeof problem.title === "string"
+                            ? problem.title : `預覽載入失敗（HTTP ${response.status}）`;
+                        throw new Error(`${title}${traceId}`);
+                    }
+                    const result = await response.json();
+                    const previewRows = Array.isArray(result.data) ? result.data : [];
+                    if (previewRows.length !== this.serverTotalCount || !result.summary) {
+                        throw new Error("預覽資料不完整，請重新查詢後再試。");
+                    }
+                    this.c15PreviewRows = previewRows;
+                    this.c15PreviewSummary = result.summary;
+                    this.c15PrintGeneratedAt = new Date().toLocaleString("zh-TW", {
+                        timeZone: "Asia/Taipei",
+                        hour12: false
+                    });
+                    this.c15PreviewOpen = true;
+                } catch (error) {
+                    this.validationMessage = error instanceof Error
+                        ? error.message : "載入 C15 列印預覽時發生錯誤。";
+                } finally {
+                    this.c15PreviewLoading = false;
+                }
+            },
+            closeC15Preview() {
+                this.c15PreviewOpen = false;
+            },
+            printC15Preview() {
+                if (this.c15PreviewOpen) window.print();
+            },
+            displayRocDate(value) {
+                const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+                if (!match) return value ?? "";
+                return `${String(Number(match[1]) - 1911).padStart(3, "0")}/${match[2]}/${match[3]}`;
+            },
             async exportResults() {
                 if (!this.canExport) return;
                 this.isExporting = true;
@@ -580,7 +786,7 @@
                             reportCode: this.selectedReport.code,
                             startDate: this.form.startDate,
                             endDate: this.form.endDate,
-                            source: this.isC10 ? this.form.encounterSource : undefined,
+                            source: this.isC10 || this.isC144 ? this.form.encounterSource : undefined,
                             roomScope: this.isC10 ? this.form.roomScope : undefined,
                             medicalRecordNo: this.isC10 && this.form.medicalRecordNo.trim()
                                 ? this.form.medicalRecordNo.trim() : undefined

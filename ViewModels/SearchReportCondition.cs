@@ -52,11 +52,14 @@
         /// <summary>C23、C211 選填合約代碼。</summary>
         public string? ContractCode { get; set; }
 
-        /// <summary>C24、C10、C11 資料來源：OpdEr 或 Inpatient。</summary>
+        /// <summary>C24、C10、C11、C143、C144 資料來源：OpdEr 或 Inpatient。</summary>
         public string? Source { get; set; }
 
         /// <summary>C24 作業模式：Accounting 或 Billing。</summary>
         public string? Mode { get; set; }
+
+        /// <summary>C143 報表類型：Difference 或 All。</summary>
+        public string? ReportType { get; set; }
 
         /// <summary>C24 房別範圍：All、Emergency 或 NonEmergency；C10 使用 All、Emergency 或 Outpatient。</summary>
         public string? RoomScope { get; set; }
@@ -191,5 +194,25 @@
         public const string Emergency = "Emergency";
         public const string Outpatient = "Outpatient";
         public static bool IsSupported(string? value) => value is All or Emergency or Outpatient;
+    }
+
+    public static class C143Sources
+    {
+        public const string OpdEr = "OpdEr";
+        public const string Inpatient = "Inpatient";
+        public static bool IsSupported(string? value) => value is OpdEr or Inpatient;
+    }
+
+    public static class C143ReportTypes
+    {
+        public const string Difference = "Difference";
+        public const string All = "All";
+        public static bool IsSupported(string? value) => value is Difference or All;
+        public static string ToLegacyValue(string value) => value switch
+        {
+            Difference => "1",
+            All => "2",
+            _ => throw new ArgumentException("C143 報表類型不正確。", nameof(value))
+        };
     }
 }

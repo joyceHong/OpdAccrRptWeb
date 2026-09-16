@@ -4,7 +4,7 @@ namespace OpdAccrRptWeb.Repositories;
 
 public interface IC12ReportRepository
 {
-    Task<string?> ResolveOldSectionCodeAsync(string newSectionCode, CancellationToken cancellationToken);
+    Task<IReadOnlyList<C12SectionOption>> QuerySectionOptionsAsync(CancellationToken cancellationToken);
     Task<string?> ResolveMedicalRecordNoAsync(string inputIdentity, CancellationToken cancellationToken);
     Task<IReadOnlyList<C12VisitRow>> QueryVisitsAsync(C12ReportRequest request, string medicalRecordNo, CancellationToken cancellationToken);
     Task<IReadOnlyList<C12ChargeRow>> QueryVisitChargesAsync(C12Source source, C12VisitKey key, CancellationToken cancellationToken);

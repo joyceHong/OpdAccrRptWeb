@@ -39,9 +39,12 @@ builder.Services.AddScoped<IC10ReceivableDetailRepository, C10ReceivableDetailRe
 builder.Services.AddScoped<IC11ReceivablesCollectionRepository, C11ReceivablesCollectionRepository>();
 builder.Services.AddScoped<IC12ReportRepository, C12ReportRepository>();
 builder.Services.AddScoped<IC13HighRiskEmergencyRepository, C13HighRiskEmergencyRepository>();
+builder.Services.AddScoped<IC143AccountingBalanceDebtRepository, C143AccountingBalanceDebtRepository>();
+builder.Services.AddScoped<IC144DebtDetailReportRepository, C144DebtDetailReportRepository>();
 builder.Services.AddSingleton<IOutpatientReceivableBalanceRepository, OutpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, InpatientAdvancePaymentBalanceRepository>();
 builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
+builder.Services.AddScoped<IC15AssistiveDeviceDepositDetailRepository, C15AssistiveDeviceDepositDetailRepository>();
 builder.Services.AddSingleton<IInpatientReceivableBalanceRepository, InpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IContractPaymentDetailRepository, ContractPaymentDetailRepository>();
 builder.Services.AddScoped<IC211ContractBalanceRepository, C211ContractBalanceRepository>();
@@ -57,7 +60,11 @@ builder.Services.AddSingleton<IC12PatientAccessAuthorizer, AllowConfiguredC12Pat
 builder.Services.AddSingleton<IC12PatientAccessAuditWriter, C12SerilogPatientAccessAuditWriter>();
 builder.Services.AddScoped<IC12ReportService, C12ReportService>();
 builder.Services.AddSingleton<IC13LegacyPhoneMasker, C13LegacyPhoneMasker>();
+builder.Services.AddSingleton<IC15LegacyReducer, C15LegacyReducer>();
 builder.Services.AddScoped<IC13HighRiskEmergencyReportService, C13HighRiskEmergencyReportService>();
+builder.Services.AddScoped<IC143AccountingBalanceDebtReportService, C143AccountingBalanceDebtReportService>();
+builder.Services.AddScoped<IC144DebtDetailReportService, C144DebtDetailReportService>();
+builder.Services.AddSingleton<IC144XlsxRenderer, C144XlsxRenderer>();
 builder.Services.AddScoped<IC211ContractBalanceReportService, C211ContractBalanceReportService>();
 builder.Services.AddSingleton<IC212AmountCompatibilityPolicy, C212PreserveDecimalAmountPolicy>();
 builder.Services.AddScoped<IC212BoneBankBalanceReportService, C212BoneBankBalanceReportService>();

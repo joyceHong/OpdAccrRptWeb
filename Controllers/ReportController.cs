@@ -21,6 +21,7 @@ public sealed class ReportController : Controller
     private readonly IOptions<C23Options>? _c23Options;
     private readonly IC211ContractBalanceRepository? _c211Repository;
     private readonly IC12ReportService? _c12ReportService;
+    private readonly IC12ReportRepository? _c12Repository;
     private readonly IC13HighRiskEmergencyReportService? _c13ReportService;
 
     public ReportController(
@@ -34,7 +35,8 @@ public sealed class ReportController : Controller
         IOptions<C23Options>? c23Options = null,
         IC211ContractBalanceRepository? c211Repository = null,
         IC12ReportService? c12ReportService = null,
-        IC13HighRiskEmergencyReportService? c13ReportService = null)
+        IC13HighRiskEmergencyReportService? c13ReportService = null,
+        IC12ReportRepository? c12Repository = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -46,6 +48,7 @@ public sealed class ReportController : Controller
         _c23Options = c23Options;
         _c211Repository = c211Repository;
         _c12ReportService = c12ReportService;
+        _c12Repository = c12Repository;
         _c13ReportService = c13ReportService;
     }
 
@@ -88,6 +91,24 @@ public sealed class ReportController : Controller
         if (searchCondition.ReportCode == "C13")
         {
             IActionResult? validationResult = ValidateC13Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
+        if (searchCondition.ReportCode == "C15")
+        {
+            IActionResult? validationResult = ValidateC15Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
+        if (searchCondition.ReportCode == "C143")
+        {
+            IActionResult? validationResult = ValidateC143Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
+        if (searchCondition.ReportCode == "C144")
+        {
+            IActionResult? validationResult = ValidateC144Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
 
@@ -212,7 +233,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C10" or "C11" or "C12" or "C13" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -227,7 +248,10 @@ public sealed class ReportController : Controller
                 return BadRequest("頁碼必須大於零。");
             }
 
-            if (searchCondition.PageSize is not (10 or 30 or 50))
+            bool isC15CompletePreview = searchCondition.ReportCode == "C15"
+                && searchCondition.PageNumber == 1
+                && searchCondition.PageSize > 0;
+            if (!isC15CompletePreview && searchCondition.PageSize is not (10 or 30 or 50))
             {
                 if (searchCondition.ReportCode == "C214")
                 {
@@ -244,6 +268,26 @@ public sealed class ReportController : Controller
             {
                 Response.Headers.CacheControl = "private, no-store";
                 Response.Headers.Pragma = "no-cache";
+            }
+            if (searchCondition.ReportCode == "C15")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                Response.Headers.Pragma = "no-cache";
+                return Ok(_reportService.ReportC15Async(
+                    searchCondition, HttpContext.RequestAborted).GetAwaiter().GetResult());
+            }
+            if (searchCondition.ReportCode == "C143")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                return Ok(_reportService.ReportC143Async(
+                    searchCondition, HttpContext.RequestAborted).GetAwaiter().GetResult());
+            }
+            if (searchCondition.ReportCode == "C144")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                Response.Headers.Pragma = "no-cache";
+                return Ok(_reportService.ReportC144Async(
+                    searchCondition, HttpContext.RequestAborted).GetAwaiter().GetResult());
             }
             if (searchCondition.ReportCode == "C10")
             {
@@ -333,11 +377,11 @@ public sealed class ReportController : Controller
         {
             return StatusCode(StatusCodes.Status403Forbidden,new ProblemDetails{Status=403,Title=exception.Message});
         }
-        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C211" or "C212")
+        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C211" or "C212")
         {
             return StatusCode(499);
         }
-        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C211" or "C212")
+        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C211" or "C212")
         {
             var traceId = HttpContext.TraceIdentifier;
             var unavailable = IsOracleConnectionFailure(exception.Number);
@@ -356,7 +400,7 @@ public sealed class ReportController : Controller
         catch (Exception exception)
         {
             var traceId = HttpContext.TraceIdentifier;
-            if (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C211" or "C212")
+            if (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C211" or "C212")
             {
                 _logger.LogError(
                     "{ReportCode} 查詢發生未預期錯誤。TraceId: {TraceId}, ExceptionType: {ExceptionType}",
@@ -387,6 +431,38 @@ public sealed class ReportController : Controller
             };
             problemDetails.Extensions["traceId"] = traceId;
             return StatusCode(StatusCodes.Status500InternalServerError, problemDetails);
+        }
+    }
+
+    [HttpGet("Report/GetC12SectionOptions")]
+    public async Task<IActionResult> GetC12SectionOptions(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IReadOnlyList<C12SectionOption> options = await (_c12Repository
+                ?? throw new InvalidOperationException("C12 report repository 尚未設定。"))
+                .QuerySectionOptionsAsync(cancellationToken);
+            return Ok(options);
+        }
+        catch (OperationCanceledException)
+        {
+            return StatusCode(499);
+        }
+        catch (OracleException exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            _logger.LogWarning("C12 科別候選查詢失敗。TraceId: {TraceId}, ErrorNumber: {ErrorNumber}", traceId, exception.Number);
+            var details = new ProblemDetails { Status = StatusCodes.Status503ServiceUnavailable, Title = "無法載入科別清單，仍可直接輸入科別代碼。" };
+            details.Extensions["traceId"] = traceId;
+            return StatusCode(details.Status.Value, details);
+        }
+        catch (Exception exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            _logger.LogError("C12 科別候選發生未預期錯誤。TraceId: {TraceId}, ExceptionType: {ExceptionType}", traceId, exception.GetType().FullName);
+            var details = new ProblemDetails { Status = StatusCodes.Status503ServiceUnavailable, Title = "無法載入科別清單，仍可直接輸入科別代碼。" };
+            details.Extensions["traceId"] = traceId;
+            return StatusCode(details.Status.Value, details);
         }
     }
 
@@ -603,14 +679,13 @@ public sealed class ReportController : Controller
 
     private BadRequestObjectResult? ValidateC12Condition(SearchReportCondition condition, out C12ReportRequest request)
     {
-        request = new C12ReportRequest(string.Empty,string.Empty,C12Source.OutpatientAndEmergency,0,string.Empty,null,null);
+        request = new C12ReportRequest(string.Empty,string.Empty,C12Source.OutpatientAndEmergency,0,string.Empty,null);
         if (!TryParseDate(condition.StartDate,out DateOnly startDate) || !TryParseDate(condition.EndDate,out DateOnly endDate))
             return BadRequest("請輸入有效的 C12 起始日期與截止日期。");
         if (startDate>endDate) return BadRequest("C12 起始日期不可晚於截止日期。");
         condition.Source=condition.Source?.Trim();
         condition.RoomScope=string.IsNullOrWhiteSpace(condition.RoomScope)?C12RoomScopes.All:condition.RoomScope.Trim();
         condition.MedicalRecordNo=condition.MedicalRecordNo?.Trim().ToUpperInvariant();
-        condition.Chop1sec=string.IsNullOrWhiteSpace(condition.Chop1sec)?null:condition.Chop1sec.Trim().ToUpperInvariant();
         condition.NewSectionCode=string.IsNullOrWhiteSpace(condition.NewSectionCode)?null:condition.NewSectionCode.Trim().ToUpperInvariant();
         if(!C12Sources.IsSupported(condition.Source)) return BadRequest("C12 來源僅接受門急診或住院。");
         if(!C12RoomScopes.IsSupported(condition.RoomScope) || condition.Source==C12Sources.Inpatient && condition.RoomScope!=C12RoomScopes.All)
@@ -620,7 +695,7 @@ public sealed class ReportController : Controller
         int roomType=condition.RoomScope switch { C12RoomScopes.Emergency=>1,C12RoomScopes.Outpatient=>2,_=>0 };
         string startRoc=DateTimeExtensions.ToRocDateString(startDate.ToDateTime(TimeOnly.MinValue));
         string endRoc=DateTimeExtensions.ToRocDateString(endDate.ToDateTime(TimeOnly.MinValue));
-        request=new(startRoc,endRoc,condition.Source==C12Sources.Inpatient?C12Source.Inpatient:C12Source.OutpatientAndEmergency,roomType,condition.MedicalRecordNo,condition.Chop1sec,condition.NewSectionCode);
+        request=new(startRoc,endRoc,condition.Source==C12Sources.Inpatient?C12Source.Inpatient:C12Source.OutpatientAndEmergency,roomType,condition.MedicalRecordNo,condition.NewSectionCode);
         return null;
     }
 
@@ -635,6 +710,39 @@ public sealed class ReportController : Controller
         return null;
     }
 
+    private BadRequestObjectResult? ValidateC143Condition(SearchReportCondition condition)
+    {
+        condition.StartDate = condition.StartDate?.Trim();
+        condition.EndDate = condition.EndDate?.Trim();
+        condition.Source = condition.Source?.Trim();
+        condition.ReportType = condition.ReportType?.Trim();
+        if (!TryParseDate(condition.StartDate, out DateOnly startDate)
+            || !TryParseDate(condition.EndDate, out DateOnly endDate))
+            return BadRequest("請輸入有效的 C143 起始日期與截止日期。");
+        if (startDate.Year < 1912 || startDate > endDate)
+            return BadRequest("C143 起始日期不可晚於截止日期。");
+        if (!C143Sources.IsSupported(condition.Source))
+            return BadRequest("C143 來源僅接受門急診或住院。");
+        if (!C143ReportTypes.IsSupported(condition.ReportType))
+            return BadRequest("C143 報表類型僅接受差異或全部。");
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC144Condition(SearchReportCondition condition)
+    {
+        condition.StartDate = condition.StartDate?.Trim();
+        condition.EndDate = condition.EndDate?.Trim();
+        condition.Source = condition.Source?.Trim();
+        if (!TryParseDate(condition.StartDate, out DateOnly startDate)
+            || !TryParseDate(condition.EndDate, out DateOnly endDate))
+            return BadRequest("請輸入有效的 C144 起始日期與截止日期。");
+        if (startDate.Year < 1912 || startDate > endDate)
+            return BadRequest("C144 起始日期不可晚於截止日期。");
+        if (!C144Sources.IsSupported(condition.Source))
+            return BadRequest("C144 來源僅接受門急診或住院。");
+        return null;
+    }
+
     [HttpPost("Report/Export")]
     public IActionResult Export([FromBody] SearchReportCondition searchCondition)
     {
@@ -642,16 +750,25 @@ public sealed class ReportController : Controller
             ? ValidateC10Condition(searchCondition)
             : null;
         if (c10Validation is not null) return c10Validation;
-        if (searchCondition.ReportCode is not ("C10" or "C174")
+        IActionResult? c144Validation = searchCondition.ReportCode == "C144"
+            ? ValidateC144Condition(searchCondition)
+            : null;
+        if (c144Validation is not null) return c144Validation;
+        if (searchCondition.ReportCode is not ("C10" or "C144" or "C174")
             || !TryParseDate(searchCondition.StartDate, out var startDate)
             || !TryParseDate(searchCondition.EndDate, out var endDate)
             || startDate > endDate)
         {
-            return BadRequest("僅支援有效日期區間的 C10 或 C174 報表匯出。");
+            return BadRequest("僅支援有效日期區間的 C10、C144 或 C174 報表匯出。");
         }
 
         try
         {
+            if (searchCondition.ReportCode == "C144")
+            {
+                Response.Headers.CacheControl = "private, no-store";
+                Response.Headers.Pragma = "no-cache";
+            }
             var result = _reportExportService.Dispatch(searchCondition);
             if (result.QueueFull)
             {
@@ -914,6 +1031,26 @@ public sealed class ReportController : Controller
         if (!TryParseDate(searchCondition.EndDate, out _))
         {
             return BadRequest("請輸入有效的 C27 截止日期。");
+        }
+
+        return null;
+    }
+
+    private BadRequestObjectResult? ValidateC15Condition(SearchReportCondition searchCondition)
+    {
+        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate))
+        {
+            return BadRequest("請輸入有效的 C15 起始日期。");
+        }
+
+        if (!TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        {
+            return BadRequest("請輸入有效的 C15 截止日期。");
+        }
+
+        if (startDate > endDate)
+        {
+            return BadRequest("C15 起始日期不可晚於截止日期。");
         }
 
         return null;

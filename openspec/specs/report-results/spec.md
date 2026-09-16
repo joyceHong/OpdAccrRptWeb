@@ -6,6 +6,20 @@
 
 ## Requirements
 
+### Requirement: Shared C144 result and export experience
+The shared report page SHALL render C144 through the existing pending skeleton, dynamic result table, empty state, total count, page-size selector, and first, previous, next, and last pagination controls. It MUST provide an explicit Excel export action after a valid query, and changing a result-affecting C144 condition MUST reset navigation to page one.
+
+#### Scenario: Query pending and then succeeds
+- **WHEN** a user submits a valid C144 query
+- **THEN** the shared table skeleton is displayed while the request is pending
+- **AND** the 31-column table, total count, and pagination are displayed after success
+
+#### Scenario: Export from a paged result
+- **WHEN** a user invokes Excel export while a valid C144 query is active
+- **THEN** the export request uses the active dates and source without limiting the export to the current page
+
+---
+
 ### Requirement: Dynamic report columns
 
 Every enabled query report SHALL return and display its report-specific detail rows in a normal browsable TABLE result area. The TABLE SHALL display a total row count and SHALL use the established server-side or client-side pagination contract for that report. Report-specific summary, preview, print, chart, or document layouts SHALL be additional views and SHALL NOT replace the normal TABLE result.

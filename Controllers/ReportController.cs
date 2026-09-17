@@ -6,6 +6,7 @@ using OpdAccrRptWeb.ViewModels;
 using OpdAccrRptWeb.Help;
 using System.Globalization;
 using Oracle.ManagedDataAccess.Client;
+using OpdAccrRptWeb.Models;
 
 namespace OpdAccrRptWeb.Controllers;
 
@@ -23,6 +24,8 @@ public sealed class ReportController : Controller
     private readonly IC12ReportService? _c12ReportService;
     private readonly IC12ReportRepository? _c12Repository;
     private readonly IC13HighRiskEmergencyReportService? _c13ReportService;
+    private readonly IC16ReportService? _c16ReportService;
+    private readonly IC3ReportService? _c3ReportService;
 
     public ReportController(
         IReportCatalogService reportCatalogService,
@@ -36,7 +39,9 @@ public sealed class ReportController : Controller
         IC211ContractBalanceRepository? c211Repository = null,
         IC12ReportService? c12ReportService = null,
         IC13HighRiskEmergencyReportService? c13ReportService = null,
-        IC12ReportRepository? c12Repository = null)
+        IC12ReportRepository? c12Repository = null,
+        IC16ReportService? c16ReportService = null,
+        IC3ReportService? c3ReportService = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -50,6 +55,8 @@ public sealed class ReportController : Controller
         _c12ReportService = c12ReportService;
         _c12Repository = c12Repository;
         _c13ReportService = c13ReportService;
+        _c16ReportService = c16ReportService;
+        _c3ReportService = c3ReportService;
     }
 
     [HttpGet("/")]
@@ -70,6 +77,11 @@ public sealed class ReportController : Controller
     [HttpPost("Report/GetReportData")]
     public IActionResult GetReportData([FromBody] SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C3")
+        {
+            IActionResult? validationResult = ValidateC3Condition(searchCondition, out _);
+            if (validationResult is not null) return validationResult;
+        }
         if (searchCondition.ReportCode == "C10")
         {
             IActionResult? validationResult = ValidateC10Condition(searchCondition);
@@ -97,6 +109,12 @@ public sealed class ReportController : Controller
         if (searchCondition.ReportCode == "C15")
         {
             IActionResult? validationResult = ValidateC15Condition(searchCondition);
+            if (validationResult is not null) return validationResult;
+        }
+
+        if (searchCondition.ReportCode == "C16")
+        {
+            IActionResult? validationResult = ValidateC16Condition(searchCondition, out _);
             if (validationResult is not null) return validationResult;
         }
 
@@ -233,7 +251,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C3" or "C10" or "C11" or "C12" or "C13" or "C15" or "C16" or "C143" or "C144" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -264,6 +282,16 @@ public sealed class ReportController : Controller
 
         try
         {
+            if (searchCondition.ReportCode == "C3")
+            {
+                Response.Headers.CacheControl = "no-store, private";
+                Response.Headers.Pragma = "no-cache";
+                ValidateC3Condition(searchCondition, out C3ReportRequest request);
+                C3ReportResult result = (_c3ReportService
+                    ?? throw new InvalidOperationException("C3 report service 尚未設定。"))
+                    .QueryAsync(request, HttpContext.RequestAborted).GetAwaiter().GetResult();
+                return Ok(result.Page);
+            }
             if (searchCondition.ReportCode == "C13")
             {
                 Response.Headers.CacheControl = "private, no-store";
@@ -275,6 +303,16 @@ public sealed class ReportController : Controller
                 Response.Headers.Pragma = "no-cache";
                 return Ok(_reportService.ReportC15Async(
                     searchCondition, HttpContext.RequestAborted).GetAwaiter().GetResult());
+            }
+            if (searchCondition.ReportCode == "C16")
+            {
+                Response.Headers.CacheControl = "no-store, private";
+                Response.Headers.Pragma = "no-cache";
+                ValidateC16Condition(searchCondition, out C16PreviewRequest request);
+                C16ReportResult result = (_c16ReportService
+                    ?? throw new InvalidOperationException("C16 report service 尚未設定。"))
+                    .QueryAsync(request, HttpContext.RequestAborted).GetAwaiter().GetResult();
+                return Ok(result.Page);
             }
             if (searchCondition.ReportCode == "C143")
             {
@@ -377,11 +415,19 @@ public sealed class ReportController : Controller
         {
             return StatusCode(StatusCodes.Status403Forbidden,new ProblemDetails{Status=403,Title=exception.Message});
         }
-        catch (OperationCanceledException) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C211" or "C212")
+        catch (ArgumentException exception) when (searchCondition.ReportCode == "C3")
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = exception.Message
+            });
+        }
+        catch (OperationCanceledException) when (searchCondition.ReportCode is "C3" or "C10" or "C11" or "C12" or "C13" or "C15" or "C16" or "C143" or "C144" or "C211" or "C212")
         {
             return StatusCode(499);
         }
-        catch (OracleException exception) when (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C211" or "C212")
+        catch (OracleException exception) when (searchCondition.ReportCode is "C3" or "C10" or "C11" or "C12" or "C13" or "C15" or "C16" or "C143" or "C144" or "C211" or "C212")
         {
             var traceId = HttpContext.TraceIdentifier;
             var unavailable = IsOracleConnectionFailure(exception.Number);
@@ -400,7 +446,7 @@ public sealed class ReportController : Controller
         catch (Exception exception)
         {
             var traceId = HttpContext.TraceIdentifier;
-            if (searchCondition.ReportCode is "C10" or "C11" or "C12" or "C13" or "C15" or "C143" or "C144" or "C211" or "C212")
+            if (searchCondition.ReportCode is "C3" or "C10" or "C11" or "C12" or "C13" or "C15" or "C16" or "C143" or "C144" or "C211" or "C212")
             {
                 _logger.LogError(
                     "{ReportCode} 查詢發生未預期錯誤。TraceId: {TraceId}, ExceptionType: {ExceptionType}",
@@ -517,6 +563,91 @@ public sealed class ReportController : Controller
             };
             details.Extensions["traceId"] = traceId;
             return StatusCode(StatusCodes.Status500InternalServerError, details);
+        }
+    }
+
+    [HttpPost("Report/C16/Preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC16([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C16";
+        IActionResult? validation = ValidateC16Condition(condition, out C16PreviewRequest request);
+        if (validation is not null) return validation;
+        Response.Headers.CacheControl = "no-store, private";
+        Response.Headers.Pragma = "no-cache";
+        try
+        {
+            C16ReportResult result = (_c16ReportService
+                ?? throw new InvalidOperationException("C16 report service 尚未設定。"))
+                .QueryAsync(request, HttpContext.RequestAborted).GetAwaiter().GetResult();
+            if (result.AllRows.Count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+            return PartialView("_C16MedicalSubsidyPreview", new C16PreviewViewModel(
+                C16Title(request.Source, request.ReportType), request.StartDate, request.EndDate,
+                request.Source, result.AllRows));
+        }
+        catch (OperationCanceledException) { return StatusCode(499); }
+        catch (OracleException exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            _logger.LogWarning("C16 preview failed. TraceId={TraceId} ErrorNumber={ErrorNumber}", traceId, exception.Number);
+            return StatusCode(IsOracleConnectionFailure(exception.Number) ? 503 : 504,
+                new ProblemDetails { Title = "無法建立報表預覽，請稍後再試。" });
+        }
+        catch (Exception exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            _logger.LogError("C16 preview failed. TraceId={TraceId} ExceptionType={ExceptionType}", traceId, exception.GetType().FullName);
+            return StatusCode(500, new ProblemDetails { Title = "無法建立報表預覽，請提供追蹤碼給系統管理人員。" });
+        }
+    }
+
+    [HttpPost("Report/C3/Preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC3([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C3";
+        IActionResult? validation = ValidateC3Condition(condition, out C3ReportRequest request);
+        if (validation is not null) return validation;
+        Response.Headers.CacheControl = "no-store, private";
+        Response.Headers.Pragma = "no-cache";
+        try
+        {
+            string userId = User.Identity?.IsAuthenticated == true ? User.Identity.Name ?? string.Empty : string.Empty;
+            C3PreviewViewModel? preview = (_c3ReportService
+                ?? throw new InvalidOperationException("C3 report service 尚未設定。"))
+                .CreatePreviewAsync(request, userId, HttpContext.RequestAborted).GetAwaiter().GetResult();
+            if (preview is null)
+            {
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+            }
+
+            return Request.GetTypedHeaders().Accept?.Any(mediaType =>
+                string.Equals(mediaType.MediaType.Value, "application/json", StringComparison.OrdinalIgnoreCase)) == true
+                ? Ok(preview)
+                : PartialView("_C3NursingStationChargePreview", preview);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = exception.Message
+            });
+        }
+        catch (OperationCanceledException) { return StatusCode(499); }
+        catch (OracleException exception)
+        {
+            _logger.LogWarning("C3 preview failed. TraceId={TraceId} ErrorNumber={ErrorNumber} Category=Database",
+                HttpContext.TraceIdentifier, exception.Number);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new ProblemDetails { Status = 503, Title = "資料庫服務暫時無法使用，請稍後再試。" });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError("C3 preview failed. TraceId={TraceId} ExceptionType={ExceptionType}",
+                HttpContext.TraceIdentifier, exception.GetType().FullName);
+            return StatusCode(500, new ProblemDetails { Status = 500, Title = "建立預覽時發生錯誤。" });
         }
     }
 
@@ -1055,6 +1186,55 @@ public sealed class ReportController : Controller
 
         return null;
     }
+
+    private BadRequestObjectResult? ValidateC3Condition(
+        SearchReportCondition condition, out C3ReportRequest request)
+    {
+        request = default!;
+        if (!Enum.TryParse(condition.Source, ignoreCase: false, out CareSource source)
+            || condition.Source is not ("O" or "I"))
+            return BadRequest("C3 來源僅接受 O 或 I。");
+        int detailValue = condition.DetailType ?? 0;
+        int logisticsValue = condition.LogisticsType ?? 0;
+        if (!Enum.IsDefined((ReportDetailType)detailValue) || !Enum.IsDefined((LogisticsType)logisticsValue))
+            return BadRequest("C3 明細或物流條件不正確。");
+        try
+        {
+            request = new C3ReportRequest(condition.StartDate ?? string.Empty, condition.EndDate ?? string.Empty,
+                source, (ReportDetailType)detailValue, (LogisticsType)logisticsValue,
+                condition.DepartmentCode, C3ReportRequest.ParseCodes(condition.RoomCodes),
+                C3ReportRequest.ParseCodes(condition.ChargeCodes), condition.PageNumber ?? 1,
+                condition.PageSize ?? 10);
+            request.Validate();
+            return null;
+        }
+        catch (ArgumentException exception) { return BadRequest(exception.Message); }
+    }
+
+    private BadRequestObjectResult? ValidateC16Condition(
+        SearchReportCondition condition, out C16PreviewRequest request)
+    {
+        request = default!;
+        if (!Enum.TryParse(condition.Source, out C16Source source)
+            || !Enum.TryParse(condition.ReportType, out C16ReportType reportType)
+            || !Enum.TryParse(condition.DateMode, out C16DateBasis dateBasis))
+            return BadRequest("C16 來源、報表類型或日期基準不正確。");
+        request = new C16PreviewRequest(condition.StartDate ?? string.Empty, condition.EndDate ?? string.Empty,
+            source, reportType, dateBasis, condition.PageNumber ?? 1, condition.PageSize ?? 10);
+        try { request.ValidateAndCreatePeriod(); }
+        catch (ArgumentException exception) { return BadRequest(exception.Message); }
+        return null;
+    }
+
+    internal static string C16Title(C16Source source, C16ReportType type) => (source, type) switch
+    {
+        (C16Source.OutpatientEmergency, C16ReportType.Child) => "表1.新北市兒童醫療補助費用申請總表(門、急診)",
+        (C16Source.OutpatientEmergency, C16ReportType.NewHope) => "表1.新北市「新希望關懷醫療補助」費用申請總表(門、急診)",
+        (C16Source.OutpatientEmergency, _) => "表1.新北市醫療補助費用申請總表(門、急診)",
+        (C16Source.Inpatient, C16ReportType.Child) => "表2.新北市兒童醫療補助費用申請總表(住院)",
+        (C16Source.Inpatient, C16ReportType.NewHope) => "表2.新北市「新希望關懷醫療補助」費用申請總表(住院)",
+        _ => "表2.新北市醫療補助費用申請總表(住院)"
+    };
 
     private BadRequestObjectResult? ValidateC28Condition(SearchReportCondition searchCondition)
     {

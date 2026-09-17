@@ -1,0 +1,22 @@
+@model OpdAccrRptWeb.ViewModels.C16PreviewViewModel
+@using OpdAccrRptWeb.Models
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8" /><title>@Model.Title</title>
+<style>
+body{font-family:"Microsoft JhengHei",sans-serif;margin:12px;color:#111}h1{text-align:center;font-size:20px}.actions{text-align:right}.meta{display:flex;justify-content:space-between;font-size:12px;margin:8px 0}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #222;padding:3px;text-align:center}.amount{text-align:right}thead{display:table-header-group}tr{break-inside:avoid}@@page{size:A4 landscape;margin:10mm}@@media print{.no-print{display:none}body{margin:0}}
+</style></head><body>
+<div class="actions no-print"><button onclick="window.print()">列印</button><button onclick="window.close()">關閉</button></div>
+<h1>@Model.Title</h1><div class="meta"><span>資料日期：@Model.StartDate ～ @Model.EndDate</span><span>人次：@Model.Rows.Count</span><span>列印日期：@DateTime.Now.ToString("yyyy-MM-dd HH:mm")</span></div>
+@if (Model.Source == C16Source.OutpatientEmergency)
+{
+<table><thead><tr><th>No.</th><th>姓名</th><th>身分證號</th><th>生日</th><th>就診日</th><th>就診科別</th><th>ICD-10-CM</th><th>補助類別</th><th>掛號費</th><th>門診部分負擔</th><th>急診部分負擔</th><th>藥品部分負擔</th><th>費用總計</th><th>核減</th><th>核付</th></tr></thead><tbody>
+@for (int i=0;i<Model.Rows.Count;i++){var row=Model.Rows[i];<tr><td>@(i+1)</td><td>@row.PatientName</td><td>@row.PatientId</td><td>@row.BirthDate</td><td>@row.VisitDate</td><td>@row.SectionName</td><td>@row.Diagnosis</td><td>@row.SubsidyType</td><td class="amount">@row.Rl25</td><td class="amount">@row.OutpatientPartPay</td><td class="amount">@row.EmergencyPartPay</td><td class="amount">@row.Rl49Drug</td><td class="amount">@row.OutpatientTotal</td><td></td><td></td></tr>}
+</tbody><tfoot><tr><th colspan="8">合計</th><th>@Model.Rl25Total</th><th>@Model.OutpatientPartPayTotal</th><th>@Model.EmergencyPartPayTotal</th><th>@Model.DrugPartPayTotal</th><th>@Model.Total</th><th></th><th></th></tr></tfoot></table>
+}
+else
+{
+<table><thead><tr><th>No.</th><th>姓名</th><th>身分證號</th><th>生日</th><th>住院日</th><th>出院日</th><th>天數</th><th>ICD-10-CM</th><th>補助類別</th><th>部分負擔</th><th>其他自付額</th><th>費用總計</th><th>核減</th><th>核付</th></tr></thead><tbody>
+@for (int i=0;i<Model.Rows.Count;i++){var row=Model.Rows[i];<tr><td>@(i+1)</td><td>@row.PatientName</td><td>@row.PatientId</td><td>@row.BirthDate</td><td>@row.VisitDate</td><td>@row.DischargeDate</td><td>@row.Days</td><td>@row.Diagnosis</td><td>@row.SubsidyType</td><td class="amount">@row.Rl49</td><td class="amount">@row.Rl50</td><td class="amount">@row.InpatientTotal</td><td></td><td></td></tr>}
+</tbody><tfoot><tr><th colspan="9">合計</th><th>@Model.Rl49Total</th><th>@Model.Rl50Total</th><th>@Model.Total</th><th></th><th></th></tr></tfoot></table>
+}
+</body></html>

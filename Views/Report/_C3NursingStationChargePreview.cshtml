@@ -1,0 +1,37 @@
+@model OpdAccrRptWeb.ViewModels.C3PreviewViewModel
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8" />
+    <title>@Model.Title</title>
+    <style>
+        @@page { size: A4 landscape; margin: 10mm; }
+        body { font-family: "Microsoft JhengHei", sans-serif; color: #111; }
+        h1 { text-align: center; font-size: 20px; margin: 0 0 6px; }
+        .meta { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th, td { border: 1px solid #555; padding: 3px; text-align: left; }
+        td.number { text-align: right; }
+        .actions { margin-bottom: 10px; }
+        @@media print { .actions { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="actions"><button type="button" onclick="window.print()">列印</button></div>
+    <h1>@Model.Title</h1>
+    <div class="meta"><span>日期：@Model.DateB ～ @Model.DateE</span><span>製表人：@Model.UserId　製表時間：@Model.Today</span></div>
+    <table>
+        <thead><tr><th>診別</th><th>領用部門</th><th>部門代碼</th><th>批價碼</th><th>材料碼</th><th>材料名稱</th><th>庫別</th><th>數量</th>
+        @if (Model.DetailType == OpdAccrRptWeb.Models.ReportDetailType.Detail) { <th>醫師代碼</th><th>病歷號</th><th>病患姓名</th><th>報表日</th><th>醫師姓名</th><th>自費</th> }
+        </tr></thead>
+        <tbody>
+        @foreach (var row in Model.Rows)
+        {
+            <tr><td>@row.Diagnose</td><td>@row.Dispensary</td><td>@row.Section</td><td>@row.ChargeCode</td><td>@row.MaterialCode</td><td>@row.MaterialName</td><td>@row.InventoryType</td><td class="number">@row.TotalSum</td>
+            @if (Model.DetailType == OpdAccrRptWeb.Models.ReportDetailType.Detail) { <td>@row.DctNo</td><td>@row.MrNo</td><td>@row.PName</td><td>@row.Op1Date</td><td>@row.DrName</td><td>@row.SPay</td> }
+            </tr>
+        }
+        </tbody>
+    </table>
+</body>
+</html>

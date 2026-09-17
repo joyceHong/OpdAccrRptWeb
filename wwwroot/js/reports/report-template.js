@@ -1,6 +1,17 @@
 (() => {
     const reportConfigurations = Object.freeze({
         C1: Object.freeze({ serverPaged: true }),
+        C3: Object.freeze({
+            serverPaged: true,
+            c3: true,
+            encounterSource: Object.freeze({
+                defaultValue: "O",
+                options: Object.freeze([
+                    Object.freeze({ value: "O", label: "門急診" }),
+                    Object.freeze({ value: "I", label: "住院" })
+                ])
+            })
+        }),
         C10: Object.freeze({
             serverPaged: true,
             advancedConditions: false,
@@ -15,6 +26,25 @@
         }),
         C13: Object.freeze({ serverPaged: true, c13: true }),
         C15: Object.freeze({ serverPaged: true, c15: true }),
+        C16: Object.freeze({
+            serverPaged: true,
+            c16: true,
+            encounterSource: Object.freeze({
+                defaultValue: "OutpatientEmergency",
+                options: Object.freeze([
+                    Object.freeze({ value: "OutpatientEmergency", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            }),
+            reportType: Object.freeze({
+                defaultValue: "All",
+                options: Object.freeze([
+                    Object.freeze({ value: "All", label: "全部" }),
+                    Object.freeze({ value: "Child", label: "兒童" }),
+                    Object.freeze({ value: "NewHope", label: "新希望關懷" })
+                ])
+            })
+        }),
         C143: Object.freeze({
             serverPaged: true,
             advancedConditions: false,
@@ -196,7 +226,7 @@
             ? (reportConfiguration.encounterSource?.defaultValue === "Inpatient" ? 4 : 0)
             : null,
         forceRebuild: false,
-        dateMode: reportConfiguration.c23 === true ? "General" : "",
+        dateMode: reportConfiguration.c23 === true ? "General" : (reportConfiguration.c16 === true ? "AccountingDate" : ""),
         inpatientType: "",
         contractCode: "",
         receivableBalanceType: reportConfiguration.receivableBalanceType?.defaultValue ?? "",
@@ -207,6 +237,11 @@
         roomScope: reportConfiguration.c24 === true || reportConfiguration.c10 === true ? "All" : "",
         medicalRecordNo: "",
         reportType: reportConfiguration.reportType?.defaultValue ?? ""
+        ,detailType: 0
+        ,logisticsType: 0
+        ,departmentCode: ""
+        ,roomCodes: ""
+        ,chargeCodes: ""
     });
 
     window.ReportComponents = window.ReportComponents || {};
@@ -253,7 +288,10 @@
                 c15PreviewLoading: false,
                 c15PreviewRows: [],
                 c15PreviewSummary: null,
-                c15PrintGeneratedAt: ""
+                c15PrintGeneratedAt: "",
+                c3PreviewOpen: false,
+                c3PreviewLoading: false,
+                c3Preview: null
             };
         },
         computed: {
@@ -303,6 +341,8 @@
             canExport() { return ["C10", "C144", "C174"].includes(this.selectedReport.code) && this.hasResults && !this.isExporting; },
             isC13() { return this.reportConfiguration.c13 === true; },
             isC15() { return this.reportConfiguration.c15 === true; },
+            isC16() { return this.reportConfiguration.c16 === true; },
+            isC3() { return this.reportConfiguration.c3 === true; },
             isC143() { return this.reportConfiguration.c143 === true; },
             isC144() { return this.reportConfiguration.c144 === true; },
             reportTypeConfiguration() { return this.reportConfiguration.reportType ?? null; },
@@ -347,6 +387,19 @@
                         });
                     }
                 });
+                return pages.map((page, index) => ({
+                    ...page,
+                    pageNumber: index + 1,
+                    totalPages: pages.length
+                }));
+            },
+            c3PreviewPages() {
+                if (!this.isC3 || !Array.isArray(this.c3Preview?.rows)) return [];
+                const rowsPerPage = Number(this.c3Preview.detailType) === 1 ? 12 : 20;
+                const pages = [];
+                for (let start = 0; start < this.c3Preview.rows.length; start += rowsPerPage) {
+                    pages.push({ rows: this.c3Preview.rows.slice(start, start + rowsPerPage) });
+                }
                 return pages.map((page, index) => ({
                     ...page,
                     pageNumber: index + 1,
@@ -406,6 +459,9 @@
                 this.c15PreviewRows = [];
                 this.c15PreviewSummary = null;
                 this.c15PrintGeneratedAt = "";
+                this.c3PreviewOpen = false;
+                this.c3PreviewLoading = false;
+                this.c3Preview = null;
                 this.c211ContractOpen = false;
                 this.c211ContractActiveIndex = -1;
                 this.currentPage = 1;
@@ -546,14 +602,19 @@
                                 ? this.form.billingCode.trim()
                                 : (this.isC21 && this.form.billingCode.trim() ? this.form.billingCode.trim() : undefined),
                             accountingScope: this.isC21 ? this.form.accountingScope : undefined,
-                            dateMode: this.isC23 ? this.form.dateMode : undefined,
+                            dateMode: this.isC23 || this.isC16 ? this.form.dateMode : undefined,
                             inpatientType: this.isC23 && this.form.dateMode === "General" ? this.form.inpatientType || undefined : undefined,
                             contractCode: (this.isC23 || this.isC211) && this.form.contractCode.trim()
                                 ? this.form.contractCode.trim() : undefined,
                             forceRebuild: (this.isC21 || this.isC23 || this.canForceC24Rebuild)
                                 ? this.form.forceRebuild : undefined,
-                            source: this.isC24 || this.isC10 || this.isC143 || this.isC144 ? this.form.encounterSource : undefined,
-                            reportType: this.isC143 ? this.form.reportType : undefined,
+                            source: this.isC3 || this.isC24 || this.isC10 || this.isC143 || this.isC144 || this.isC16 ? this.form.encounterSource : undefined,
+                            reportType: this.isC143 || this.isC16 ? this.form.reportType : undefined,
+                            detailType: this.isC3 ? this.form.detailType : undefined,
+                            logisticsType: this.isC3 ? this.form.logisticsType : undefined,
+                            departmentCode: this.isC3 && this.form.departmentCode.trim() ? this.form.departmentCode.trim() : undefined,
+                            roomCodes: this.isC3 && this.form.roomCodes.trim() ? this.form.roomCodes.trim() : undefined,
+                            chargeCodes: this.isC3 && this.form.chargeCodes.trim() ? this.form.chargeCodes.trim() : undefined,
                             mode: this.isC24 ? this.form.mode : undefined,
                             roomScope: this.isC24 || this.isC10 ? this.form.roomScope : undefined,
                             medicalRecordNo: (this.isC24 || this.isC10) && this.form.medicalRecordNo.trim()
@@ -574,7 +635,9 @@
                         const traceId = problem && typeof problem.traceId === "string"
                             ? `（追蹤碼：${problem.traceId}）`
                             : "";
-                        const title = problem && typeof problem.title === "string"
+                        const title = typeof problem === "string"
+                            ? problem
+                            : problem && typeof problem.title === "string"
                             ? problem.title
                             : `查詢失敗（HTTP ${response.status}）`;
                         throw new Error(`${title}${traceId}`);
@@ -661,6 +724,69 @@
                     this.isLoading = false;
                 }
             },
+            async previewC16() {
+                if (!this.isC16 || !this.hasResults || this.isLoading) return;
+                this.isLoading = true;
+                this.validationMessage = "";
+                try {
+                    const response = await fetch("/Report/C16/Preview", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ reportCode: "C16", startDate: this.form.startDate,
+                            endDate: this.form.endDate, source: this.form.encounterSource,
+                            reportType: this.form.reportType, dateMode: this.form.dateMode,
+                            pageNumber: 1, pageSize: 10 })
+                    });
+                    if (!response.ok) {
+                        const problem = await response.json().catch(() => null);
+                        throw new Error(problem?.title ?? "無法建立 C16 預覽。");
+                    }
+                    const previewWindow = window.open("", "_blank");
+                    if (!previewWindow) throw new Error("瀏覽器已封鎖預覽視窗，請允許彈出視窗後重試。");
+                    previewWindow.opener = null;
+                    previewWindow.document.write(await response.text());
+                    previewWindow.document.close();
+                } catch (error) {
+                    this.validationMessage = error instanceof Error ? error.message : "無法建立 C16 預覽。";
+                } finally { this.isLoading = false; }
+            },
+            async openC3Preview() {
+                if (!this.isC3 || !this.hasResults || this.c3PreviewLoading) return;
+                this.c3PreviewLoading = true;
+                this.validationMessage = "";
+                this.c3PreviewOpen = false;
+                this.c3Preview = null;
+                try {
+                    const response = await fetch("/Report/C3/Preview", {
+                        method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+                        body: JSON.stringify({ reportCode: "C3", startDate: this.form.startDate,
+                            endDate: this.form.endDate, source: this.form.encounterSource,
+                            detailType: this.form.detailType, logisticsType: this.form.logisticsType,
+                            departmentCode: this.form.departmentCode.trim() || undefined,
+                            roomCodes: this.form.roomCodes.trim() || undefined,
+                            chargeCodes: this.form.chargeCodes.trim() || undefined,
+                            pageNumber: 1, pageSize: 10 })
+                    });
+                    if (!response.ok) {
+                        const problem = await response.json().catch(() => null);
+                        throw new Error(typeof problem === "string"
+                            ? problem : problem?.title ?? "無法建立 C3 預覽。");
+                    }
+                    const preview = await response.json();
+                    if (!Array.isArray(preview?.rows) || preview.rows.length === 0) {
+                        throw new Error("查無符合條件的資料，無法建立預覽。");
+                    }
+                    this.c3Preview = preview;
+                    this.c3PreviewOpen = true;
+                } catch (error) {
+                    this.validationMessage = error instanceof Error ? error.message : "無法建立 C3 預覽。";
+                } finally { this.c3PreviewLoading = false; }
+            },
+            closeC3Preview() {
+                this.c3PreviewOpen = false;
+            },
+            printC3Preview() {
+                if (this.c3PreviewOpen) window.print();
+            },
             changeEncounterSource() {
                 this.currentPage = 1;
                 if (this.isC21) {
@@ -674,6 +800,9 @@
                 if (this.isC24 || this.isC10) {
                     this.form.source = this.form.encounterSource;
                     if (this.form.source === "Inpatient") this.form.roomScope = "All";
+                }
+                if (this.isC16 && this.form.encounterSource === "Inpatient") {
+                    this.form.dateMode = "AccountingDate";
                 }
             },
             changeC143ReportType() {

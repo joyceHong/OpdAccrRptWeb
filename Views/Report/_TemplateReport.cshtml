@@ -8,6 +8,8 @@
                 <p>設定查詢區間與條件，送出後即可檢視報表資料。</p>
             </div>
             <button v-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="previewC13">預覽／列印</button>
+            <button v-else-if="isC3" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c3PreviewLoading" v-on:click="openC3Preview">{{ c3PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC16" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="previewC16">預覽／列印</button>
             <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <button v-else-if="!isPrintableLegacyReport" class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
@@ -54,6 +56,30 @@
                                    required v-on:change="changeC143ReportType" />
                             <span>{{ option.label }}</span>
                         </label>
+                    </fieldset>
+                    <template v-if="isC3">
+                        <fieldset class="source-fieldset">
+                            <legend>報表內容 <i>*</i></legend>
+                            <label class="source-option"><input v-model.number="form.detailType" type="radio" name="c3Detail" :value="0" v-on:change="currentPage=1" /><span>彙總</span></label>
+                            <label class="source-option"><input v-model.number="form.detailType" type="radio" name="c3Detail" :value="1" v-on:change="currentPage=1" /><span>明細</span></label>
+                        </fieldset>
+                        <fieldset class="source-fieldset">
+                            <legend>物流類型 <i>*</i></legend>
+                            <label class="source-option"><input v-model.number="form.logisticsType" type="radio" name="c3Logistics" :value="0" v-on:change="currentPage=1" /><span>全部</span></label>
+                            <label class="source-option"><input v-model.number="form.logisticsType" type="radio" name="c3Logistics" :value="1" v-on:change="currentPage=1" /><span>物流</span></label>
+                            <label class="source-option"><input v-model.number="form.logisticsType" type="radio" name="c3Logistics" :value="2" v-on:change="currentPage=1" /><span>非物流</span></label>
+                        </fieldset>
+                        <div class="advanced-grid">
+                            <label><span>領用部門</span><input v-model.trim="form.departmentCode" v-on:input="currentPage=1" maxlength="10" /></label>
+                            <label><span>診間（逗號分隔）</span><input v-model="form.roomCodes" v-on:input="currentPage=1" /></label>
+                            <label><span>批價碼（逗號分隔）</span><input v-model="form.chargeCodes" v-on:input="currentPage=1" /></label>
+                        </div>
+                    </template>
+                    <fieldset v-if="isC16" class="source-fieldset">
+                        <legend>日期基準 <i>*</i></legend>
+                        <label class="source-option"><input v-model="form.dateMode" type="radio" name="c16DateBasis" value="AccountingDate" required /><span>帳務日</span></label>
+                        <label class="source-option"><input v-model="form.dateMode" type="radio" name="c16DateBasis" value="VisitDate" :disabled="form.encounterSource === 'Inpatient'" required /><span>就診日</span></label>
+                        <small v-if="form.encounterSource === 'Inpatient'">住院固定依帳務日查詢</small>
                     </fieldset>
                     <fieldset v-if="hasReceivableBalanceType" class="source-fieldset">
                         <legend>餘額類型 <i>*</i></legend>
@@ -226,6 +252,28 @@
                         <thead><tr><th>租借日期</th><th>病歷號</th><th>租借人</th><th>輔具編號</th><th>租借期限</th><th>{{ page.amount001Label }}</th><th>歸還日期</th><th>{{ page.amount002Label }}</th><th>{{ page.amount004Label }}</th><th>{{ page.amount003Label }}</th></tr></thead>
                         <tbody><tr v-for="row in page.rows" :key="`print-${page.type}-${row.encounterOrdinal}`"><td>{{ row.visitDate }}</td><td>{{ row.medicalRecordNumber }}</td><td>{{ row.patientName }}</td><td>{{ row.deviceNumber }}</td><td>{{ row.rentalPeriod }}</td><td class="amount">{{ row.rl001 }}</td><td>{{ row.returnDate }}</td><td class="amount">{{ row.rl002 }}</td><td class="amount">{{ row.rl004 }}</td><td class="amount">{{ row.rl003 }}</td></tr></tbody>
                         <tfoot v-if="page.showTotals"><tr><th colspan="5">合計</th><th class="amount">{{ page.rl001Total }}</th><th></th><th class="amount">{{ page.rl002Total }}</th><th class="amount">{{ page.rl004Total }}</th><th class="amount">{{ page.rl003Total }}</th></tr></tfoot>
+                    </table>
+                </article>
+            </div>
+        </div>
+        <div v-if="c3PreviewOpen && c3Preview" class="c3-preview-overlay" role="dialog" aria-modal="true" aria-label="C3 列印預覽">
+            <div class="c3-preview-actions no-print">
+                <button class="ghost-button" type="button" v-on:click="closeC3Preview">關閉預覽</button>
+                <button class="primary-button" type="button" v-on:click="printC3Preview">列印</button>
+            </div>
+            <div class="c3-preview-pages">
+                <article v-for="page in c3PreviewPages" :key="`c3-print-${page.pageNumber}`" class="c3-paper">
+                    <header class="c3-print-header">
+                        <h1>{{ c3Preview.title }}</h1>
+                        <div class="c3-print-meta">
+                            <span>DateB：{{ c3Preview.dateB }}　DateE：{{ c3Preview.dateE }}</span>
+                            <span>UserID：{{ c3Preview.userId }}　Today：{{ c3Preview.today }}</span>
+                            <span>頁次：{{ page.pageNumber }} / {{ page.totalPages }}</span>
+                        </div>
+                    </header>
+                    <table class="c3-print-table">
+                        <thead><tr><th>診別</th><th>領用部門</th><th>部門代碼</th><th>批價碼</th><th>材料碼</th><th>材料名稱</th><th>庫別</th><th>數量</th><template v-if="Number(c3Preview.detailType) === 1"><th>醫師代碼</th><th>病歷號</th><th>病患姓名</th><th>報表日</th><th>醫師姓名</th><th>自費</th></template></tr></thead>
+                        <tbody><tr v-for="(row, rowIndex) in page.rows" :key="`c3-print-${page.pageNumber}-${rowIndex}`"><td>{{ row.diagnose }}</td><td>{{ row.dispensary }}</td><td>{{ row.section }}</td><td>{{ row.chargeCode }}</td><td>{{ row.materialCode }}</td><td>{{ row.materialName }}</td><td>{{ row.inventoryType }}</td><td class="number">{{ row.totalSum }}</td><template v-if="Number(c3Preview.detailType) === 1"><td>{{ row.dctNo }}</td><td>{{ row.mrNo }}</td><td>{{ row.pName }}</td><td>{{ row.op1Date }}</td><td>{{ row.drName }}</td><td>{{ row.sPay }}</td></template></tr></tbody>
                     </table>
                 </article>
             </div>

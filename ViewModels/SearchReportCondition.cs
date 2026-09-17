@@ -58,8 +58,18 @@
         /// <summary>C24 作業模式：Accounting 或 Billing。</summary>
         public string? Mode { get; set; }
 
-        /// <summary>C143 報表類型：Difference 或 All。</summary>
+        /// <summary>C143 報表類型：Difference 或 All；C16：All、Child 或 NewHope。</summary>
         public string? ReportType { get; set; }
+
+        /// <summary>C3 彙總 0 或明細 1。</summary>
+        public int? DetailType { get; set; }
+
+        /// <summary>C3 全部 0、物流 1 或非物流 2。</summary>
+        public int? LogisticsType { get; set; }
+
+        public string? DepartmentCode { get; set; }
+        public string? RoomCodes { get; set; }
+        public string? ChargeCodes { get; set; }
 
         /// <summary>C24 房別範圍：All、Emergency 或 NonEmergency；C10 使用 All、Emergency 或 Outpatient。</summary>
         public string? RoomScope { get; set; }

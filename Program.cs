@@ -14,6 +14,7 @@ builder.Host.UseSerilog();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services
     .AddOptions<ReportExportOptions>()
@@ -45,6 +46,8 @@ builder.Services.AddSingleton<IOutpatientReceivableBalanceRepository, Outpatient
 builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, InpatientAdvancePaymentBalanceRepository>();
 builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
 builder.Services.AddScoped<IC15AssistiveDeviceDepositDetailRepository, C15AssistiveDeviceDepositDetailRepository>();
+builder.Services.AddScoped<IC16ReportRepository, C16ReportRepository>();
+builder.Services.AddC3ReportServices();
 builder.Services.AddSingleton<IInpatientReceivableBalanceRepository, InpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IContractPaymentDetailRepository, ContractPaymentDetailRepository>();
 builder.Services.AddScoped<IC211ContractBalanceRepository, C211ContractBalanceRepository>();
@@ -61,6 +64,8 @@ builder.Services.AddSingleton<IC12PatientAccessAuditWriter, C12SerilogPatientAcc
 builder.Services.AddScoped<IC12ReportService, C12ReportService>();
 builder.Services.AddSingleton<IC13LegacyPhoneMasker, C13LegacyPhoneMasker>();
 builder.Services.AddSingleton<IC15LegacyReducer, C15LegacyReducer>();
+builder.Services.AddSingleton<IC16LegacyReducer, C16LegacyReducer>();
+builder.Services.AddScoped<IC16ReportService, C16ReportService>();
 builder.Services.AddScoped<IC13HighRiskEmergencyReportService, C13HighRiskEmergencyReportService>();
 builder.Services.AddScoped<IC143AccountingBalanceDebtReportService, C143AccountingBalanceDebtReportService>();
 builder.Services.AddScoped<IC144DebtDetailReportService, C144DebtDetailReportService>();

@@ -1630,6 +1630,92 @@ async function verifiesC15SharedPagingGroupingAndPrintContract() {
     assert.equal(component.methods.displayRocDate.call({}, "2026-09-16"), "115/09/16");
 }
 
+async function verifiesC3ModalPreviewAndPrintContract() {
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    const css = fs.readFileSync("wwwroot/css/site.css", "utf8");
+    assert.match(markup, /class="c3-preview-overlay"[^>]*role="dialog"[^>]*aria-modal="true"/);
+    assert.match(markup, /closeC3Preview[\s\S]*printC3Preview[\s\S]*c3PreviewPages/);
+    assert.match(markup, /c3Preview\.title[\s\S]*DateB[\s\S]*dateB[\s\S]*DateE[\s\S]*dateE[\s\S]*UserID[\s\S]*userId[\s\S]*Today[\s\S]*today[\s\S]*page\.pageNumber/);
+    assert.match(markup, /診別[\s\S]*領用部門[\s\S]*部門代碼[\s\S]*批價碼[\s\S]*材料碼[\s\S]*材料名稱[\s\S]*庫別[\s\S]*數量/);
+    assert.match(markup, /detailType\) === 1[\s\S]*醫師代碼[\s\S]*病歷號[\s\S]*病患姓名[\s\S]*報表日[\s\S]*醫師姓名[\s\S]*自費/);
+    assert.match(css, /@page c3-landscape\{size:A4 landscape;margin:0\}/);
+    assert.match(css, /\.c3-paper\{[^}]*break-after:page/);
+    assert.match(css, /@media print\{body:has\(\.c3-preview-overlay\) \*\{visibility:hidden!important\}/);
+    assert.match(css, /\.c3-preview-actions\{display:none!important\}/);
+
+    const previewRows = Array.from({ length: 31 }, (_, index) => ({
+        diagnose: "門診", dispensary: "門診護理站", section: "15011",
+        chargeCode: `C${index}`, materialCode: `M${index}`, materialName: `材料${index}`,
+        inventoryType: "物流", totalSum: index + 1
+    }));
+    let previewUrl;
+    let previewOptions;
+    global.fetch = async (url, options) => {
+        previewUrl = url;
+        previewOptions = options;
+        return {
+            ok: true,
+            json: async () => ({
+                title: "亞東紀念醫院門急診各護理站計價品彙總表__物流",
+                dateB: "115/09/01", dateE: "115/09/16", userId: "tester",
+                today: "115/09/17 10:20:30", detailType: 0, rows: previewRows
+            })
+        };
+    };
+    const context = {
+        isC3: true, hasResults: true, c3PreviewOpen: false, c3PreviewLoading: false,
+        c3Preview: null, validationMessage: "", currentPage: 3, pageSize: 10,
+        form: {
+            startDate: "2026-09-01", endDate: "2026-09-16", encounterSource: "O",
+            detailType: 0, logisticsType: 1, departmentCode: " 15011 ",
+            roomCodes: " 3J01,3J02 ", chargeCodes: " C1,C2 "
+        }
+    };
+
+    await component.methods.openC3Preview.call(context);
+    assert.equal(previewUrl, "/Report/C3/Preview");
+    assert.equal(previewOptions.headers.Accept, "application/json");
+    assert.deepEqual(JSON.parse(previewOptions.body), {
+        reportCode: "C3", startDate: "2026-09-01", endDate: "2026-09-16",
+        source: "O", detailType: 0, logisticsType: 1, departmentCode: "15011",
+        roomCodes: "3J01,3J02", chargeCodes: "C1,C2", pageNumber: 1, pageSize: 10
+    });
+    assert.equal(context.c3PreviewOpen, true);
+    assert.equal(context.c3Preview.rows.length, 31);
+    assert.equal(context.currentPage, 3);
+    assert.equal(context.pageSize, 10);
+    const pages = component.computed.c3PreviewPages.call(context);
+    assert.deepEqual(pages.map(page => page.rows.length), [20, 11]);
+    assert.deepEqual(pages.map(page => page.pageNumber), [1, 2]);
+
+    component.methods.closeC3Preview.call(context);
+    assert.equal(context.c3PreviewOpen, false);
+    assert.equal(context.currentPage, 3);
+
+    let printCalls = 0;
+    global.window.print = () => { printCalls++; };
+    context.c3PreviewOpen = true;
+    component.methods.printC3Preview.call(context);
+    assert.equal(printCalls, 1);
+
+    global.fetch = async () => ({
+        ok: true,
+        json: async () => ({ title: "empty", rows: [] })
+    });
+    await component.methods.openC3Preview.call(context);
+    assert.equal(context.c3PreviewOpen, false);
+    assert.equal(context.c3Preview, null);
+    assert.match(context.validationMessage, /查無符合條件/);
+
+    global.fetch = async () => ({
+        ok: false, status: 503, json: async () => ({ title: "預覽暫時無法使用" })
+    });
+    await component.methods.openC3Preview.call(context);
+    assert.equal(context.c3PreviewOpen, false);
+    assert.equal(context.c3Preview, null);
+    assert.match(context.validationMessage, /預覽暫時無法使用/);
+}
+
 verifiesC171RequestsServerPages()
     .then(verifiesC1RequestsDateRangeAndServerPageOnly)
     .then(verifiesC25UsesSharedServerPagedLifecycle)
@@ -1667,5 +1753,6 @@ verifiesC171RequestsServerPages()
     .then(verifiesC143SharedQueryPagingAndResetContract)
     .then(verifiesC144SharedQueryPagingAndExportContract)
     .then(verifiesC15SharedPagingGroupingAndPrintContract)
+    .then(verifiesC3ModalPreviewAndPrintContract)
     .then(verifiesFirstAndLastPageControlsReuseExistingPagination)
     .then(() => console.log("report-template pagination tests passed"));

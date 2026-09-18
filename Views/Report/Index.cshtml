@@ -6,6 +6,7 @@
 }
 
 <div id="report-app" v-cloak>
+    @Html.AntiForgeryToken()
     <header class="app-header">
         <button class="brand" type="button" v-on:click="sidebarOpen = !sidebarOpen" aria-label="切換側邊選單">
             <span class="brand-mark">醫</span>

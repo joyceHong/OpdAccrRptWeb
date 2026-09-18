@@ -25,7 +25,7 @@ public sealed class ReportCatalogService : IReportCatalogService
                         Report("C211", "合約單位餘額明細表"), Report("C212", "骨庫餘額明細表"),
                         Report("C213", "收款員現金彙總表"), Report("C214", "門急診應收帳款餘額明細表")),
                     Group("計價、材料與明細報表",
-                        Report("C3", "各護理站計價品彙總／明細表"), Report("C4", "門急診材料寄售表及庫存處理"),
+                        Report("C3", "各護理站計價品彙總／明細表"), Report("C4", "門急診材料寄售表"),
                         Report("C5", "批價數量查詢表"), Report("C6", "急診特殊檢查治療查詢表"),
                         Report("C7", "門急診每日批價明細表"), Report("C8", "批價補帳明細表"), Report("C9", "維康耗材記帳月報表")),
                     Group("應收、收據、社服與催款報表",

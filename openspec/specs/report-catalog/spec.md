@@ -15,7 +15,6 @@ The outpatient accounting report catalog SHALL expose C144 as an available `欠�
 - **AND** the application permits a validated C144 query submission
 
 ---
-
 ### Requirement: Outpatient accounting report catalog
 
 「門診批價統計報表」分類 SHALL 包含下列群組與報表代碼：
@@ -222,4 +221,193 @@ code:
   - ViewModels/SurgicalAccountingReportViewModel.cs
 tests:
   - OpdAccrRptWeb.Tests/report-template.test.js
+-->
+
+---
+### Requirement: Available C4 catalog entry
+The outpatient accounting report catalog SHALL expose C4 as an available `門急診材料寄售表` entry and SHALL route selection to the C4-specific Gregorian date and organization-unit query controls.
+
+#### Scenario: Select C4 from the catalog
+- **WHEN** a user selects C4 in the report catalog
+- **THEN** the application opens the C4 query page and permits an authorized validated query
+
+<!-- @trace
+source: add-c4-material-consignment-report
+updated: 2026-09-18
+code:
+  - Services/OrganizationUnitCodeService.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportRendererTests.cs
+  - wwwroot/css/site.css
+  - wwwroot/js/reports/report-template.js
+  - ViewModels/C4MaterialReportViewModel.cs
+  - Controllers/ReportController.cs
+  - Sql/C4.Report.Daily.sql
+  - Repositories/C4MaterialReportRepository.cs
+  - OpdAccrRptWeb.csproj
+  - Repositories/IC4MaterialReportRepository.cs
+  - Services/ReportCatalogService.cs
+  - Views/C4/Preview.cshtml
+  - Views/Report/Index.cshtml
+  - Services/C4MaterialReportService.cs
+  - Services/IC4MaterialReportRenderer.cs
+  - Models/C4MaterialReportModels.cs
+  - OpdAccrRptWeb.Tests/C3CoreTests.cs
+  - Views/Report/_TemplateReport.cshtml
+  - Models/OrganizationUnitModels.cs
+  - Services/C4MaterialReportRenderer.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportTests.cs
+  - wwwroot/js/report-app.js
+  - Repositories/OrganizationUnitMappingRepository.cs
+  - Program.cs
+  - Services/C4OracleFailurePolicy.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportControllerTests.cs
+  - Repositories/IOrganizationUnitMappingRepository.cs
+  - Services/IC4MaterialReportService.cs
+  - Controllers/C4MaterialReportController.cs
+  - Services/IOrganizationUnitCodeService.cs
+tests:
+  - OpdAccrRptWeb.Tests/c4-report.test.js
+-->
+
+---
+### Requirement: Available C3 catalog entry
+The outpatient accounting report catalog SHALL expose C3 as an available `各護理站計價品彙總明細表` entry and SHALL route selection to C3-specific query controls.
+
+#### Scenario: Select C3 from the catalog
+- **WHEN** a user selects C3 in the report catalog
+- **THEN** the application displays Gregorian start and end dates, source, detail type, logistics type, department, room-code, and charge-code controls
+- **AND** the application permits a validated C3 query submission
+
+<!-- @trace
+source: add-c3-nursing-station-charge-report
+updated: 2026-09-18
+code:
+  - Program.cs
+  - Controllers/C4MaterialReportController.cs
+  - Services/ReportCatalogService.cs
+  - ViewModels/C4MaterialReportViewModel.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportRendererTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportControllerTests.cs
+  - Services/IOrganizationUnitCodeService.cs
+  - Models/C4MaterialReportModels.cs
+  - Views/Report/Index.cshtml
+  - wwwroot/js/report-app.js
+  - Sql/C4.Report.Daily.sql
+  - OpdAccrRptWeb.csproj
+  - OpdAccrRptWeb.Tests/C4MaterialReportTests.cs
+  - Services/IC4MaterialReportRenderer.cs
+  - Views/Report/_TemplateReport.cshtml
+  - Models/OrganizationUnitModels.cs
+  - Repositories/IOrganizationUnitMappingRepository.cs
+  - Services/IC4MaterialReportService.cs
+  - Repositories/OrganizationUnitMappingRepository.cs
+  - Services/C4MaterialReportRenderer.cs
+  - Services/C4OracleFailurePolicy.cs
+  - OpdAccrRptWeb.Tests/C3CoreTests.cs
+  - Views/C4/Preview.cshtml
+  - wwwroot/css/site.css
+  - wwwroot/js/reports/report-template.js
+  - Repositories/IC4MaterialReportRepository.cs
+  - Services/C4MaterialReportService.cs
+  - Services/OrganizationUnitCodeService.cs
+  - Repositories/C4MaterialReportRepository.cs
+tests:
+  - OpdAccrRptWeb.Tests/c4-report.test.js
+-->
+
+---
+### Requirement: Available C16 catalog entry
+The outpatient accounting report catalog SHALL expose C16 as an available `新北市醫療補助費用申請總表` entry and route selection to C16-specific controls for Gregorian dates, source, report type, and date basis. Selecting inpatient SHALL make accounting date the effective basis and indicate that visit date does not apply.
+
+#### Scenario: Select C16 from the catalog
+- **WHEN** a user selects C16
+- **THEN** the application displays the C16 controls and permits a validated query submission
+
+#### Scenario: Select inpatient source
+- **WHEN** a user selects inpatient on the C16 form
+- **THEN** the form displays accounting date as the effective date basis
+
+<!-- @trace
+source: add-c16-new-taipei-medical-subsidy-summary
+updated: 2026-09-18
+code:
+  - ViewModels/C4MaterialReportViewModel.cs
+  - Repositories/IC4MaterialReportRepository.cs
+  - Program.cs
+  - Services/C4MaterialReportService.cs
+  - Sql/C4.Report.Daily.sql
+  - Repositories/IOrganizationUnitMappingRepository.cs
+  - OpdAccrRptWeb.csproj
+  - Services/OrganizationUnitCodeService.cs
+  - Services/IC4MaterialReportService.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportControllerTests.cs
+  - Views/C4/Preview.cshtml
+  - Models/OrganizationUnitModels.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportRendererTests.cs
+  - Repositories/OrganizationUnitMappingRepository.cs
+  - wwwroot/js/report-app.js
+  - Controllers/ReportController.cs
+  - Services/C4MaterialReportRenderer.cs
+  - Controllers/C4MaterialReportController.cs
+  - Services/IC4MaterialReportRenderer.cs
+  - Views/Report/_TemplateReport.cshtml
+  - wwwroot/css/site.css
+  - wwwroot/js/reports/report-template.js
+  - OpdAccrRptWeb.Tests/C3CoreTests.cs
+  - Services/ReportCatalogService.cs
+  - Repositories/C4MaterialReportRepository.cs
+  - Services/IOrganizationUnitCodeService.cs
+  - Services/C4OracleFailurePolicy.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportTests.cs
+  - Views/Report/Index.cshtml
+  - Models/C4MaterialReportModels.cs
+tests:
+  - OpdAccrRptWeb.Tests/c4-report.test.js
+-->
+
+---
+### Requirement: Catalog exposes C15 assistive-device deposit detail
+The report catalog SHALL list C15 with the Traditional Chinese name 社工輔助器具保證金明細表 in the established report category and SHALL route selection to the C15 query experience.
+
+#### Scenario: User selects C15
+- **WHEN** the user selects C15 from the report catalog
+- **THEN** the page displays the C15 start-date and end-date query controls
+
+<!-- @trace
+source: add-c15-assistive-device-deposit-detail
+updated: 2026-09-18
+code:
+  - OpdAccrRptWeb.Tests/C4MaterialReportControllerTests.cs
+  - Models/OrganizationUnitModels.cs
+  - Services/IC4MaterialReportService.cs
+  - Services/OrganizationUnitCodeService.cs
+  - Views/Report/_TemplateReport.cshtml
+  - Repositories/C4MaterialReportRepository.cs
+  - ViewModels/C4MaterialReportViewModel.cs
+  - Services/C4MaterialReportService.cs
+  - Services/IOrganizationUnitCodeService.cs
+  - Repositories/OrganizationUnitMappingRepository.cs
+  - Services/C4MaterialReportRenderer.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportRendererTests.cs
+  - Services/C4OracleFailurePolicy.cs
+  - OpdAccrRptWeb.Tests/C3CoreTests.cs
+  - Views/C4/Preview.cshtml
+  - Services/ReportCatalogService.cs
+  - wwwroot/css/site.css
+  - OpdAccrRptWeb.Tests/C4MaterialReportTests.cs
+  - Views/Report/Index.cshtml
+  - Sql/C4.Report.Daily.sql
+  - Controllers/ReportController.cs
+  - wwwroot/js/reports/report-template.js
+  - Program.cs
+  - Models/C4MaterialReportModels.cs
+  - Repositories/IC4MaterialReportRepository.cs
+  - OpdAccrRptWeb.csproj
+  - Controllers/C4MaterialReportController.cs
+  - Repositories/IOrganizationUnitMappingRepository.cs
+  - Services/IC4MaterialReportRenderer.cs
+  - wwwroot/js/report-app.js
+tests:
+  - OpdAccrRptWeb.Tests/c4-report.test.js
 -->

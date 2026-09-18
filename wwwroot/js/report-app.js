@@ -4,6 +4,7 @@
     const reportComponentMap = Object.freeze({
         C1: window.ReportComponents.ReportTemplate,
         C3: window.ReportComponents.ReportTemplate,
+        C4: window.ReportComponents.ReportTemplate,
         C10: window.ReportComponents.ReportTemplate,
         C11: window.ReportComponents.C11Report,
         C12: window.ReportComponents.C12Report,

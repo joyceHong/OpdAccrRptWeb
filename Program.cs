@@ -1,6 +1,7 @@
 using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
+using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -12,6 +13,8 @@ Log.Logger = FileLoggingConfiguration.CreateLogger(
 builder.Host.UseSerilog();
 
 // Add services to the container.
+builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
+builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
@@ -48,6 +51,10 @@ builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, Assistiv
 builder.Services.AddScoped<IC15AssistiveDeviceDepositDetailRepository, C15AssistiveDeviceDepositDetailRepository>();
 builder.Services.AddScoped<IC16ReportRepository, C16ReportRepository>();
 builder.Services.AddC3ReportServices();
+builder.Services.AddScoped<IC4MaterialReportRepository, C4MaterialReportRepository>();
+builder.Services.AddScoped<IC4MaterialReportService, C4MaterialReportService>();
+builder.Services.AddSingleton<IC4TransientFailurePolicy, C4OracleFailurePolicy>();
+builder.Services.AddSingleton<IC4MaterialReportRenderer, C4MaterialReportRenderer>();
 builder.Services.AddSingleton<IInpatientReceivableBalanceRepository, InpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IContractPaymentDetailRepository, ContractPaymentDetailRepository>();
 builder.Services.AddScoped<IC211ContractBalanceRepository, C211ContractBalanceRepository>();
@@ -112,6 +119,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(

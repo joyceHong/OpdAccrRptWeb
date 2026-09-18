@@ -9,6 +9,9 @@
             </div>
             <button v-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="previewC13">預覽／列印</button>
             <button v-else-if="isC3" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c3PreviewLoading" v-on:click="openC3Preview">{{ c3PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
+            <template v-else-if="isC4">
+                <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c4PreviewLoading" v-on:click="openC4Preview">{{ c4PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
+            </template>
             <button v-else-if="isC16" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="previewC16">預覽／列印</button>
             <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <button v-else-if="!isPrintableLegacyReport" class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
@@ -75,6 +78,25 @@
                             <label><span>批價碼（逗號分隔）</span><input v-model="form.chargeCodes" v-on:input="currentPage=1" /></label>
                         </div>
                     </template>
+                    <div v-if="isC4" class="advanced-grid">
+                        <label><span>科別／部門</span>
+                            <div class="report-autocomplete">
+                                <input v-model="form.organizationQuery" autocomplete="off" placeholder="輸入新碼或名稱"
+                                       role="combobox" aria-autocomplete="list" aria-controls="c4-organization-options"
+                                       :aria-expanded="c4Organizations.length ? 'true' : 'false'"
+                                       v-on:input="onC4OrganizationInput" />
+                                <div v-if="c4Organizations.length" id="c4-organization-options"
+                                     class="report-autocomplete-panel" role="listbox">
+                                    <button v-for="item in c4Organizations" :key="`${item.source}-${item.legacyCode}`"
+                                            type="button" class="report-autocomplete-option" role="option"
+                                            v-on:mousedown.prevent="selectC4Organization(item)">
+                                        <strong>{{ item.newCode }}</strong>
+                                        <span>{{ item.displayName }}（{{ item.source }}）</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
                     <fieldset v-if="isC16" class="source-fieldset">
                         <legend>日期基準 <i>*</i></legend>
                         <label class="source-option"><input v-model="form.dateMode" type="radio" name="c16DateBasis" value="AccountingDate" required /><span>帳務日</span></label>
@@ -232,6 +254,25 @@
                 </div>
             </template>
         </section>
+        <div v-if="c4PreviewOpen && c4Preview" class="c4-preview-overlay" role="dialog" aria-modal="true" aria-label="C4 列印預覽">
+            <div class="c4-preview-actions no-print">
+                <button class="ghost-button" type="button" v-on:click="closeC4Preview">關閉預覽</button>
+                <button class="primary-button" type="button" v-on:click="printC4Preview">列印</button>
+            </div>
+            <article class="c4-paper">
+                <header class="c4-print-header"><h1>門急診材料寄售表</h1></header>
+                <div class="c4-print-meta">
+                    <span>日期：{{ c4Preview.metadata.dateB }} ～ {{ c4Preview.metadata.dateE }}</span>
+                    <span>使用者：{{ c4Preview.metadata.userId }}</span>
+                    <span>產表：{{ c4Preview.metadata.today }}</span>
+                </div>
+                <p v-if="!c4Preview.rows.length" class="empty-result">查無此筆資料</p>
+                <table v-else class="c4-print-table">
+                    <thead><tr><th>序號</th><th>類別</th><th>材料碼</th><th>健保碼</th><th>品名</th><th>單位</th><th>批價碼</th><th>數量</th><th>科別／部門</th></tr></thead>
+                    <tbody><tr v-for="row in c4Preview.rows" :key="`c4-print-${row.id}`"><td>{{ row.id }}</td><td>{{ row.type }}</td><td>{{ row.materialCode }}</td><td>{{ row.claimCode }}</td><td>{{ row.orderName }}</td><td>{{ row.unit }}</td><td>{{ row.chargeCode }}</td><td>{{ row.total }}</td><td>{{ row.sectionCode }}</td></tr></tbody>
+                </table>
+            </article>
+        </div>
         <div v-if="c15PreviewOpen" class="c15-preview-overlay" role="dialog" aria-modal="true" aria-label="C15 列印預覽">
             <div class="c15-preview-actions no-print">
                 <button class="ghost-button" type="button" v-on:click="closeC15Preview">關閉預覽</button>

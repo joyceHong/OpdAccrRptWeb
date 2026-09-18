@@ -6,6 +6,12 @@ namespace OpdAccrRptWeb.Services;
 public sealed class OrganizationUnitCodeService(
     IOrganizationUnitMappingRepository repository) : IOrganizationUnitCodeService
 {
+    private static readonly IReadOnlyDictionary<string, string> EmergencyMappings =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["0201"] = "11910", ["0281"] = "11920", ["0220"] = "11930",
+            ["0221"] = "11930", ["0230"] = "11309"
+        };
     private static readonly IReadOnlyDictionary<string, OrganizationUnitMapping> FixedMappings =
         BuildFixedMappings();
 
@@ -33,6 +39,41 @@ public sealed class OrganizationUnitCodeService(
             ? null
             : candidates.First(mapping => mapping.LegacyCode == legacyCodes[0]);
     }
+
+    public async Task<OrganizationUnitMapping?> ResolveNewCodeAsync(
+        string legacyCode, string roomType, OrganizationUnitMappingScope scope,
+        CancellationToken cancellationToken = default)
+    {
+        string code = Normalize(legacyCode);
+        if (code.Length == 0) return null;
+        if (string.Equals(roomType.Trim(), "E", StringComparison.OrdinalIgnoreCase)
+            && EmergencyMappings.TryGetValue(code, out string? emergencyCode))
+            return new(OrganizationUnitSource.Fixed, code, emergencyCode, string.Empty, true);
+
+        IReadOnlyList<OrganizationUnitMapping> candidates =
+            await repository.FindByLegacyCodeAsync(code, scope, cancellationToken);
+        string[] newCodes = candidates.Select(item => Normalize(item.NewCode))
+            .Where(item => item.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
+        if (newCodes.Length > 1) throw new OrganizationUnitLegacyMappingAmbiguousException(code);
+        return newCodes.Length == 0 ? null : candidates.First(item => Normalize(item.NewCode) == newCodes[0]);
+    }
+
+    public async Task<IReadOnlyList<OrganizationUnitMapping>> SearchAsync(
+        string query, bool includeSections, bool includePlaces, bool activePlaceOnly, int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!includeSections && !includePlaces) return [];
+        if (limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
+        string normalized = Normalize(query);
+        if (normalized.Length == 0) return [];
+        IReadOnlyList<OrganizationUnitMapping> values = await repository.SearchAsync(normalized,
+            includeSections, includePlaces, activePlaceOnly, limit, cancellationToken);
+        return values.GroupBy(item => Normalize(item.LegacyCode), StringComparer.Ordinal)
+            .Select(group => group.OrderBy(item => item.Source == OrganizationUnitSource.Section ? 0 : 1).First())
+            .Take(limit).ToArray();
+    }
+
+    private static string Normalize(string value) => value.Trim().ToUpperInvariant();
 
     private static IReadOnlyDictionary<string, OrganizationUnitMapping> BuildFixedMappings()
     {

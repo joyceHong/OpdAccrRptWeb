@@ -183,6 +183,17 @@ public sealed class OrganizationUnitMappingRepositoryTests
         Assert.Contains(":new_code", sql);
         Assert.Contains(":active_place_only", sql);
     }
+
+    [Fact]
+    public void LegacyAndSearchSql_AreBoundAndCoverSectionAndPlace()
+    {
+        Assert.Contains(":legacy_code", OrganizationUnitMappingRepository.FindByLegacyCodeSql);
+        Assert.Contains(":include_places", OrganizationUnitMappingRepository.FindByLegacyCodeSql);
+        Assert.Contains("GenSectionTbl", OrganizationUnitMappingRepository.SearchSql);
+        Assert.Contains("GenPlaceTbl", OrganizationUnitMappingRepository.SearchSql);
+        Assert.Contains("chPlaWork = '1'", OrganizationUnitMappingRepository.SearchSql);
+        Assert.Equal(@"A\%B\_C\\D", OrganizationUnitMappingRepository.EscapeLike(@"A%B_C\D"));
+    }
 }
 
 public sealed class OrganizationUnitCodeServiceTests
@@ -255,6 +266,49 @@ public sealed class OrganizationUnitCodeServiceTests
 
         await Assert.ThrowsAsync<OrganizationUnitMappingAmbiguousException>(() =>
             new OrganizationUnitCodeService(repository).ResolveLegacyCodeAsync("NEW01", activePlaceOnly: true));
+    }
+
+    [Theory]
+    [InlineData("0201", "11910")]
+    [InlineData("0281", "11920")]
+    [InlineData("0220", "11930")]
+    [InlineData("0221", "11930")]
+    [InlineData("0230", "11309")]
+    public async Task ResolveNewCodeAsync_AppliesEmergencyMappings(string oldCode, string newCode)
+    {
+        OrganizationUnitMapping? actual = await new OrganizationUnitCodeService(
+            new FakeOrganizationUnitMappings()).ResolveNewCodeAsync(oldCode, "E",
+                OrganizationUnitMappingScope.SectionAndPlace);
+        Assert.Equal(newCode, actual?.NewCode);
+    }
+
+    [Fact]
+    public async Task ResolveNewCodeAsync_RejectsDistinctNewCodes()
+    {
+        var repository = new FakeOrganizationUnitMappings
+        {
+            LegacyResults = [
+                new(OrganizationUnitSource.Section, "A001", "N001", "S", true),
+                new(OrganizationUnitSource.Place, "A001", "N002", "P", false)]
+        };
+        await Assert.ThrowsAsync<OrganizationUnitLegacyMappingAmbiguousException>(() =>
+            new OrganizationUnitCodeService(repository).ResolveNewCodeAsync("a001", "R",
+                OrganizationUnitMappingScope.SectionAndPlace));
+    }
+
+    [Fact]
+    public async Task SearchAsync_PrefersSectionForDuplicateLegacyCode()
+    {
+        var repository = new FakeOrganizationUnitMappings
+        {
+            SearchResults = [
+                new(OrganizationUnitSource.Place, "A001", "P001", "Place", true),
+                new(OrganizationUnitSource.Section, "A001", "S001", "Section", true)]
+        };
+        IReadOnlyList<OrganizationUnitMapping> actual = await new OrganizationUnitCodeService(repository)
+            .SearchAsync("a", true, true, true);
+        Assert.Single(actual);
+        Assert.Equal(OrganizationUnitSource.Section, actual[0].Source);
     }
 }
 
@@ -501,6 +555,8 @@ internal sealed class FakeMappings : ISectionMappingRepository
 internal sealed class FakeOrganizationUnitMappings : IOrganizationUnitMappingRepository
 {
     public IReadOnlyList<OrganizationUnitMapping> Results { get; init; } = [];
+    public IReadOnlyList<OrganizationUnitMapping> LegacyResults { get; init; } = [];
+    public IReadOnlyList<OrganizationUnitMapping> SearchResults { get; init; } = [];
     public string? RequestedCode { get; private set; }
     public bool ActivePlaceOnly { get; private set; }
 
@@ -511,6 +567,14 @@ internal sealed class FakeOrganizationUnitMappings : IOrganizationUnitMappingRep
         ActivePlaceOnly = activePlaceOnly;
         return Task.FromResult(Results);
     }
+
+    public Task<IReadOnlyList<OrganizationUnitMapping>> FindByLegacyCodeAsync(string legacyCode,
+        OrganizationUnitMappingScope scope, CancellationToken cancellationToken = default) =>
+        Task.FromResult(LegacyResults);
+
+    public Task<IReadOnlyList<OrganizationUnitMapping>> SearchAsync(string query, bool includeSections,
+        bool includePlaces, bool activePlaceOnly, int limit, CancellationToken cancellationToken = default) =>
+        Task.FromResult(SearchResults);
 }
 
 internal sealed class FakeOrganizationUnitCodeService : IOrganizationUnitCodeService
@@ -528,4 +592,13 @@ internal sealed class FakeOrganizationUnitCodeService : IOrganizationUnitCodeSer
         if (Exception is not null) throw Exception;
         return Task.FromResult(Mapping);
     }
+
+    public Task<OrganizationUnitMapping?> ResolveNewCodeAsync(string legacyCode, string roomType,
+        OrganizationUnitMappingScope scope, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Mapping);
+
+    public Task<IReadOnlyList<OrganizationUnitMapping>> SearchAsync(string query, bool includeSections,
+        bool includePlaces, bool activePlaceOnly, int limit = 20,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<OrganizationUnitMapping>>([]);
 }

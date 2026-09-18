@@ -1,0 +1,8 @@
+@model OpdAccrRptWeb.ViewModels.C4MaterialPreviewViewModel
+@{ Layout = null; }
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8" /><title>門急診材料寄售表</title>
+<style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:24px}h1{text-align:center}header{display:flex;justify-content:space-between;gap:16px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #444;padding:4px;text-align:left}.empty{text-align:center;padding:32px}@@media print{button{display:none}}</style></head>
+<body><button onclick="window.print()">列印</button><h1>門急診材料寄售表</h1><header><span>日期：@Model.Metadata.DateB ～ @Model.Metadata.DateE</span><span>使用者：@Model.Metadata.UserId</span><span>產表：@Model.Metadata.Today</span></header>
+@if (Model.Rows.Count == 0) { <p class="empty">查無此筆資料</p> } else { <table><thead><tr><th>序號</th><th>類別</th><th>材料碼</th><th>健保碼</th><th>品名</th><th>單位</th><th>批價碼</th><th>數量</th><th>科別／部門</th></tr></thead><tbody>
+@foreach (var row in Model.Rows) { <tr><td>@row.Id</td><td>@row.Type</td><td>@row.MaterialCode</td><td>@row.ClaimCode</td><td>@row.OrderName</td><td>@row.Unit</td><td>@row.ChargeCode</td><td>@row.Total</td><td>@row.SectionCode</td></tr> }
+</tbody></table> }</body></html>

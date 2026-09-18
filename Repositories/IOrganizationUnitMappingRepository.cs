@@ -8,4 +8,17 @@ public interface IOrganizationUnitMappingRepository
         string newCode,
         bool activePlaceOnly,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OrganizationUnitMapping>> FindByLegacyCodeAsync(
+        string legacyCode,
+        OrganizationUnitMappingScope scope,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OrganizationUnitMapping>> SearchAsync(
+        string query,
+        bool includeSections,
+        bool includePlaces,
+        bool activePlaceOnly,
+        int limit,
+        CancellationToken cancellationToken = default);
 }

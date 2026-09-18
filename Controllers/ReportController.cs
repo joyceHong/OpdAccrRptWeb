@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.Repositories;
@@ -66,6 +67,7 @@ public sealed class ReportController : Controller
     }
 
     [HttpGet("Report/{reportCode?}")]
+    [Authorize]
     public IActionResult Index(string? reportCode = null)
     {
         ReportIndexViewModel viewModel = _reportCatalogService.GetReportIndex();

@@ -12,6 +12,7 @@
                 ])
             })
         }),
+        C4: Object.freeze({ serverPaged: true, c4: true }),
         C10: Object.freeze({
             serverPaged: true,
             advancedConditions: false,
@@ -242,6 +243,8 @@
         ,departmentCode: ""
         ,roomCodes: ""
         ,chargeCodes: ""
+        ,sectionPrefix: ""
+        ,organizationQuery: ""
     });
 
     window.ReportComponents = window.ReportComponents || {};
@@ -292,6 +295,11 @@
                 c3PreviewOpen: false,
                 c3PreviewLoading: false,
                 c3Preview: null
+                ,c4Organizations: []
+                ,c4OrganizationSearchTimer: null
+                ,c4PreviewOpen: false
+                ,c4PreviewLoading: false
+                ,c4Preview: null
             };
         },
         computed: {
@@ -343,6 +351,7 @@
             isC15() { return this.reportConfiguration.c15 === true; },
             isC16() { return this.reportConfiguration.c16 === true; },
             isC3() { return this.reportConfiguration.c3 === true; },
+            isC4() { return this.reportConfiguration.c4 === true; },
             isC143() { return this.reportConfiguration.c143 === true; },
             isC144() { return this.reportConfiguration.c144 === true; },
             reportTypeConfiguration() { return this.reportConfiguration.reportType ?? null; },
@@ -448,6 +457,10 @@
                 this.advancedOpen = false;
                 this.validationMessage = "";
                 this.hasSearched = false;
+                this.c4Organizations = [];
+                this.c4PreviewOpen = false;
+                this.c4PreviewLoading = false;
+                this.c4Preview = null;
                 this.rows = [];
                 this.columns = [];
                 this.summaries = [];
@@ -583,11 +596,16 @@
                 this.isLoading = true;
 
                 try {
-                    const response = await fetch("/Report/GetReportData", {
+                    const c4SectionPrefix = this.isC4 ? await this.resolveC4SectionPrefix() : "";
+                    const c4Token = this.isC4 && typeof document !== "undefined"
+                        ? document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                        : null;
+                    const response = await fetch(this.isC4 ? "/reports/c4/query" : "/Report/GetReportData", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json",
+                            ...(c4Token ? { RequestVerificationToken: c4Token } : {}) },
                         body: JSON.stringify({
-                            reportCode: this.selectedReport.code,
+                            reportCode: this.isC4 ? undefined : this.selectedReport.code,
                             startDate: this.isEndDateOnly ? undefined : this.form.startDate,
                             endDate: this.form.endDate,
                             encounterSource: this.hasEncounterSource && !this.isC24 && !this.isC10 && !this.isC143 && !this.isC144
@@ -615,6 +633,7 @@
                             departmentCode: this.isC3 && this.form.departmentCode.trim() ? this.form.departmentCode.trim() : undefined,
                             roomCodes: this.isC3 && this.form.roomCodes.trim() ? this.form.roomCodes.trim() : undefined,
                             chargeCodes: this.isC3 && this.form.chargeCodes.trim() ? this.form.chargeCodes.trim() : undefined,
+                            sectionPrefix: this.isC4 ? c4SectionPrefix || undefined : undefined,
                             mode: this.isC24 ? this.form.mode : undefined,
                             roomScope: this.isC24 || this.isC10 ? this.form.roomScope : undefined,
                             medicalRecordNo: (this.isC24 || this.isC10) && this.form.medicalRecordNo.trim()
@@ -678,6 +697,88 @@
                 } finally {
                     this.isLoading = false;
                 }
+            },
+            searchC4Organizations() {
+                if (!this.isC4) return;
+                window.clearTimeout(this.c4OrganizationSearchTimer);
+                const query = this.form.organizationQuery.trim();
+                if (!query) { this.c4Organizations = []; return; }
+                this.c4OrganizationSearchTimer = window.setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/reports/c4/organization-units?query=${encodeURIComponent(query)}`);
+                        this.c4Organizations = response.ok ? await response.json() : [];
+                    } catch { this.c4Organizations = []; }
+                }, 250);
+            },
+            onC4OrganizationInput() {
+                this.form.sectionPrefix = "";
+                this.currentPage = 1;
+                this.searchC4Organizations();
+            },
+            selectC4Organization(item) {
+                const legacyCode = String(item?.legacyCode ?? "").trim().toUpperCase();
+                if (!legacyCode) return;
+                const newCode = String(item?.newCode ?? "").trim().toUpperCase();
+                const displayName = String(item?.displayName ?? "").trim();
+                this.form.sectionPrefix = legacyCode;
+                this.form.organizationQuery = displayName ? `${newCode}｜${displayName}` : newCode;
+                this.c4Organizations = [];
+                this.currentPage = 1;
+            },
+            getC4SectionPrefix() {
+                return String(this.form.sectionPrefix ?? "").trim().toUpperCase();
+            },
+            async resolveC4SectionPrefix() {
+                const selectedLegacyCode = this.getC4SectionPrefix();
+                if (selectedLegacyCode) return selectedLegacyCode;
+                const newCode = String(this.form.organizationQuery ?? "").trim().toUpperCase();
+                if (!newCode) return "";
+                const response = await fetch(`/reports/c4/organization-units/resolve?newCode=${encodeURIComponent(newCode)}`);
+                if (!response.ok) {
+                    const message = await response.text();
+                    throw new Error(message || "無法轉換科別／部門代碼。");
+                }
+                const mapping = await response.json();
+                const legacyCode = String(mapping?.legacyCode ?? "").trim().toUpperCase();
+                if (!legacyCode) throw new Error("查無對應的科別／部門舊代碼。");
+                this.form.sectionPrefix = legacyCode;
+                return legacyCode;
+            },
+            async openC4Preview() {
+                if (!this.isC4 || !this.hasResults || this.c4PreviewLoading) return;
+                this.c4PreviewLoading = true;
+                this.c4PreviewOpen = false;
+                this.c4Preview = null;
+                this.validationMessage = "";
+                try {
+                    const sectionPrefix = await this.resolveC4SectionPrefix();
+                    const token = typeof document !== "undefined"
+                        ? document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                        : null;
+                    const response = await fetch("/reports/c4/preview", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json",
+                            ...(token ? { RequestVerificationToken: token } : {}) },
+                        body: JSON.stringify({ startDate: this.form.startDate, endDate: this.form.endDate,
+                            sectionPrefix: sectionPrefix || undefined, pageNumber: 1, pageSize: 50 })
+                    });
+                    if (!response.ok) {
+                        const message = await response.text();
+                        throw new Error(message || "無法建立 C4 預覽。");
+                    }
+                    this.c4Preview = await response.json();
+                    this.c4PreviewOpen = true;
+                } catch (error) {
+                    this.validationMessage = error instanceof Error ? error.message : "無法建立 C4 預覽。";
+                } finally {
+                    this.c4PreviewLoading = false;
+                }
+            },
+            closeC4Preview() {
+                this.c4PreviewOpen = false;
+            },
+            printC4Preview() {
+                if (this.c4PreviewOpen) window.print();
             },
             async goToPage(pageNumber) {
                 if (this.isLoading || pageNumber < 1 || pageNumber > this.totalPages) {

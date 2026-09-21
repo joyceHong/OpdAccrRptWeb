@@ -49,6 +49,7 @@
                 <router-view v-slot="{ Component }">
                     <component
                         v-if="Component && selectedReport"
+                        :key="selectedReport.code"
                         :is="Component"
                         :selected-report="selectedReport"
                         :default-start-date="state.defaultStartDate"
@@ -71,5 +72,6 @@
     @await Html.PartialAsync("_TemplateReport")
     @await Html.PartialAsync("_C11ReceivablesCollectionReport")
     @await Html.PartialAsync("_C12MedicalReceiptSummary")
+    @await Html.PartialAsync("_C5ChargeQuantityReport")
     <script src="~/js/report-app.js" asp-append-version="true"></script>
 }

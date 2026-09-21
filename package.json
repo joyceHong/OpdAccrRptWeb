@@ -3,7 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "copy:vendor": "node scripts/copy-vendor.js"
+    "copy:vendor": "node scripts/copy-vendor.js",
+    "test:c5": "node OpdAccrRptWeb.Tests/c5-report.test.js"
   },
   "dependencies": {
     "vue": "3.5.18",

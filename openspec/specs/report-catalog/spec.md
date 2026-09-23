@@ -411,3 +411,208 @@ code:
 tests:
   - OpdAccrRptWeb.Tests/c4-report.test.js
 -->
+
+---
+### Requirement: Available C5 catalog entry
+The outpatient accounting report catalog SHALL expose C5 as an available `批價數量查詢表` entry and SHALL route selection to the C5-specific query controls.
+
+#### Scenario: Select C5 from the catalog
+- **WHEN** a user selects C5 in the report catalog
+- **THEN** the application displays Gregorian date, source, detail type, encounter type, charge kind, a C4-style new organization-unit selector, room, charge-code, and the constrained `健保身份` selector
+- **AND** the application permits a validated C5 query submission
+
+<!-- @trace
+source: add-c5-charge-quantity-report
+updated: 2026-09-22
+code:
+  - Services/C7ReportService.cs
+  - ViewModels/C7DailyChargeDetailViewModel.cs
+  - Program.cs
+  - Views/Report/_C7DailyChargeDetailReport.cshtml
+  - wwwroot/js/reports/c7-report.js
+  - Repositories/C7ReportRepository.cs
+  - Controllers/C7ReportController.cs
+  - Services/IC7ReportService.cs
+  - OpdAccrRptWeb.Tests/C7RequestValidationTests.cs
+  - Services/C7PatientAccessAudit.cs
+  - OpdAccrRptWeb.Tests/C7ReportServiceTests.cs
+  - Repositories/C7Sql.cs
+  - Views/C7/Preview.cshtml
+  - Views/Report/Index.cshtml
+  - wwwroot/js/report-app.js
+  - Models/C7ReportModels.cs
+  - OpdAccrRptWeb.Tests/C7ReportControllerTests.cs
+  - Services/C7AmountPolicy.cs
+  - Services/C7ReportResultCache.cs
+  - Repositories/IC7ReportRepository.cs
+  - OpdAccrRptWeb.Tests/C7ReportRepositoryTests.cs
+  - package.json
+tests:
+  - OpdAccrRptWeb.Tests/c7-report.test.js
+-->
+
+---
+### Requirement: C8 catalog entry is available
+The outpatient accounting report catalog SHALL expose C8 as an available `批價補帳明細表` entry and SHALL route selection to the independent C8 report controller.
+
+#### Scenario: Select C8 from the catalog
+- **WHEN** a user selects C8
+- **THEN** the browser navigates to the C8 query page
+
+<!-- @trace
+source: add-c8-patch-bill-detail-report
+updated: 2026-09-23
+code:
+  - OpdAccrRptWeb.Tests/C7ReportControllerTests.cs
+  - OpdAccrRptWeb.Tests/C9ReportServiceTests.cs
+  - Services/C7ReportResultCache.cs
+  - Views/C7/Preview.cshtml
+  - Services/IC7ReportService.cs
+  - Repositories/C9ReportRepository.cs
+  - Models/C8ReportModels.cs
+  - Views/Report/_C7DailyChargeDetailReport.cshtml
+  - Repositories/C9Sql.cs
+  - OpdAccrRptWeb.Tests/C8ReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/C8RequestValidationTests.cs
+  - Repositories/C8Sql.cs
+  - Services/C9PatientAccessAudit.cs
+  - Views/Report/_TemplateReport.cshtml
+  - Services/C9OracleFailurePolicy.cs
+  - Controllers/C8ReportController.cs
+  - Services/C7PatientAccessAudit.cs
+  - Services/C8ReportResultCache.cs
+  - wwwroot/js/reports/c8-report.js
+  - OpdAccrRptWeb.Tests/C8ReportControllerTests.cs
+  - OpdAccrRptWeb.Tests/C9ReportRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/C8ReportRepositoryTests.cs
+  - Views/Report/_C8PatchBillDetailReport.cshtml
+  - wwwroot/js/reports/c7-report.js
+  - OpdAccrRptWeb.Tests/C7ReportServiceTests.cs
+  - Services/C7ReportService.cs
+  - ViewModels/C7DailyChargeDetailViewModel.cs
+  - Models/C9ReportModels.cs
+  - OpdAccrRptWeb.Tests/C7ReportRepositoryTests.cs
+  - Services/C7AmountPolicy.cs
+  - wwwroot/js/reports/c9-report.js
+  - Repositories/IC8ReportRepository.cs
+  - ViewModels/C9MaterialAccountingMonthlyViewModel.cs
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/C9RequestValidationTests.cs
+  - Services/C8PatientAccessAudit.cs
+  - OpdAccrRptWeb.Tests/C7RequestValidationTests.cs
+  - Views/Report/Index.cshtml
+  - Services/IC9ReportService.cs
+  - Views/Report/_C9MaterialAccountingMonthlyReport.cshtml
+  - Services/C8ReportService.cs
+  - Controllers/C9ReportController.cs
+  - Services/C9ReportService.cs
+  - Services/IC8ReportService.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - wwwroot/css/site.css
+  - Views/C9/Preview.cshtml
+  - Repositories/C7ReportRepository.cs
+  - wwwroot/js/reports/c5-report.js
+  - Models/C7ReportModels.cs
+  - OpdAccrRptWeb.Tests/C9ReportControllerTests.cs
+  - Views/C8/Preview.cshtml
+  - Program.cs
+  - Repositories/C7Sql.cs
+  - Repositories/IC9ReportRepository.cs
+  - ViewModels/C8PatchBillDetailViewModel.cs
+  - package.json
+  - Controllers/C7ReportController.cs
+  - Repositories/IC7ReportRepository.cs
+  - Repositories/C8ReportRepository.cs
+  - Services/C9ReportResultCache.cs
+  - wwwroot/js/reports/report-template.js
+tests:
+  - OpdAccrRptWeb.Tests/c3-report.test.js
+  - OpdAccrRptWeb.Tests/c9-report.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/c7-report.test.js
+  - OpdAccrRptWeb.Tests/c5-report.test.js
+  - OpdAccrRptWeb.Tests/c8-report.test.js
+-->
+
+---
+### Requirement: C9 catalog entry is available
+The report catalog SHALL expose report C9 as `維康耗材記帳月報表`, mark it available, and associate it with the independent C9 report route.
+
+#### Scenario: User selects C9 from the catalog
+- **WHEN** a user views the report catalog and selects C9
+- **THEN** the application navigates to the available C9 query page with the specified display name
+
+<!-- @trace
+source: add-c9-material-accounting-monthly-report
+updated: 2026-09-23
+code:
+  - package.json
+  - Models/C7ReportModels.cs
+  - Services/C7ReportResultCache.cs
+  - Views/C8/Preview.cshtml
+  - Controllers/C9ReportController.cs
+  - Views/Report/_C7DailyChargeDetailReport.cshtml
+  - Services/C8PatientAccessAudit.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - wwwroot/css/site.css
+  - ViewModels/C8PatchBillDetailViewModel.cs
+  - OpdAccrRptWeb.Tests/C8ReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/C8ReportRepositoryTests.cs
+  - Program.cs
+  - Views/Report/_C9MaterialAccountingMonthlyReport.cshtml
+  - Services/C7PatientAccessAudit.cs
+  - Services/C8ReportResultCache.cs
+  - Services/C9ReportService.cs
+  - Views/Report/_TemplateReport.cshtml
+  - wwwroot/js/reports/c7-report.js
+  - wwwroot/js/reports/c9-report.js
+  - Controllers/C8ReportController.cs
+  - OpdAccrRptWeb.Tests/C7RequestValidationTests.cs
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/C7ReportControllerTests.cs
+  - Models/C9ReportModels.cs
+  - OpdAccrRptWeb.Tests/C9ReportControllerTests.cs
+  - Services/C9OracleFailurePolicy.cs
+  - Repositories/C9Sql.cs
+  - Models/C8ReportModels.cs
+  - OpdAccrRptWeb.Tests/C9RequestValidationTests.cs
+  - Services/C9PatientAccessAudit.cs
+  - OpdAccrRptWeb.Tests/C7ReportServiceTests.cs
+  - wwwroot/js/reports/report-template.js
+  - OpdAccrRptWeb.Tests/C9ReportRepositoryTests.cs
+  - Repositories/C7ReportRepository.cs
+  - Repositories/IC7ReportRepository.cs
+  - Services/C7ReportService.cs
+  - OpdAccrRptWeb.Tests/C8ReportControllerTests.cs
+  - Services/IC7ReportService.cs
+  - OpdAccrRptWeb.Tests/C7ReportRepositoryTests.cs
+  - Repositories/C8ReportRepository.cs
+  - Controllers/C7ReportController.cs
+  - Views/C9/Preview.cshtml
+  - wwwroot/js/reports/c5-report.js
+  - Services/C7AmountPolicy.cs
+  - Repositories/C9ReportRepository.cs
+  - Views/C7/Preview.cshtml
+  - Views/Report/_C8PatchBillDetailReport.cshtml
+  - OpdAccrRptWeb.Tests/C8RequestValidationTests.cs
+  - Repositories/C7Sql.cs
+  - Services/IC9ReportService.cs
+  - ViewModels/C7DailyChargeDetailViewModel.cs
+  - wwwroot/js/reports/c8-report.js
+  - Repositories/IC9ReportRepository.cs
+  - OpdAccrRptWeb.Tests/C9ReportServiceTests.cs
+  - Repositories/C8Sql.cs
+  - Repositories/IC8ReportRepository.cs
+  - ViewModels/C9MaterialAccountingMonthlyViewModel.cs
+  - Views/Report/Index.cshtml
+  - Services/C9ReportResultCache.cs
+  - Services/C8ReportService.cs
+  - Services/IC8ReportService.cs
+tests:
+  - OpdAccrRptWeb.Tests/c9-report.test.js
+  - OpdAccrRptWeb.Tests/c7-report.test.js
+  - OpdAccrRptWeb.Tests/c8-report.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/c5-report.test.js
+  - OpdAccrRptWeb.Tests/c3-report.test.js
+-->

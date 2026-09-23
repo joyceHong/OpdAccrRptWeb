@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "scripts": {
     "copy:vendor": "node scripts/copy-vendor.js",
-    "test:c5": "node OpdAccrRptWeb.Tests/c5-report.test.js"
+    "test:c5": "node OpdAccrRptWeb.Tests/c5-report.test.js",
+    "test:c7": "node OpdAccrRptWeb.Tests/c7-report.test.js",
+    "test:c8": "node OpdAccrRptWeb.Tests/c8-report.test.js",
+    "test:c9": "node OpdAccrRptWeb.Tests/c9-report.test.js"
   },
   "dependencies": {
     "vue": "3.5.18",

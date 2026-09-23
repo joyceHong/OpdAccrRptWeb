@@ -38,6 +38,11 @@ for (const [value, label] of [["01", "一般民眾"], ["030", "健保"], ["035",
 assert.equal((c5.match(/<option value="(?:01|030|035)">/g) ?? []).length, 3);
 assert.match(script, /newOrganizationUnitCode:\s*selectedCode\s*\|\|\s*directCode/);
 assert.match(script, /organization-units\?query=/);
+assert.match(c5, /report-preview-overlay/);
+assert.match(c5, /role="dialog"/);
+assert.match(script, /closePreview/);
+assert.match(script, /window\.print/);
+assert.doesNotMatch(script, /window\.open|target.?=.?["']_blank/);
 const initial = component.methods.initialForm.call({ defaultStartDate: "2026-09-01", defaultEndDate: "2026-09-02", selectedReport: { code: "C5" } });
 assert.equal(initial.insuranceIdentityCode, "");
 assert.equal(initial.legacySectionCode, undefined);
@@ -65,7 +70,7 @@ const c6State = {
     form: { ...c6Initial, encounterType: 2, chargeKind: 0, roomNo: "OP_01" },
     initialForm() { return component.methods.initialForm.call(this); },
     organizations: [{}], rows: [{}], columns: [{}], totalCount: 1, totalPages: 1,
-    currentPage: 2, pageSize: 30, hasSearched: true, validationMessage: "error"
+    currentPage: 2, pageSize: 30, hasSearched: true, validationMessage: "error", closePreview() {}
 };
 component.methods.resetForm.call(c6State);
 assert.deepEqual(c6State.form, c6Initial);

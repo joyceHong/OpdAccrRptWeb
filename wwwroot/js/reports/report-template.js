@@ -295,6 +295,9 @@
                 c3PreviewOpen: false,
                 c3PreviewLoading: false,
                 c3Preview: null
+                ,legacyPreviewOpen: false
+                ,legacyPreviewLoading: false
+                ,legacyPreviewHtml: ""
                 ,c4Organizations: []
                 ,c4OrganizationSearchTimer: null
                 ,c4PreviewOpen: false
@@ -475,6 +478,9 @@
                 this.c3PreviewOpen = false;
                 this.c3PreviewLoading = false;
                 this.c3Preview = null;
+                this.legacyPreviewOpen = false;
+                this.legacyPreviewLoading = false;
+                this.legacyPreviewHtml = "";
                 this.c211ContractOpen = false;
                 this.c211ContractActiveIndex = -1;
                 this.currentPage = 1;
@@ -797,59 +803,49 @@
                 }
             },
             async previewC13() {
-                if (!this.isC13 || !this.hasResults || this.isLoading) return;
-                this.isLoading = true;
-                this.validationMessage = "";
-                try {
-                    const response = await fetch("/Report/C13/Preview", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            reportCode: "C13",
-                            startDate: this.form.startDate,
-                            endDate: this.form.endDate
-                        })
-                    });
-                    if (!response.ok) {
-                        const problem = await response.json().catch(() => null);
-                        throw new Error(problem?.title ?? "無法建立 C13 預覽。");
-                    }
-                    const previewWindow = window.open("", "_blank");
-                    if (!previewWindow) throw new Error("瀏覽器已封鎖預覽視窗，請允許彈出視窗後重試。");
-                    previewWindow.opener = null;
-                    previewWindow.document.write(await response.text());
-                    previewWindow.document.close();
-                } catch (error) {
-                    this.validationMessage = error instanceof Error ? error.message : "無法建立 C13 預覽。";
-                } finally {
-                    this.isLoading = false;
-                }
+                if (!this.isC13 || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C13/Preview", {
+                    reportCode: "C13", startDate: this.form.startDate, endDate: this.form.endDate
+                }, "無法建立 C13 預覽。");
             },
             async previewC16() {
-                if (!this.isC16 || !this.hasResults || this.isLoading) return;
-                this.isLoading = true;
+                if (!this.isC16 || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C16/Preview", {
+                    reportCode: "C16", startDate: this.form.startDate,
+                    endDate: this.form.endDate, source: this.form.encounterSource,
+                    reportType: this.form.reportType, dateMode: this.form.dateMode,
+                    pageNumber: 1, pageSize: 10
+                }, "無法建立 C16 預覽。");
+            },
+            async openLegacyPreview(url, payload, fallbackMessage) {
+                this.legacyPreviewLoading = true;
+                this.legacyPreviewOpen = false;
+                this.legacyPreviewHtml = "";
                 this.validationMessage = "";
                 try {
-                    const response = await fetch("/Report/C16/Preview", {
-                        method: "POST", headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ reportCode: "C16", startDate: this.form.startDate,
-                            endDate: this.form.endDate, source: this.form.encounterSource,
-                            reportType: this.form.reportType, dateMode: this.form.dateMode,
-                            pageNumber: 1, pageSize: 10 })
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
                     });
                     if (!response.ok) {
                         const problem = await response.json().catch(() => null);
-                        throw new Error(problem?.title ?? "無法建立 C16 預覽。");
+                        throw new Error(problem?.title ?? fallbackMessage);
                     }
-                    const previewWindow = window.open("", "_blank");
-                    if (!previewWindow) throw new Error("瀏覽器已封鎖預覽視窗，請允許彈出視窗後重試。");
-                    previewWindow.opener = null;
-                    previewWindow.document.write(await response.text());
-                    previewWindow.document.close();
+                    const html = await response.text();
+                    if (!html.trim()) throw new Error("查無此筆資料");
+                    this.legacyPreviewHtml = html;
+                    this.legacyPreviewOpen = true;
                 } catch (error) {
-                    this.validationMessage = error instanceof Error ? error.message : "無法建立 C16 預覽。";
-                } finally { this.isLoading = false; }
+                    this.legacyPreviewOpen = false;
+                    this.legacyPreviewHtml = "";
+                    this.validationMessage = error instanceof Error ? error.message : fallbackMessage;
+                } finally {
+                    this.legacyPreviewLoading = false;
+                }
             },
+            closeLegacyPreview() { this.legacyPreviewOpen = false; this.legacyPreviewHtml = ""; },
+            printLegacyPreview() { if (this.legacyPreviewOpen) window.print(); },
             async openC3Preview() {
                 if (!this.isC3 || !this.hasResults || this.c3PreviewLoading) return;
                 this.c3PreviewLoading = true;

@@ -23,7 +23,7 @@ assert.match(app, /C3:\s*window\.ReportComponents\.ReportTemplate/);
 assert.match(reportTemplateScript, /source:\s*this\.isC3\s*\|\|/, "C3 queries must send the selected care source");
 assert.match(reportTemplateScript, /typeof problem === "string"/,
     "plain-text validation responses must be shown to the user");
-assert.match(markup, /v-else-if="isC3"[\s\S]*previewC3/);
+assert.match(markup, /v-else-if="isC3"[\s\S]*openC3Preview/);
 assert.match(markup, /<partial name="_TableSkeleton" \/>/);
 assert.match(markup, /診間（逗號分隔）/);
 assert.match(preview, /@@page \{ size: A4 landscape/);

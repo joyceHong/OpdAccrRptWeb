@@ -1373,6 +1373,7 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     assert.equal(component.computed.isServerPaged.call({ selectedReport: { code: "C13" } }), true);
     assert.equal(component.computed.isC13.call({ reportConfiguration: configuration }), true);
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
+    const templateSource = fs.readFileSync("wwwroot/js/reports/report-template.js", "utf8");
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const preview = fs.readFileSync("Views/Report/_C13HighRiskEmergencyPreview.cshtml", "utf8");
     assert.match(appSource, /C13:\s*window\.ReportComponents\.ReportTemplate/);
@@ -1380,6 +1381,8 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     assert.match(markup, /v-if="hasAdvancedConditions" class="advanced-toggle"/);
     assert.match(markup, /v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid"/);
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
+    assert.match(markup, /legacyPreviewOpen[\s\S]*report-preview-overlay[\s\S]*role="dialog"[\s\S]*closeLegacyPreview[\s\S]*printLegacyPreview/);
+    assert.doesNotMatch(templateSource, /window\.open/);
     assert.match(preview, /社服需求急診高危險群個案明細表/);
     assert.match(preview, /處理日期/);
     assert.match(preview, /急診床號/);

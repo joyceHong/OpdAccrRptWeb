@@ -488,6 +488,18 @@ C13 SHALL obtain each normal result page from the server with a default page siz
 - **THEN** the shared empty state SHALL be displayed
 - **AND** total pages SHALL be zero and preview SHALL remain unavailable
 
+---
+### Requirement: C9 results use shared pagination and explicit preview
+C9 SHALL render its mapped columns in the shared result table, display the server-provided total count, accept page sizes 10, 30, and 50, reset to page one when a result-affecting date changes, and provide an explicit preview action only after a valid query snapshot exists.
+
+#### Scenario: Change the C9 page size
+- **WHEN** a user changes page size from 10 to 30 after a valid query
+- **THEN** C9 requests page one for the same normalized date range and displays the unchanged total count with up to 30 rows
+
+#### Scenario: Preview remains in the current page
+- **WHEN** a user activates C9 preview after a successful query
+- **THEN** both printable documents appear in an accessible in-page modal with close and print actions and no new window, tab, or target-blank form
+
 ## Planned Requirements
 
 下列能力屬下一階段工作。
@@ -1037,6 +1049,82 @@ tests:
   - OpdAccrRptWeb.Tests/c3-report.test.js
   - OpdAccrRptWeb.Tests/c4-report.test.js
   - OpdAccrRptWeb.Tests/report-template.test.js
+-->
+
+
+<!-- @trace
+source: add-c9-material-accounting-monthly-report
+updated: 2026-09-23
+code:
+  - package.json
+  - Models/C7ReportModels.cs
+  - Services/C7ReportResultCache.cs
+  - Views/C8/Preview.cshtml
+  - Controllers/C9ReportController.cs
+  - Views/Report/_C7DailyChargeDetailReport.cshtml
+  - Services/C8PatientAccessAudit.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - wwwroot/css/site.css
+  - ViewModels/C8PatchBillDetailViewModel.cs
+  - OpdAccrRptWeb.Tests/C8ReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/C8ReportRepositoryTests.cs
+  - Program.cs
+  - Views/Report/_C9MaterialAccountingMonthlyReport.cshtml
+  - Services/C7PatientAccessAudit.cs
+  - Services/C8ReportResultCache.cs
+  - Services/C9ReportService.cs
+  - Views/Report/_TemplateReport.cshtml
+  - wwwroot/js/reports/c7-report.js
+  - wwwroot/js/reports/c9-report.js
+  - Controllers/C8ReportController.cs
+  - OpdAccrRptWeb.Tests/C7RequestValidationTests.cs
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/C7ReportControllerTests.cs
+  - Models/C9ReportModels.cs
+  - OpdAccrRptWeb.Tests/C9ReportControllerTests.cs
+  - Services/C9OracleFailurePolicy.cs
+  - Repositories/C9Sql.cs
+  - Models/C8ReportModels.cs
+  - OpdAccrRptWeb.Tests/C9RequestValidationTests.cs
+  - Services/C9PatientAccessAudit.cs
+  - OpdAccrRptWeb.Tests/C7ReportServiceTests.cs
+  - wwwroot/js/reports/report-template.js
+  - OpdAccrRptWeb.Tests/C9ReportRepositoryTests.cs
+  - Repositories/C7ReportRepository.cs
+  - Repositories/IC7ReportRepository.cs
+  - Services/C7ReportService.cs
+  - OpdAccrRptWeb.Tests/C8ReportControllerTests.cs
+  - Services/IC7ReportService.cs
+  - OpdAccrRptWeb.Tests/C7ReportRepositoryTests.cs
+  - Repositories/C8ReportRepository.cs
+  - Controllers/C7ReportController.cs
+  - Views/C9/Preview.cshtml
+  - wwwroot/js/reports/c5-report.js
+  - Services/C7AmountPolicy.cs
+  - Repositories/C9ReportRepository.cs
+  - Views/C7/Preview.cshtml
+  - Views/Report/_C8PatchBillDetailReport.cshtml
+  - OpdAccrRptWeb.Tests/C8RequestValidationTests.cs
+  - Repositories/C7Sql.cs
+  - Services/IC9ReportService.cs
+  - ViewModels/C7DailyChargeDetailViewModel.cs
+  - wwwroot/js/reports/c8-report.js
+  - Repositories/IC9ReportRepository.cs
+  - OpdAccrRptWeb.Tests/C9ReportServiceTests.cs
+  - Repositories/C8Sql.cs
+  - Repositories/IC8ReportRepository.cs
+  - ViewModels/C9MaterialAccountingMonthlyViewModel.cs
+  - Views/Report/Index.cshtml
+  - Services/C9ReportResultCache.cs
+  - Services/C8ReportService.cs
+  - Services/IC8ReportService.cs
+tests:
+  - OpdAccrRptWeb.Tests/c9-report.test.js
+  - OpdAccrRptWeb.Tests/c7-report.test.js
+  - OpdAccrRptWeb.Tests/c8-report.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/c5-report.test.js
+  - OpdAccrRptWeb.Tests/c3-report.test.js
 -->
 
 ### Requirement: Excel export

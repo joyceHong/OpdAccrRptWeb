@@ -7,7 +7,10 @@
     "test:c5": "node OpdAccrRptWeb.Tests/c5-report.test.js",
     "test:c7": "node OpdAccrRptWeb.Tests/c7-report.test.js",
     "test:c8": "node OpdAccrRptWeb.Tests/c8-report.test.js",
-    "test:c9": "node OpdAccrRptWeb.Tests/c9-report.test.js"
+    "test:c9": "node OpdAccrRptWeb.Tests/c9-report.test.js",
+    "test:m1": "node OpdAccrRptWeb.Tests/m1-doctor-daily-report.test.js",
+    "test:m2": "node OpdAccrRptWeb.Tests/m2-doctor-monthly-report.test.js",
+    "test:m3": "node OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js"
   },
   "dependencies": {
     "vue": "3.5.18",

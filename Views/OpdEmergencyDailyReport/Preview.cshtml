@@ -1,0 +1,16 @@
+@model OpdAccrRptWeb.ViewModels.M3OpdEmergencyDailyPreviewViewModel
+@{ Layout = null; }
+<section class="m3-print-report">
+    <header><h1>@Model.Title</h1><div>查詢日期：@Model.QueryDate　@Model.Weekday</div><div>產表：@Model.GeneratedAt　程式：@Model.ProgramId　使用者：@Model.UserName</div></header>
+    <table class="m3-preview-kpis"><tbody>
+        <tr><th>門診早</th><td>@Model.NineKpis.OutpatientMorning</td><th>門診午</th><td>@Model.NineKpis.OutpatientAfternoon</td><th>門診夜</th><td>@Model.NineKpis.OutpatientNight</td></tr>
+        <tr><th>急診白</th><td>@Model.NineKpis.EmergencyDay</td><th>急診小夜</th><td>@Model.NineKpis.EmergencyEvening</td><th>急診大夜</th><td>@Model.NineKpis.EmergencyNight</td></tr>
+        <tr><th>預約</th><td>@Model.NineKpis.Appointment</td><th>未到</th><td>@Model.NineKpis.NoShow</td><th>淨預約</th><td>@Model.NineKpis.NetAppointment</td></tr>
+    </tbody></table>
+    <table class="m3-preview-table"><thead><tr><th>科別</th><th>名稱</th><th>門初S</th><th>門初H</th><th>門複S</th><th>門複H</th><th>急初S</th><th>急初H</th><th>急複S</th><th>急複H</th><th>日總</th><th>月總</th><th>年總</th></tr></thead><tbody>
+    @foreach (var row in Model.Rows) { <tr><td>@row.DepartmentId</td><td>@row.DepartmentName</td><td>@row.Op1SQty</td><td>@row.Op1HQty</td><td>@row.Op2SQty</td><td>@row.Op2HQty</td><td>@row.Em1SQty</td><td>@row.Em1HQty</td><td>@row.Em2SQty</td><td>@row.Em2HQty</td><td>@row.OEDaySum</td><td>@row.OEMonSum</td><td>@row.OEYearSum</td></tr> }
+    </tbody></table>
+</section>
+<style>
+.m3-print-report{font-family:"Microsoft JhengHei",sans-serif;font-size:11px}.m3-print-report header{text-align:center;margin-bottom:10px}.m3-print-report h1{margin:0 0 4px}.m3-print-report table{width:100%;border-collapse:collapse;margin-bottom:10px}.m3-print-report th,.m3-print-report td{border:1px solid #555;padding:3px;text-align:right}.m3-print-report th:first-child,.m3-print-report td:first-child,.m3-print-report td:nth-child(2){text-align:left}@@media print{@@page{size:A4 landscape;margin:10mm}}
+</style>

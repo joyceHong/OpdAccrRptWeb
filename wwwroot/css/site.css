@@ -78,3 +78,18 @@ button, input, select { font:inherit; } button { cursor:pointer; } button:disabl
 @media print{body:has(.c4-preview-overlay) *{visibility:hidden!important}.c4-preview-overlay,.c4-preview-overlay *{visibility:visible!important}.c4-preview-overlay{position:absolute;inset:0;overflow:visible;padding:0;background:#fff}.c4-paper{width:297mm;min-height:210mm;margin:0;padding:8mm;box-shadow:none}.c4-preview-actions{display:none!important}.c4-print-table thead{display:table-header-group}.c4-print-table tr{break-inside:avoid}@page{size:A4 landscape;margin:0}}
 @media print{body:has(.report-preview-overlay) *{visibility:hidden!important}body:has(.report-preview-overlay) .report-preview-overlay,body:has(.report-preview-overlay) .report-preview-overlay *{visibility:visible!important}.report-preview-overlay{position:absolute;inset:0;overflow:visible;padding:0;background:#fff}.report-preview-paper{width:297mm;min-height:210mm;margin:0;padding:8mm;box-shadow:none}.report-preview-actions{display:none!important}.report-preview-table thead{display:table-header-group}.report-preview-table tr{break-inside:avoid}@page{size:A4 landscape;margin:0}}
 .c9-print-document + .c9-print-document{break-before:page;page-break-before:always}.c9-print-document .report-preview-table{margin-bottom:1rem}.c9-print-document .group-subtotal{font-weight:700;background:#f1f5f9}
+/* M2 monthly report keeps identifiers visible while the 31 day columns scroll. */
+.m2-monthly-table { overflow-x: auto; }
+.m2-monthly-table table { min-width: 2200px; }
+.m2-monthly-table .m2-sticky { position: sticky; z-index: 2; background: #fff; }
+.m2-monthly-table thead .m2-sticky { z-index: 3; }
+.m2-monthly-table .m2-sticky-1 { left: 0; min-width: 90px; }
+.m2-monthly-table .m2-sticky-2 { left: 90px; min-width: 130px; }
+.m2-monthly-table .m2-sticky-3 { left: 220px; min-width: 90px; }
+.m2-monthly-table .m2-sticky-4 { left: 310px; min-width: 110px; box-shadow: 2px 0 3px rgb(0 0 0 / 8%); }
+/* M3 compact KPI strip */
+.m3-kpis { display:grid; grid-template-columns:repeat(9,minmax(72px,1fr)); gap:8px; margin-bottom:16px; }
+.m3-kpis div { border:1px solid #dce4ef; border-radius:6px; padding:8px; text-align:center; background:#f8fafc; }
+.m3-kpis small { display:block; color:#64748b; }
+.m3-kpis strong { font-size:1.15rem; }
+@media (max-width:900px) { .m3-kpis { grid-template-columns:repeat(3,1fr); } }

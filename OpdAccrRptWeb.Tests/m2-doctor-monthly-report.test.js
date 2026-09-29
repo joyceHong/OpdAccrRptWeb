@@ -1,0 +1,12 @@
+const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
+const root=path.resolve(__dirname,".."),view=fs.readFileSync(path.join(root,"Views/Report/_M2DoctorMonthlyReport.cshtml"),"utf8"),script=fs.readFileSync(path.join(root,"wwwroot/js/reports/m2-doctor-monthly-report.js"),"utf8"),app=fs.readFileSync(path.join(root,"wwwroot/js/report-app.js"),"utf8");
+for(const value of ['type="month"','type="checkbox"','實際看診人數','class="advanced-grid"','class="source-option"','_TableSkeleton','empty-result','pagination','m2-sticky','預覽／列印','Excel'])assert.match(view,new RegExp(value));
+assert.doesNotMatch(view,/exportReport\('pdf'\)|>PDF</);
+assert.ok(!view.includes('<span>計算口徑</span>'));assert.ok(!view.includes('form.calculationBasis'));
+for(const value of ['actualVisit','calculationBasis:this.form.actualVisit?1:0','visitScope','timeSlot','this.runId=null','/medical-statistics/doctor-monthly/query','/medical-statistics/doctor-monthly/preview'])assert.ok(script.includes(value),`missing ${value}`);
+assert.ok(script.includes('encodeURIComponent(this.runId)'));
+assert.match(app,/M2:\s*window\.ReportComponents\.M2DoctorMonthlyReport/);assert.match(app,/\/medical-statistics\/doctor-monthly/);
+const window={ReportComponents:{}},document={querySelector:()=>({value:"token"})};vm.runInNewContext(script,{window,document,URLSearchParams,fetch:()=>{}});const component=window.ReportComponents.M2DoctorMonthlyReport;const data=component.data.call({defaultStartDate:"2026-09-29"});assert.equal(data.form.reportMonth,"2026-08");assert.equal(data.form.actualVisit,false);
+const payloadContext={...data,form:{...data.form},runId:null};assert.equal(component.methods.payload.call(payloadContext).calculationBasis,0);payloadContext.form.actualVisit=true;assert.equal(component.methods.payload.call(payloadContext).calculationBasis,1);
+const changed={runId:"run",rows:[1],columns:[1],totalCount:1,totalPages:1,currentPage:2,hasSearched:true,futureDateConfirmed:true,closePreview(){}};component.methods.clearResults.call(changed);assert.equal(changed.runId,null);assert.equal(changed.currentPage,1);assert.equal(changed.rows.length,0);
+console.log("m2 doctor monthly UI tests passed");

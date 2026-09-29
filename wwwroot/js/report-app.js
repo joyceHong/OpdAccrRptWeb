@@ -35,15 +35,22 @@
         C173: window.ReportComponents.ReportTemplate,
         C174: window.ReportComponents.ReportTemplate,
         C18: window.ReportComponents.ReportTemplate,
-        C19: window.ReportComponents.ReportTemplate
+        C19: window.ReportComponents.ReportTemplate,
+        M1: window.ReportComponents.M1DoctorDailyReport,
+        M2: window.ReportComponents.M2DoctorMonthlyReport,
+        M3: window.ReportComponents.M3OpdEmergencyDailyReport
     });
     const unavailableReportComponent = {
         template: '<section class="panel empty-result"><strong>此報表畫面尚未建置</strong><p>請選擇已開放的報表。</p></section>'
     };
     const reportRoutes = Object.entries(reportComponentMap).map(([reportCode, component]) => ({
         path: `/Report/${reportCode}`,
-        component
+        component,
+        meta: { reportCode }
     }));
+    reportRoutes.unshift({ path: "/medical-statistics/doctor-daily", component: window.ReportComponents.M1DoctorDailyReport, meta: { reportCode: "M1" } });
+    reportRoutes.unshift({ path: "/medical-statistics/doctor-monthly", component: window.ReportComponents.M2DoctorMonthlyReport, meta: { reportCode: "M2" } });
+    reportRoutes.unshift({ path: "/medical-statistics/opd-emergency-daily", component: window.ReportComponents.M3OpdEmergencyDailyReport, meta: { reportCode: "M3" } });
     reportRoutes.push(
         { path: "/Report", component: unavailableReportComponent },
         { path: "/Report/:reportCode", component: unavailableReportComponent }
@@ -74,9 +81,10 @@
             }
         },
         watch: {
-            "$route.params.reportCode": {
+            "$route.path": {
                 immediate: true,
-                handler(reportCode) {
+                handler() {
+                    const reportCode = this.$route.meta.reportCode || this.$route.params.reportCode;
                     if (!reportCode) return;
                     const reportLocation = this.findReport(reportCode);
                     if (!reportLocation) return;
@@ -101,14 +109,20 @@
                 this.reportKeyword = "";
                 this.selectedReport = category.groups[0]?.reports[0] ?? null;
                 this.sidebarOpen = false;
-                const path = this.selectedReport ? `/Report/${this.selectedReport.code}` : "/Report";
+                const path = this.selectedReport ? this.reportPath(this.selectedReport) : "/Report";
                 if (this.$route.path !== path) this.$router.push(path);
             },
             selectReport(report) {
                 this.selectedReport = report;
                 this.sidebarOpen = false;
-                const path = `/Report/${report.code}`;
+                const path = this.reportPath(report);
                 if (this.$route.path !== path) this.$router.push(path);
+            },
+            reportPath(report) {
+                if (report.code === "M1") return "/medical-statistics/doctor-daily";
+                if (report.code === "M2") return "/medical-statistics/doctor-monthly";
+                if (report.code === "M3") return "/medical-statistics/opd-emergency-daily";
+                return `/Report/${report.code}`;
             },
             toggleGroup(index) { this.openGroups = this.openGroups.includes(index) ? this.openGroups.filter(value => value !== index) : [...this.openGroups, index]; },
             collapseAll() { this.openGroups = []; },

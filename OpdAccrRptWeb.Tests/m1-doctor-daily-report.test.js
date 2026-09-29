@@ -1,0 +1,8 @@
+const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
+const root=path.resolve(__dirname,".."),view=fs.readFileSync(path.join(root,"Views/Report/_M1DoctorDailyReport.cshtml"),"utf8"),preview=fs.readFileSync(path.join(root,"Views/DoctorDailyReport/Preview.cshtml"),"utf8"),script=fs.readFileSync(path.join(root,"wwwroot/js/reports/m1-doctor-daily-report.js"),"utf8"),app=fs.readFileSync(path.join(root,"wwwroot/js/report-app.js"),"utf8");
+for(const value of ["page-title","panel query-panel","type=\"date\"","_TableSkeleton","empty-result","pagination","預覽／列印","Excel"])assert.match(view,new RegExp(value));
+assert.doesNotMatch(view,/exportReport\('pdf'\)|>PDF</);
+for(const value of ["科別代碼","醫師代碼","門急診","自費","健保","上午","下午","夜間","預約量","合計"])assert.match(preview,new RegExp(value));
+assert.match(script,/M1_FUTURE_DATE_CONFIRMATION_REQUIRED/);assert.match(script,/window\.confirm/);assert.match(script,/this\.runId = null/);assert.match(script,/pageNumber: this\.currentPage/);assert.match(script,/\/medical-statistics\/doctor-daily\/query/);assert.match(script,/\/medical-statistics\/doctor-daily\/preview/);assert.match(script,/encodeURIComponent\(this\.runId\)/);assert.match(app,/M1:\s*window\.ReportComponents\.M1DoctorDailyReport/);assert.match(app,/\/medical-statistics\/doctor-daily/);
+const window={ReportComponents:{}};vm.runInNewContext(script,{window,document:{}});const component=window.ReportComponents.M1DoctorDailyReport;const data=component.data.call({defaultStartDate:"2026-09-24"});assert.equal(data.form.reportDate,"2026-09-23");
+console.log("m1 doctor daily UI tests passed");

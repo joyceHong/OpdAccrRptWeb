@@ -1,0 +1,16 @@
+@model OpdAccrRptWeb.ViewModels.M2DoctorMonthlyPreviewViewModel
+@{ Layout = null; }
+<style>
+@@page { size: A4 landscape; margin: 8mm; }
+.m2-preview { font-family: sans-serif; font-size: 9px; color: #111; }
+.m2-preview h1 { text-align: center; font-size: 18px; margin: 0 0 6px; }
+.m2-preview .meta { display:flex; justify-content:space-between; margin-bottom:6px; }
+.m2-preview table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.m2-preview th,.m2-preview td { border:1px solid #555; padding:2px; text-align:right; }
+.m2-preview th:nth-child(-n+4),.m2-preview td:nth-child(-n+4) { text-align:left; }
+@@media print { .no-print { display:none!important; } }
+</style>
+<section class="m2-preview"><h1>@Model.Title</h1><div class="meta"><span>月份：@Model.QueryMonth　口徑：@Model.CalculationBasis　診別：@Model.VisitScope　時段：@Model.TimeSlot</span><span>產表：@Model.GeneratedAt　使用者：@Model.UserName</span></div>
+<table><thead><tr><th>科別</th><th>科別名稱</th><th>醫師</th><th>醫師姓名</th>@for(int day=1;day<=31;day++){<th>@day.ToString("00")</th>}<th>合計</th></tr></thead>
+<tbody>@foreach(var row in Model.Rows){<tr><td>@row.SectionNo</td><td>@row.SectionName</td><td>@row.DoctorNo</td><td>@row.DoctorName</td>@foreach(int count in row.DailyCounts){<td>@count</td>}<td>@row.MonthlyTotal</td></tr>}</tbody>
+<tfoot><tr><th colspan="4">總計</th>@foreach(int total in Model.DailyTotals){<th>@total</th>}<th>@Model.GrandTotal</th></tr></tfoot></table><small>@Model.ProgramId</small></section>

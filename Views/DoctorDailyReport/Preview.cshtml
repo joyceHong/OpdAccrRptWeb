@@ -1,0 +1,23 @@
+@model OpdAccrRptWeb.ViewModels.M1DoctorDailyPreviewViewModel
+<section class="m1-print-document">
+    <header>
+        <h1>@Model.Title</h1>
+        <div class="report-preview-meta">
+            <span>查詢日期：@Model.QueryDate</span>
+            <span>產表時間：@Model.GeneratedAt</span>
+            <span>使用者：@Model.UserName</span>
+            <span>@Model.ProgramId</span>
+        </div>
+    </header>
+    <table class="report-preview-table">
+        <thead><tr><th>科別代碼</th><th>科別名稱</th><th>醫師代碼</th><th>醫師姓名</th><th>門急診</th><th>自費</th><th>健保</th><th>上午</th><th>下午</th><th>夜間</th><th>預約量</th><th>合計</th></tr></thead>
+        <tbody>
+        @foreach (var row in Model.Rows)
+        {
+            <tr><td>@row.SectionNo</td><td>@row.SectionName</td><td>@row.DoctorNo</td><td>@row.DoctorName</td><td>@row.VisitType</td><td>@row.SelfPayCount</td><td>@row.InsuranceCount</td><td>@row.MorningCount</td><td>@row.AfternoonCount</td><td>@row.NightCount</td><td>@row.AppointmentCount</td><td>@row.TotalCount</td></tr>
+        }
+        </tbody>
+        <tfoot><tr><th colspan="5">總計</th><td>@Model.SelfPayTotal</td><td>@Model.InsuranceTotal</td><td>@Model.MorningTotal</td><td>@Model.AfternoonTotal</td><td>@Model.NightTotal</td><td>@Model.AppointmentTotal</td><td>@Model.GrandTotal</td></tr></tfoot>
+    </table>
+</section>
+

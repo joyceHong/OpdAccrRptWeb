@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <Folder Include="Entities\" />
-    <EmbeddedResource Include="Sql\C4.Report.Daily.sql" />
   </ItemGroup>
 
   <ItemGroup>

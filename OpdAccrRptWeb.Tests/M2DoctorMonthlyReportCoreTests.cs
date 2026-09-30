@@ -6,6 +6,14 @@ namespace OpdAccrRptWeb.Tests;
 public sealed class M2DoctorMonthlyReportCoreTests
 {
     [Fact]
+    public void RepositoryNumberOrZero_ReturnsZeroForDatabaseNull()
+    {
+        Assert.Equal(0, M2DoctorMonthlyReportRepository.NumberOrZero(DBNull.Value));
+        Assert.Equal(0, M2DoctorMonthlyReportRepository.NumberOrZero(null));
+        Assert.Equal(15, M2DoctorMonthlyReportRepository.NumberOrZero(15m));
+    }
+
+    [Fact]
     public void Request_DefaultsToStatisticsAllAll()
     {
         var request = new M2DoctorMonthlyReportRequest("2026-08");

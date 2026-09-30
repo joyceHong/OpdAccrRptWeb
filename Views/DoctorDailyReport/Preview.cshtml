@@ -1,23 +1,32 @@
 @model OpdAccrRptWeb.ViewModels.M1DoctorDailyPreviewViewModel
+<style>
+.m1-print-document{font-family:"PMingLiU","Noto Serif TC",serif;color:#111}.m1-print-document header{text-align:center}.m1-print-document h1{margin:0;font-size:22px;letter-spacing:.55em}.m1-print-document h2{margin:3px 0 5px;font-size:18px;letter-spacing:.45em}.m1-print-meta{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:end;margin-bottom:8px;font-size:11px;text-align:left}.m1-print-meta .query-date{text-align:center}.m1-print-meta .page-number{text-align:right}.m1-print-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px}.m1-print-table th,.m1-print-table td{border:1px solid #222;padding:3px 4px;text-align:right;white-space:nowrap}.m1-print-table th{text-align:center;font-weight:400}.m1-print-table td:first-child,.m1-print-table td:nth-child(2){text-align:left}.m1-print-table .m1-group-row th{text-align:left;font-weight:700;background:#fff}.m1-print-table tfoot th{font-weight:700}.m1-print-table .m1-total-label{text-align:center}@@media print{@@page{size:A4 landscape;margin:10mm}}
+</style>
 <section class="m1-print-document">
     <header>
-        <h1>@Model.Title</h1>
-        <div class="report-preview-meta">
-            <span>查詢日期：@Model.QueryDate</span>
-            <span>產表時間：@Model.GeneratedAt</span>
-            <span>使用者：@Model.UserName</span>
-            <span>@Model.ProgramId</span>
+        <h1>@Model.HospitalName</h1>
+        <h2>@Model.Title</h2>
+        <div class="m1-print-meta">
+            <span>程式名稱：@Model.ProgramId<br />處理日期：@Model.GeneratedAt<br />製表人：@Model.UserName</span>
+            <span class="query-date">@Model.QueryDate</span>
+            <span class="page-number">頁次：1</span>
         </div>
     </header>
-    <table class="report-preview-table">
-        <thead><tr><th>科別代碼</th><th>科別名稱</th><th>醫師代碼</th><th>醫師姓名</th><th>門急診</th><th>自費</th><th>健保</th><th>上午</th><th>下午</th><th>夜間</th><th>預約量</th><th>合計</th></tr></thead>
+    <table class="report-preview-table m1-print-table">
+        <thead><tr><th>科別</th><th>醫師代號及姓名</th><th>民眾人數</th><th>健保人數</th><th>預約人數</th><th>預約比例</th><th>合計</th><th>上午人數</th><th>下午人數</th><th>夜間人數</th></tr></thead>
         <tbody>
-        @foreach (var row in Model.Rows)
+        @foreach (var group in Model.Groups)
         {
-            <tr><td>@row.SectionNo</td><td>@row.SectionName</td><td>@row.DoctorNo</td><td>@row.DoctorName</td><td>@row.VisitType</td><td>@row.SelfPayCount</td><td>@row.InsuranceCount</td><td>@row.MorningCount</td><td>@row.AfternoonCount</td><td>@row.NightCount</td><td>@row.AppointmentCount</td><td>@row.TotalCount</td></tr>
+            @if (group.Rows.Count > 0)
+            {
+                <tr class="m1-group-row"><th colspan="10">@group.Label</th></tr>
+                @foreach (var row in group.Rows)
+                {
+                    <tr><td>@row.SectionNo</td><td>@row.DoctorDisplay</td><td>@row.SelfPayCount</td><td>@row.InsuranceCount</td><td>@row.AppointmentCount</td><td>@OpdAccrRptWeb.ViewModels.M1DoctorDailyOutputRow.FormatAppointmentRatio(row.AppointmentRatio)</td><td>@row.TotalCount</td><td>@row.MorningCount</td><td>@row.AfternoonCount</td><td>@row.NightCount</td></tr>
+                }
+            }
         }
         </tbody>
-        <tfoot><tr><th colspan="5">總計</th><td>@Model.SelfPayTotal</td><td>@Model.InsuranceTotal</td><td>@Model.MorningTotal</td><td>@Model.AfternoonTotal</td><td>@Model.NightTotal</td><td>@Model.AppointmentTotal</td><td>@Model.GrandTotal</td></tr></tfoot>
+        <tfoot><tr><th></th><th class="m1-total-label">合計</th><td>@Model.SelfPayTotal</td><td>@Model.InsuranceTotal</td><td>@Model.AppointmentTotal</td><td>@OpdAccrRptWeb.ViewModels.M1DoctorDailyOutputRow.FormatAppointmentRatio(Model.AppointmentRatio)</td><td>@Model.GrandTotal</td><td>@Model.MorningTotal</td><td>@Model.AfternoonTotal</td><td>@Model.NightTotal</td></tr></tfoot>
     </table>
 </section>
-

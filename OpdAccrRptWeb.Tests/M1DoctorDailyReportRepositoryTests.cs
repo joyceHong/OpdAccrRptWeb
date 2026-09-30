@@ -29,6 +29,14 @@ public sealed class M1DoctorDailyReportRepositoryTests
         await Assert.ThrowsAsync<ArgumentException>(() => repository.QueryAsync("20260924"));
     }
 
+    [Fact]
+    public void NumberOrZero_ReturnsZeroForDatabaseNull()
+    {
+        Assert.Equal(0, M1DoctorDailyReportRepository.NumberOrZero(DBNull.Value));
+        Assert.Equal(0, M1DoctorDailyReportRepository.NumberOrZero(null));
+        Assert.Equal(12, M1DoctorDailyReportRepository.NumberOrZero(12m));
+    }
+
     private sealed class ThrowingConnectionStringProvider : Infrastructure.IConnectionStringProvider
     {
         public string GetConnectionString() => throw new InvalidOperationException("must not open");

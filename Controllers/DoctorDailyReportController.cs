@@ -199,10 +199,16 @@ public sealed class DoctorDailyReportController(
         string actor)
     {
         DateTimeOffset localGeneratedAt = TimeZoneInfo.ConvertTime(snapshot.GeneratedAt, TaipeiTimeZone);
-        return new("醫師看診人數日表", snapshot.ReportDate.ToString("yyyy-MM-dd"),
-            localGeneratedAt.ToString("yyyy-MM-dd HH:mm:ss"), "OpdAccrRptWeb.M1", actor,
+        return new("亞東紀念醫院", "醫師看診人數日表", ToRocDate(snapshot.ReportDate),
+            ToRocDateTime(localGeneratedAt), "ReportProject1.OpdDocDay", actor,
             snapshot.Rows);
     }
+
+    private static string ToRocDate(DateOnly value) =>
+        $"{value.Year - 1911:000}/{value.Month:00}/{value.Day:00}";
+
+    private static string ToRocDateTime(DateTimeOffset value) =>
+        $"{value.Year - 1911:000}/{value.Month:00}/{value.Day:00} {value:HH:mm}";
 
     private ObjectResult ConfirmationRequired(M1FutureDateConfirmationRequiredException exception)
     {

@@ -73,6 +73,10 @@ public sealed class M2DoctorMonthlyReportRepository(IConnectionStringProvider co
         return reader.IsDBNull(ordinal) ? string.Empty :
             Convert.ToString(reader.GetValue(ordinal), CultureInfo.InvariantCulture)?.Trim() ?? string.Empty;
     }
-    private static int Number(OracleDataReader reader, string name) => checked(Convert.ToInt32(
-        reader.GetValue(reader.GetOrdinal(name)), CultureInfo.InvariantCulture));
+    private static int Number(OracleDataReader reader, string name) =>
+        NumberOrZero(reader.GetValue(reader.GetOrdinal(name)));
+
+    internal static int NumberOrZero(object? value) => value is null or DBNull
+        ? 0
+        : checked(Convert.ToInt32(value, CultureInfo.InvariantCulture));
 }

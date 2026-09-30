@@ -54,7 +54,10 @@ public sealed class M1DoctorDailyReportRepository(IConnectionStringProvider conn
     private static int Number(OracleDataReader reader, string name)
     {
         int ordinal = reader.GetOrdinal(name);
-        return checked(Convert.ToInt32(reader.GetValue(ordinal), CultureInfo.InvariantCulture));
+        return NumberOrZero(reader.GetValue(ordinal));
     }
-}
 
+    internal static int NumberOrZero(object? value) => value is null or DBNull
+        ? 0
+        : checked(Convert.ToInt32(value, CultureInfo.InvariantCulture));
+}

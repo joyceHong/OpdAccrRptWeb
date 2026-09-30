@@ -16,6 +16,11 @@ namespace OpdAccrRptWeb.Repositories
 
         List<T> GetHealthCenterDataPage<T>(SearchReportCondition searchCondition);
 
+        List<HealthCenterDetailViewModel> GetHealthCenterDataBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize);
+
         /// <summary>
         /// 健康管理中心明細資料的欄位資訊
         /// </summary>
@@ -36,6 +41,13 @@ namespace OpdAccrRptWeb.Repositories
         /// <returns></returns>
         List<T> GetHealthCenterCountData<T>(SearchReportCondition searchCondition);
 
+        int GetHealthCenterCountDataCount(SearchReportCondition searchCondition);
+
+        List<HealthCenterCountViewModel> GetHealthCenterCountDataBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize);
+
         /// <summary>
         /// 健檢人次的欄位資訊
         /// </summary>
@@ -49,6 +61,13 @@ namespace OpdAccrRptWeb.Repositories
         /// <param name="searchCondition"></param>
         /// <returns></returns>
         public List<T> GetHealthCheckupVisitsData<T>(SearchReportCondition searchCondition);
+
+        int GetHealthCheckupVisitsCount(SearchReportCondition searchCondition);
+
+        List<HealthCheckupVisits> GetHealthCheckupVisitsBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize);
 
         /// <summary>
         /// C174 健康管理中心合約單位記帳表的欄位資訊

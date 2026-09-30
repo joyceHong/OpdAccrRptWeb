@@ -2,15 +2,45 @@
 @{ Layout = null; }
 <style>
 @@page { size: A4 landscape; margin: 8mm; }
-.m2-preview { font-family: sans-serif; font-size: 9px; color: #111; }
-.m2-preview h1 { text-align: center; font-size: 18px; margin: 0 0 6px; }
-.m2-preview .meta { display:flex; justify-content:space-between; margin-bottom:6px; }
+.m2-preview { font-family: "PMingLiU", "Noto Serif TC", serif; font-size: 10px; color: #111; }
+.m2-preview h1 { text-align: center; font-size: 19px; letter-spacing: .3em; margin: 0 0 4px; }
+.m2-preview .meta { display:grid; grid-template-columns:1fr auto 1fr; align-items:end; margin-bottom:6px; font-size:10px; }
+.m2-preview .meta span:nth-child(2) { text-align:center; }
+.m2-preview .meta span:last-child { text-align:right; }
 .m2-preview table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-.m2-preview th,.m2-preview td { border:1px solid #555; padding:2px; text-align:right; }
-.m2-preview th:nth-child(-n+4),.m2-preview td:nth-child(-n+4) { text-align:left; }
+.m2-preview th,.m2-preview td { padding:2px 1px; border-bottom:1px dotted #555; text-align:right; white-space:nowrap; }
+.m2-preview thead th { border-bottom:1px solid #222; font-weight:400; text-align:center; }
+.m2-preview .doctor-column { width:36mm; text-align:left; }
+.m2-preview .m2-section-heading th { padding-top:6px; border-bottom:0; text-align:left; font-size:11px; }
+.m2-preview .m2-doctor-row td:first-child { text-align:left; overflow:hidden; text-overflow:ellipsis; }
+.m2-preview .m2-section-subtotal th,.m2-preview .m2-section-subtotal td { border-bottom:1px dashed #222; font-weight:700; }
+.m2-preview tfoot th,.m2-preview tfoot td { border-top:1px solid #222; border-bottom:0; font-weight:700; }
 @@media print { .no-print { display:none!important; } }
 </style>
-<section class="m2-preview"><h1>@Model.Title</h1><div class="meta"><span>月份：@Model.QueryMonth　口徑：@Model.CalculationBasis　診別：@Model.VisitScope　時段：@Model.TimeSlot</span><span>產表：@Model.GeneratedAt　使用者：@Model.UserName</span></div>
-<table><thead><tr><th>科別</th><th>科別名稱</th><th>醫師</th><th>醫師姓名</th>@for(int day=1;day<=31;day++){<th>@day.ToString("00")</th>}<th>合計</th></tr></thead>
-<tbody>@foreach(var row in Model.Rows){<tr><td>@row.SectionNo</td><td>@row.SectionName</td><td>@row.DoctorNo</td><td>@row.DoctorName</td>@foreach(int count in row.DailyCounts){<td>@count</td>}<td>@row.MonthlyTotal</td></tr>}</tbody>
-<tfoot><tr><th colspan="4">總計</th>@foreach(int total in Model.DailyTotals){<th>@total</th>}<th>@Model.GrandTotal</th></tr></tfoot></table><small>@Model.ProgramId</small></section>
+<section class="m2-preview">
+    <h1>@Model.Title</h1>
+    <div class="meta">
+        <span>程式名稱：@Model.ProgramId<br />產表：@Model.GeneratedAt</span>
+        <span>資料月份：@Model.QueryMonth<br />@Model.VisitScope（@Model.TimeSlot）</span>
+        <span>口徑：@Model.CalculationBasis<br />使用者：@Model.UserName</span>
+    </div>
+    <table>
+        <colgroup><col class="doctor-column" />@for (var day = 1; day <= 32; day++) { <col /> }</colgroup>
+        <thead><tr><th class="doctor-column">醫師代號及姓名</th>@for (var day = 1; day <= 31; day++) { <th>@day</th> }<th>合計</th></tr></thead>
+        <tbody>
+        @foreach (var departmentGroup in Model.Rows.GroupBy(row => new { row.SectionNo, row.SectionName }))
+        {
+            int[] sectionDailyTotals = Enumerable.Range(0, 31)
+                .Select(day => departmentGroup.Sum(row => row.DailyCounts[day]))
+                .ToArray();
+            <tr class="m2-section-heading"><th colspan="33">@departmentGroup.Key.SectionNo　@departmentGroup.Key.SectionName</th></tr>
+            @foreach (var row in departmentGroup)
+            {
+                <tr class="m2-doctor-row"><td title="@row.DoctorNo @row.DoctorName">@row.DoctorNo　@row.DoctorName</td>@foreach (int count in row.DailyCounts) { <td>@count</td> }<td>@row.MonthlyTotal</td></tr>
+            }
+            <tr class="m2-section-subtotal"><th>小計</th>@foreach (int total in sectionDailyTotals) { <td>@total</td> }<td>@departmentGroup.Sum(row => row.MonthlyTotal)</td></tr>
+        }
+        </tbody>
+        <tfoot><tr><th>總計</th>@foreach (int total in Model.DailyTotals) { <td>@total</td> }<td>@Model.GrandTotal</td></tr></tfoot>
+    </table>
+</section>

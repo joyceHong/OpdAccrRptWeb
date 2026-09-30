@@ -199,6 +199,19 @@ public sealed class ReferralMemberRepository : IReferralMemberRepository
             CreateParameters(searchCondition)).ToList();
     }
 
+    public List<ReferralMemberReportViewModel> GetBatch(
+        SearchReportCondition searchCondition,
+        int offset,
+        int batchSize)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+        using IDbConnection connection = CreateConnection();
+        return connection.Query<ReferralMemberReportViewModel>(
+            GetPageSql(searchCondition.EncounterSource),
+            CreateParameters(searchCondition, offset, batchSize)).ToList();
+    }
+
     internal static string GetBaseSql(string? encounterSource) => encounterSource switch
     {
         EncounterSources.Emergency => EmergencyBaseSql,
@@ -237,6 +250,28 @@ public sealed class ReferralMemberRepository : IReferralMemberRepository
             memberYear = startDate[..3],
             rowOffset = ((long)pageNumber - 1) * pageSize,
             pageSize
+        };
+    }
+
+    private static object CreateParameters(
+        SearchReportCondition searchCondition,
+        int offset,
+        int batchSize)
+    {
+        GetBaseSql(searchCondition.EncounterSource);
+        string startDate = searchCondition.StartDate
+            ?? throw new ArgumentException("C18 缺少起始日期。", nameof(searchCondition));
+        if (startDate.Length < 3)
+        {
+            throw new ArgumentException("C18 起始日期不是有效的民國日期。", nameof(searchCondition));
+        }
+        return new
+        {
+            strSDate = startDate,
+            strEDate = searchCondition.EndDate,
+            memberYear = startDate[..3],
+            rowOffset = offset,
+            pageSize = batchSize
         };
     }
 

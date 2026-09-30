@@ -16,6 +16,10 @@ internal sealed class FakeHealthCenterRepository : IHealthCenterRepository
 
     public List<object> C171Data { get; set; } = [];
 
+    public List<HealthCenterDetailViewModel> C171ExportData { get; set; } = [];
+
+    public List<(int Offset, int BatchSize)> C171BatchCalls { get; } = [];
+
     public Exception? C171CountException { get; set; }
 
     public Exception? C171PageException { get; set; }
@@ -60,15 +64,55 @@ internal sealed class FakeHealthCenterRepository : IHealthCenterRepository
         return C171Data.Cast<T>().ToList();
     }
 
-    public List<ModelDescriptionsHelper.PropertyMetadata> GetHelthCenterDetailColumns() => [];
+    public List<HealthCenterDetailViewModel> GetHealthCenterDataBatch(
+        SearchReportCondition searchCondition, int offset, int batchSize)
+    {
+        C171BatchCalls.Add((offset, batchSize));
+        return C171ExportData.Skip(offset).Take(batchSize).ToList();
+    }
 
-    public List<ModelDescriptionsHelper.PropertyMetadata> GetHelthCenterCountColumns() => [];
+    public List<ModelDescriptionsHelper.PropertyMetadata> GetHelthCenterDetailColumns() =>
+        ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterDetailViewModel>();
+
+    public List<ModelDescriptionsHelper.PropertyMetadata> GetHelthCenterCountColumns() =>
+        ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterCountViewModel>();
 
     public List<T> GetHealthCenterCountData<T>(SearchReportCondition searchCondition) => [];
 
-    public List<ModelDescriptionsHelper.PropertyMetadata> GetHealthCheckupVisitsColumns() => [];
+    public int C172TotalCount { get; set; }
+
+    public List<HealthCenterCountViewModel> C172ExportData { get; set; } = [];
+
+    public List<(int Offset, int BatchSize)> C172BatchCalls { get; } = [];
+
+    public int GetHealthCenterCountDataCount(SearchReportCondition searchCondition) => C172TotalCount;
+
+    public List<HealthCenterCountViewModel> GetHealthCenterCountDataBatch(
+        SearchReportCondition searchCondition, int offset, int batchSize)
+    {
+        C172BatchCalls.Add((offset, batchSize));
+        return C172ExportData.Skip(offset).Take(batchSize).ToList();
+    }
+
+    public List<ModelDescriptionsHelper.PropertyMetadata> GetHealthCheckupVisitsColumns() =>
+        ModelDescriptionsHelper.GetPropertyDescriptions<HealthCheckupVisits>();
 
     public List<T> GetHealthCheckupVisitsData<T>(SearchReportCondition searchCondition) => [];
+
+    public int C173TotalCount { get; set; }
+
+    public List<HealthCheckupVisits> C173ExportData { get; set; } = [];
+
+    public List<(int Offset, int BatchSize)> C173BatchCalls { get; } = [];
+
+    public int GetHealthCheckupVisitsCount(SearchReportCondition searchCondition) => C173TotalCount;
+
+    public List<HealthCheckupVisits> GetHealthCheckupVisitsBatch(
+        SearchReportCondition searchCondition, int offset, int batchSize)
+    {
+        C173BatchCalls.Add((offset, batchSize));
+        return C173ExportData.Skip(offset).Take(batchSize).ToList();
+    }
 
     public List<ModelDescriptionsHelper.PropertyMetadata> GetHealthCenterContractBillingReportColumns() =>
         ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterContractBillingReport>();
@@ -120,6 +164,10 @@ internal sealed class FakeReferralMemberRepository : IReferralMemberRepository
 
     public int PageRowCount { get; set; }
 
+    public List<ReferralMemberReportViewModel> Data { get; set; } = [];
+
+    public List<(int Offset, int BatchSize)> BatchCalls { get; } = [];
+
     public string? LastCountStartDate { get; private set; }
 
     public string? LastCountEndDate { get; private set; }
@@ -150,9 +198,19 @@ internal sealed class FakeReferralMemberRepository : IReferralMemberRepository
         LastPageSource = searchCondition.EncounterSource;
         LastPageNumber = searchCondition.PageNumber;
         LastPageSize = searchCondition.PageSize;
-        return Enumerable.Range(0, PageRowCount)
-            .Select(_ => new ReferralMemberReportViewModel())
-            .ToList();
+        return Data.Count > 0
+            ? Data
+            : Enumerable.Range(0, PageRowCount).Select(_ => new ReferralMemberReportViewModel()).ToList();
+    }
+
+    public List<ReferralMemberReportViewModel> GetBatch(
+        SearchReportCondition searchCondition, int offset, int batchSize)
+    {
+        BatchCalls.Add((offset, batchSize));
+        LastPageSource = searchCondition.EncounterSource;
+        LastPageNumber = offset / batchSize + 1;
+        LastPageSize = batchSize;
+        return Data.Skip(offset).Take(batchSize).ToList();
     }
 }
 
@@ -167,6 +225,8 @@ internal sealed class FakeSafeNeedleRepository : ISafeNeedleRepository
     public Exception? CountException { get; set; }
 
     public List<SafeNeedleReportViewModel> Data { get; set; } = [];
+
+    public List<(int Offset, int BatchSize)> BatchCalls { get; } = [];
 
     public string? LastStartDate { get; private set; }
 
@@ -208,6 +268,17 @@ internal sealed class FakeSafeNeedleRepository : ISafeNeedleRepository
         LastPageNumber = searchCondition.PageNumber;
         LastPageSize = searchCondition.PageSize;
         return Data;
+    }
+
+    public List<SafeNeedleReportViewModel> GetBatch(
+        SearchReportCondition searchCondition, int offset, int batchSize)
+    {
+        BatchCalls.Add((offset, batchSize));
+        LastStartDate = searchCondition.StartDate;
+        LastEndDate = searchCondition.EndDate;
+        LastSource = searchCondition.EncounterSource;
+        LastPrefix = searchCondition.StationOrBedPrefix;
+        return Data.Skip(offset).Take(batchSize).ToList();
     }
 }
 

@@ -1,10 +1,8 @@
 using System.Globalization;
 using System.Reflection;
-using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Spreadsheet;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using MiniExcelLibs;
 using OpdAccrRptWeb.Help;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
@@ -15,63 +13,101 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
 {
     public const string ExcelContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-    private readonly IHealthCenterRepository _repository;
+    private static readonly HashSet<string> HealthReportCodes =
+        ["C171", "C172", "C173", "C174", "C18", "C19", "C144"];
+
     private readonly IReportExportJobStore _jobStore;
     private readonly IReportExportQueue _queue;
     private readonly ReportExportOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly IServiceScopeFactory? _scopeFactory;
+    private readonly IReadOnlyDictionary<string, IReportExportDefinition> _definitions;
 
     public ReportExportService(
-        IHealthCenterRepository repository,
+        IHealthCenterRepository healthCenterRepository,
         IReportExportJobStore jobStore,
         IReportExportQueue queue,
         IOptions<ReportExportOptions> options,
         TimeProvider timeProvider,
-        IServiceScopeFactory? scopeFactory = null)
+        IServiceScopeFactory? scopeFactory = null,
+        IReferralMemberRepository? referralMemberRepository = null,
+        ISafeNeedleRepository? safeNeedleRepository = null)
     {
-        _repository = repository;
         _jobStore = jobStore;
         _queue = queue;
         _options = options.Value;
         _timeProvider = timeProvider;
         _scopeFactory = scopeFactory;
+
+        var definitions = new List<IReportExportDefinition>
+        {
+            new ReportExportDefinition<HealthCenterDetailViewModel>(
+                "C171", healthCenterRepository.GetHelthCenterDetailColumns,
+                healthCenterRepository.GetHealthCenterDataCount,
+                healthCenterRepository.GetHealthCenterDataBatch),
+            new ReportExportDefinition<HealthCenterCountViewModel>(
+                "C172", healthCenterRepository.GetHelthCenterCountColumns,
+                healthCenterRepository.GetHealthCenterCountDataCount,
+                healthCenterRepository.GetHealthCenterCountDataBatch),
+            new ReportExportDefinition<HealthCheckupVisits>(
+                "C173", healthCenterRepository.GetHealthCheckupVisitsColumns,
+                healthCenterRepository.GetHealthCheckupVisitsCount,
+                healthCenterRepository.GetHealthCheckupVisitsBatch),
+            new ReportExportDefinition<HealthCenterContractBillingReport>(
+                "C174", healthCenterRepository.GetHealthCenterContractBillingReportColumns,
+                healthCenterRepository.GetHealthCenterContractBillingReportCount,
+                healthCenterRepository.GetHealthCenterContractBillingReportBatch)
+        };
+
+        if (referralMemberRepository is not null)
+        {
+            definitions.Add(new ReportExportDefinition<ReferralMemberReportViewModel>(
+                "C18", referralMemberRepository.GetColumns,
+                referralMemberRepository.GetCount, referralMemberRepository.GetBatch));
+        }
+        if (safeNeedleRepository is not null)
+        {
+            definitions.Add(new ReportExportDefinition<SafeNeedleReportViewModel>(
+                "C19", safeNeedleRepository.GetColumns,
+                safeNeedleRepository.GetCount, safeNeedleRepository.GetBatch));
+        }
+        if (scopeFactory is not null)
+        {
+            definitions.Add(new ReportExportDefinition<C144DebtDetailReportViewModel>(
+                "C144",
+                C144DebtDetailReportService.GetColumns,
+                condition => WithC144Repository(scopeFactory, condition,
+                    static (repository, query) => repository.GetCount(query)),
+                (condition, offset, batchSize) => WithC144Repository(scopeFactory, condition,
+                    (repository, query) => repository.GetBatch(query, offset, batchSize))));
+        }
+        _definitions = definitions.ToDictionary(definition => definition.ReportCode, StringComparer.Ordinal);
     }
 
     public ReportExportDispatchResult Dispatch(SearchReportCondition searchCondition)
     {
-        if (searchCondition.ReportCode == "C144")
-        {
-            using var stream = new MemoryStream();
-            GenerateC144Workbook(searchCondition, stream);
-            string source = searchCondition.Source == C144Sources.Inpatient ? "I" : "O";
-            return new ReportExportDispatchResult(
-                stream.ToArray(),
-                $"C144_{source}_{searchCondition.StartDate}_{searchCondition.EndDate}.xlsx",
-                null);
-        }
         if (searchCondition.ReportCode == "C10")
         {
             using var stream = new MemoryStream();
             GenerateC10Workbook(searchCondition, stream);
             return new ReportExportDispatchResult(
-                stream.ToArray(),
-                $"C10_{_timeProvider.GetUtcNow():yyyyMMdd_HHmmss}.xlsx",
-                null);
+                stream.ToArray(), CreateFileName("C10", _timeProvider.GetUtcNow()), null);
         }
-        var normalized = Normalize(searchCondition);
-        var totalCount = _repository.GetHealthCenterContractBillingReportCount(normalized);
+
+        SearchReportCondition normalized = searchCondition.ReportCode == "C144"
+            ? NormalizeC144(searchCondition)
+            : NormalizeHealthReport(searchCondition);
+        IReportExportDefinition definition = ResolveDefinition(normalized.ReportCode);
+        int totalCount = definition.GetCount(normalized);
         if (totalCount <= _options.SynchronousRowLimit)
         {
             using var stream = new MemoryStream();
             GenerateWorkbook(normalized, stream);
             return new ReportExportDispatchResult(
-                stream.ToArray(),
-                CreateFileName(_timeProvider.GetUtcNow()),
-                null);
+                stream.ToArray(), CreateFileName(normalized.ReportCode!, _timeProvider.GetUtcNow()), null);
         }
 
-        var job = _jobStore.Create(normalized);
+        ReportExportJob job = _jobStore.Create(normalized);
         if (!_queue.TryEnqueue(job))
         {
             _jobStore.Remove(job.JobId);
@@ -84,13 +120,12 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
 
     public ReportExportDownloadResult GetDownload(Guid jobId)
     {
-        var job = _jobStore.Get(jobId);
+        ReportExportJob? job = _jobStore.Get(jobId);
         if (job?.Status != ReportExportJobStatus.Ready)
         {
             return new ReportExportDownloadResult(job, null);
         }
-
-        var path = _jobStore.GetCompletedPath(job);
+        string path = _jobStore.GetCompletedPath(job);
         return File.Exists(path)
             ? new ReportExportDownloadResult(job, new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             : new ReportExportDownloadResult(job, null);
@@ -98,113 +133,76 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
 
     public void GenerateWorkbook(SearchReportCondition searchCondition, Stream destination)
     {
-        if (searchCondition.ReportCode == "C144")
-        {
-            GenerateC144Workbook(searchCondition, destination);
-            return;
-        }
         if (searchCondition.ReportCode == "C10")
         {
             GenerateC10Workbook(searchCondition, destination);
             return;
         }
-        using var document = SpreadsheetDocument.Create(destination, SpreadsheetDocumentType.Workbook, true);
-        var workbookPart = document.AddWorkbookPart();
-        using (var workbookWriter = OpenXmlWriter.Create(workbookPart))
-        {
-            workbookWriter.WriteStartElement(new Workbook());
-            workbookWriter.WriteStartElement(new Sheets());
-            workbookWriter.WriteElement(new Sheet { Name = "C174", SheetId = 1U, Id = "rId1" });
-            workbookWriter.WriteEndElement();
-            workbookWriter.WriteEndElement();
-        }
 
-        var worksheetPart = workbookPart.AddNewPart<WorksheetPart>("rId1");
-        using var worksheetWriter = OpenXmlWriter.Create(worksheetPart);
-        worksheetWriter.WriteStartElement(new Worksheet());
-        worksheetWriter.WriteStartElement(new SheetData());
-
-        var columns = _repository.GetHealthCenterContractBillingReportColumns();
-        WriteRow(worksheetWriter, columns.Select(column => (object?)column.Label));
-
-        var properties = typeof(HealthCenterContractBillingReport)
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .ToDictionary(
-                property => char.ToLowerInvariant(property.Name[0]) + property.Name[1..],
-                StringComparer.OrdinalIgnoreCase);
-        var offset = 0;
-        while (true)
-        {
-            var batch = _repository.GetHealthCenterContractBillingReportBatch(
-                searchCondition,
-                offset,
-                _options.BatchSize);
-            foreach (var item in batch)
-            {
-                WriteRow(worksheetWriter, columns.Select(column => properties[column.Key].GetValue(item)));
-            }
-
-            if (batch.Count < _options.BatchSize)
-            {
-                break;
-            }
-            offset += batch.Count;
-        }
-
-        worksheetWriter.WriteEndElement();
-        worksheetWriter.WriteEndElement();
+        IReportExportDefinition definition = ResolveDefinition(searchCondition.ReportCode);
+        IReadOnlyList<ModelDescriptionsHelper.PropertyMetadata> columns = definition.GetColumns();
+        destination.SaveAs(
+            ProjectRows(definition.ReadRows(searchCondition, _options.BatchSize), columns),
+            sheetName: definition.ReportCode);
     }
 
     private void GenerateC10Workbook(SearchReportCondition condition, Stream destination)
     {
         if (_scopeFactory is null)
+        {
             throw new InvalidOperationException("C10 匯出服務尚未設定 scope factory。");
+        }
         SearchReportCondition normalized = NormalizeC10(condition);
         using IServiceScope scope = _scopeFactory.CreateScope();
         IReportService reportService = scope.ServiceProvider.GetRequiredService<IReportService>();
         ReportDataAndColumns<C10ReceivableDetailRow> result = reportService.ReportC10Async(normalized)
             .GetAwaiter().GetResult();
-
-        using var document = SpreadsheetDocument.Create(destination, SpreadsheetDocumentType.Workbook, true);
-        var workbookPart = document.AddWorkbookPart();
-        using (var workbookWriter = OpenXmlWriter.Create(workbookPart))
-        {
-            workbookWriter.WriteStartElement(new Workbook());
-            workbookWriter.WriteStartElement(new Sheets());
-            workbookWriter.WriteElement(new Sheet { Name = "C10", SheetId = 1U, Id = "rId1" });
-            workbookWriter.WriteEndElement();
-            workbookWriter.WriteEndElement();
-        }
-        var worksheetPart = workbookPart.AddNewPart<WorksheetPart>("rId1");
-        using var worksheetWriter = OpenXmlWriter.Create(worksheetPart);
-        worksheetWriter.WriteStartElement(new Worksheet());
-        worksheetWriter.WriteStartElement(new SheetData());
-        List<ModelDescriptionsHelper.PropertyMetadata> columns = result.Columns ?? [];
-        WriteRow(worksheetWriter, columns.Select(column => (object?)column.Label));
-        var properties = typeof(C10ReceivableDetailRow).GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .ToDictionary(property => char.ToLowerInvariant(property.Name[0]) + property.Name[1..],
-                StringComparer.OrdinalIgnoreCase);
-        foreach (C10ReceivableDetailRow row in result.Data ?? [])
-            WriteRow(worksheetWriter, columns.Select(column => properties[column.Key].GetValue(row)));
-        worksheetWriter.WriteEndElement();
-        worksheetWriter.WriteEndElement();
+        destination.SaveAs(ProjectRows(result.Data ?? [], result.Columns ?? []), sheetName: "C10");
     }
 
-    private void GenerateC144Workbook(SearchReportCondition condition, Stream destination)
+    private IReportExportDefinition ResolveDefinition(string? reportCode)
     {
-        if (_scopeFactory is null)
-            throw new InvalidOperationException("C144 匯出服務尚未設定 scope factory。");
-        SearchReportCondition normalized = NormalizeC144(condition);
-        using IServiceScope scope = _scopeFactory.CreateScope();
-        IC144DebtDetailReportService reportService =
-            scope.ServiceProvider.GetRequiredService<IC144DebtDetailReportService>();
-        IC144XlsxRenderer renderer = scope.ServiceProvider.GetRequiredService<IC144XlsxRenderer>();
-        IReadOnlyList<C144DebtDetailReportViewModel> rows = reportService
-            .QueryAllAsync(normalized).GetAwaiter().GetResult();
-        string sourceLabel = normalized.Source == C144Sources.Inpatient ? "住院" : "門急";
-        C144Query query = C144DebtDetailReportService.CreateQuery(normalized, allowUnpaged: true);
-        byte[] workbook = renderer.Render(rows, $"{sourceLabel} {query.StartDate}~{query.EndDate}");
-        destination.Write(workbook);
+        if (reportCode is null || !_definitions.TryGetValue(reportCode, out IReportExportDefinition? definition))
+        {
+            throw new ArgumentException("不支援此報表的 Excel 匯出。", nameof(reportCode));
+        }
+        return definition;
+    }
+
+    internal static SearchReportCondition NormalizeHealthReport(SearchReportCondition condition)
+    {
+        if (condition.ReportCode is null || !HealthReportCodes.Contains(condition.ReportCode))
+        {
+            throw new ArgumentException("不支援此報表的 Excel 匯出。", nameof(condition));
+        }
+        if (!DateOnly.TryParseExact(condition.StartDate, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateOnly startDate)
+            || !DateOnly.TryParseExact(condition.EndDate, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateOnly endDate)
+            || startDate > endDate)
+        {
+            throw new ArgumentException("請輸入有效的起始日期與截止日期。", nameof(condition));
+        }
+        if (condition.ReportCode == "C18"
+            && (!EncounterSources.IsSupported(condition.EncounterSource) || startDate.Year != endDate.Year))
+        {
+            throw new ArgumentException("C18 匯出條件不正確。", nameof(condition));
+        }
+        if (condition.ReportCode == "C19"
+            && (!EncounterSources.IsSupported(condition.EncounterSource) || startDate != endDate))
+        {
+            throw new ArgumentException("C19 匯出條件不正確。", nameof(condition));
+        }
+        return new SearchReportCondition
+        {
+            ReportCode = condition.ReportCode,
+            StartDate = DateTimeExtensions.ToRocDateString(startDate.ToDateTime(TimeOnly.MinValue)),
+            EndDate = DateTimeExtensions.ToRocDateString(endDate.ToDateTime(TimeOnly.MinValue)),
+            EncounterSource = condition.EncounterSource,
+            StationOrBedPrefix = string.IsNullOrWhiteSpace(condition.StationOrBedPrefix)
+                ? null
+                : condition.StationOrBedPrefix.Trim()
+        };
     }
 
     internal static SearchReportCondition NormalizeC144(SearchReportCondition condition)
@@ -212,13 +210,21 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
         _ = C144DebtDetailReportService.CreateQuery(condition, allowUnpaged: true);
         return new SearchReportCondition
         {
-            ReportCode = "C144",
-            StartDate = condition.StartDate,
-            EndDate = condition.EndDate,
-            Source = condition.Source,
-            PageNumber = 1,
-            PageSize = 10
+            ReportCode = "C144", StartDate = condition.StartDate, EndDate = condition.EndDate,
+            Source = condition.Source, PageNumber = 1, PageSize = 10
         };
+    }
+
+    private static TResult WithC144Repository<TResult>(
+        IServiceScopeFactory scopeFactory,
+        SearchReportCondition condition,
+        Func<IC144DebtDetailReportRepository, C144Query, TResult> action)
+    {
+        using IServiceScope scope = scopeFactory.CreateScope();
+        IC144DebtDetailReportRepository repository =
+            scope.ServiceProvider.GetRequiredService<IC144DebtDetailReportRepository>();
+        C144Query query = C144DebtDetailReportService.CreateQuery(condition, allowUnpaged: true);
+        return action(repository, query);
     }
 
     internal static SearchReportCondition NormalizeC10(SearchReportCondition condition)
@@ -227,79 +233,67 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
                 DateTimeStyles.None, out DateOnly start)
             || !DateOnly.TryParseExact(condition.EndDate, "yyyy-MM-dd", CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out DateOnly end)
-            || start > end
-            || !C10Sources.IsSupported(condition.Source)
+            || start > end || !C10Sources.IsSupported(condition.Source)
             || !C10RoomScopes.IsSupported(condition.RoomScope)
             || condition.Source == C10Sources.Inpatient && condition.RoomScope != C10RoomScopes.All)
+        {
             throw new ArgumentException("C10 匯出條件不正確。", nameof(condition));
+        }
         return new SearchReportCondition
         {
-            ReportCode = "C10",
-            StartDate = condition.StartDate,
-            EndDate = condition.EndDate,
-            Source = condition.Source,
-            RoomScope = condition.RoomScope,
+            ReportCode = "C10", StartDate = condition.StartDate, EndDate = condition.EndDate,
+            Source = condition.Source, RoomScope = condition.RoomScope,
             MedicalRecordNo = string.IsNullOrWhiteSpace(condition.MedicalRecordNo)
-                ? null
-                : condition.MedicalRecordNo.Trim().ToUpperInvariant(),
-            PageNumber = 1,
-            PageSize = int.MaxValue
+                ? null : condition.MedicalRecordNo.Trim().ToUpperInvariant(),
+            PageNumber = 1, PageSize = int.MaxValue
         };
     }
 
-    internal static SearchReportCondition Normalize(SearchReportCondition condition)
-    {
-        if (condition.ReportCode != "C174")
-        {
-            throw new ArgumentException("僅支援 C174 報表匯出。", nameof(condition));
-        }
-        if (!DateOnly.TryParseExact(condition.StartDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var startDate)
-            || !DateOnly.TryParseExact(condition.EndDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var endDate)
-            || startDate > endDate)
-        {
-            throw new ArgumentException("請輸入有效的起始日期與截止日期。", nameof(condition));
-        }
+    internal static string CreateFileName(string reportCode, DateTimeOffset timestamp) =>
+        $"{reportCode}_{timestamp:yyyyMMdd_HHmmss}.xlsx";
 
-        return new SearchReportCondition
+    internal static string CreateFileName(DateTimeOffset timestamp) => CreateFileName("C174", timestamp);
+
+    private static IEnumerable<IDictionary<string, object?>> ProjectRows<T>(
+        IEnumerable<T> rows,
+        IReadOnlyList<ModelDescriptionsHelper.PropertyMetadata> columns)
+    {
+        Dictionary<string, PropertyInfo> properties = typeof(T)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .ToDictionary(property => char.ToLowerInvariant(property.Name[0]) + property.Name[1..],
+                StringComparer.OrdinalIgnoreCase);
+        foreach (T row in rows)
         {
-            ReportCode = "C174",
-            StartDate = DateTimeExtensions.ToRocDateString(startDate.ToDateTime(TimeOnly.MinValue)),
-            EndDate = DateTimeExtensions.ToRocDateString(endDate.ToDateTime(TimeOnly.MinValue))
-        };
+            var projected = new Dictionary<string, object?>(columns.Count, StringComparer.Ordinal);
+            foreach (ModelDescriptionsHelper.PropertyMetadata column in columns)
+            {
+                projected[column.Label] = row is null ? null : properties[column.Key].GetValue(row);
+            }
+            yield return projected;
+        }
     }
 
-    internal static string CreateFileName(DateTimeOffset timestamp) =>
-        $"C174_{timestamp:yyyyMMdd_HHmmss}.xlsx";
-
-    private static void WriteRow(OpenXmlWriter writer, IEnumerable<object?> values)
+    private static IEnumerable<IDictionary<string, object?>> ProjectRows(
+        IEnumerable<object> rows,
+        IReadOnlyList<ModelDescriptionsHelper.PropertyMetadata> columns)
     {
-        writer.WriteStartElement(new Row());
-        foreach (var value in values)
+        Dictionary<Type, Dictionary<string, PropertyInfo>> propertyCache = [];
+        foreach (object row in rows)
         {
-            if (value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal)
+            Type type = row.GetType();
+            if (!propertyCache.TryGetValue(type, out Dictionary<string, PropertyInfo>? properties))
             {
-                writer.WriteElement(new Cell
-                {
-                    DataType = CellValues.Number,
-                    CellValue = new CellValue(FormatCellValue(value))
-                });
+                properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                    .ToDictionary(property => char.ToLowerInvariant(property.Name[0]) + property.Name[1..],
+                        StringComparer.OrdinalIgnoreCase);
+                propertyCache[type] = properties;
             }
-            else
+            var projected = new Dictionary<string, object?>(columns.Count, StringComparer.Ordinal);
+            foreach (ModelDescriptionsHelper.PropertyMetadata column in columns)
             {
-                writer.WriteElement(new Cell
-                {
-                    DataType = CellValues.InlineString,
-                    InlineString = new InlineString(new Text(FormatCellValue(value)))
-                });
+                projected[column.Label] = properties[column.Key].GetValue(row);
             }
+            yield return projected;
         }
-        writer.WriteEndElement();
     }
-
-    private static string FormatCellValue(object? value) => value switch
-    {
-        null => string.Empty,
-        IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture) ?? string.Empty,
-        _ => value.ToString() ?? string.Empty
-    };
 }

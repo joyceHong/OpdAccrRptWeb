@@ -2,8 +2,9 @@ const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("n
 const root=path.resolve(__dirname,".."),view=fs.readFileSync(path.join(root,"Views/Report/_M3OpdEmergencyDailyReport.cshtml"),"utf8"),preview=fs.readFileSync(path.join(root,"Views/OpdEmergencyDailyReport/Preview.cshtml"),"utf8"),script=fs.readFileSync(path.join(root,"wwwroot/js/reports/m3-opd-emergency-daily-report.js"),"utf8"),app=fs.readFileSync(path.join(root,"wwwroot/js/report-app.js"),"utf8");
 for(const value of ["page-title","panel query-panel","type=\"date\"","_TableSkeleton","empty-result","pagination","預覽／列印","Excel","m3-kpis"])assert.match(view,new RegExp(value));
 assert.doesNotMatch(view,/exportReport\('pdf'\)|>PDF</);
-for(const value of ["門診早","急診白","預約","未到","淨預約","日總","月總","年總"])assert.match(preview,new RegExp(value));
+for(const value of ["門診早","急診白","預約","未到","淨預約","日合計","月合計","年合計"])assert.match(preview,new RegExp(value));
 assert.match(script,/pageNumber:this\.currentPage/);assert.match(script,/this\.runId=null/);assert.match(script,/opd-emergency-daily\/query/);assert.match(script,/opd-emergency-daily\/preview/);assert.match(script,/encodeURIComponent\(this\.runId\)/);assert.doesNotMatch(script,/window\.confirm/);
 assert.match(app,/M3:\s*window\.ReportComponents\.M3OpdEmergencyDailyReport/);assert.match(app,/\/medical-statistics\/opd-emergency-daily/);
+assert.match(preview,/門診初診/);assert.match(preview,/門診複診/);assert.match(preview,/急診初診/);assert.match(preview,/急診複診/);assert.match(preview,/門急診合計/);assert.match(preview,/m3-total-row/);
 const window={ReportComponents:{}};vm.runInNewContext(script,{window,document:{}});const data=window.ReportComponents.M3OpdEmergencyDailyReport.data.call({defaultStartDate:"2026-09-29"});assert.equal(data.form.reportDate,"2026-09-28");
 console.log("m3 opd emergency daily UI tests passed");

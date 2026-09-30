@@ -349,7 +349,10 @@
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
-            canExport() { return ["C10", "C144", "C174"].includes(this.selectedReport.code) && this.hasResults && !this.isExporting; },
+            canExport() {
+                return ["C10", "C144", "C171", "C172", "C173", "C174", "C18", "C19"]
+                    .includes(this.selectedReport.code) && this.hasResults && !this.isExporting;
+            },
             isC13() { return this.reportConfiguration.c13 === true; },
             isC15() { return this.reportConfiguration.c15 === true; },
             isC16() { return this.reportConfiguration.c16 === true; },
@@ -1013,6 +1016,10 @@
                             startDate: this.form.startDate,
                             endDate: this.form.endDate,
                             source: this.isC10 || this.isC144 ? this.form.encounterSource : undefined,
+                            encounterSource: ["C18", "C19"].includes(this.selectedReport.code)
+                                ? this.form.encounterSource : undefined,
+                            stationOrBedPrefix: this.selectedReport.code === "C19"
+                                ? this.form.stationOrBedPrefix.trim() || undefined : undefined,
                             roomScope: this.isC10 ? this.form.roomScope : undefined,
                             medicalRecordNo: this.isC10 && this.form.medicalRecordNo.trim()
                                 ? this.form.medicalRecordNo.trim() : undefined

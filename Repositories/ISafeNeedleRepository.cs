@@ -10,4 +10,9 @@ public interface ISafeNeedleRepository
     int GetCount(SearchReportCondition searchCondition);
 
     List<SafeNeedleReportViewModel> GetPage(SearchReportCondition searchCondition);
+
+    List<SafeNeedleReportViewModel> GetBatch(
+        SearchReportCondition searchCondition,
+        int offset,
+        int batchSize);
 }

@@ -71,47 +71,61 @@ internal sealed class BackgroundReportExportService : BackgroundService
 
     private async Task ProcessQueue(CancellationToken stoppingToken)
     {
-        await foreach (var job in _workQueue.ReadAllAsync(stoppingToken))
+        try
         {
-            var temporaryPath = _jobStore.GetTemporaryPath(job.JobId);
-            try
+            await foreach (var job in _workQueue.ReadAllAsync(stoppingToken))
             {
-                _jobStore.MarkRunning(job.JobId);
-                await using (var output = new FileStream(
-                    temporaryPath,
-                    FileMode.CreateNew,
-                    FileAccess.ReadWrite,
-                    FileShare.None,
-                    bufferSize: 65_536,
-                    useAsync: true))
+                var temporaryPath = _jobStore.GetTemporaryPath(job.JobId);
+                string? completedPath = null;
+                try
                 {
-                    _workbookGenerator.GenerateWorkbook(job.SearchCondition, output);
-                    await output.FlushAsync(stoppingToken);
-                }
+                    _jobStore.MarkRunning(job.JobId);
+                    await using (var output = new FileStream(
+                        temporaryPath,
+                        FileMode.CreateNew,
+                        FileAccess.ReadWrite,
+                        FileShare.None,
+                        bufferSize: 65_536,
+                        useAsync: true))
+                    {
+                        _workbookGenerator.GenerateWorkbook(job.SearchCondition, output);
+                        await output.FlushAsync(stoppingToken);
+                    }
 
-                var fileName = $"C174_{_timeProvider.GetUtcNow():yyyyMMdd_HHmmss}_{job.JobId:N}.xlsx";
-                var completedJob = new ReportExportJob
+                    var reportCode = string.IsNullOrWhiteSpace(job.SearchCondition.ReportCode)
+                        ? "Report"
+                        : job.SearchCondition.ReportCode;
+                    var fileName = $"{reportCode}_{_timeProvider.GetUtcNow():yyyyMMdd_HHmmss}_{job.JobId:N}.xlsx";
+                    var completedJob = new ReportExportJob
+                    {
+                        JobId = job.JobId,
+                        SearchCondition = job.SearchCondition,
+                        CreatedAt = job.CreatedAt,
+                        Status = ReportExportJobStatus.Running,
+                        FileName = fileName
+                    };
+                    completedPath = _jobStore.GetCompletedPath(completedJob);
+                    File.Move(temporaryPath, completedPath, true);
+                    _jobStore.MarkReady(job.JobId, fileName);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
-                    JobId = job.JobId,
-                    SearchCondition = job.SearchCondition,
-                    CreatedAt = job.CreatedAt,
-                    Status = ReportExportJobStatus.Running,
-                    FileName = fileName
-                };
-                var completedPath = _jobStore.GetCompletedPath(completedJob);
-                File.Move(temporaryPath, completedPath, true);
-                _jobStore.MarkReady(job.JobId, fileName);
+                    TryMarkFailed(job.JobId, "網站已停止，請重新申請匯出。");
+                    TryDeleteFile(temporaryPath, job.JobId);
+                    TryDeleteFile(completedPath, job.JobId);
+                    return;
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogError(exception, "背景報表匯出失敗。JobId={JobId}, ReportCode={ReportCode}", job.JobId, job.SearchCondition.ReportCode);
+                    TryMarkFailed(job.JobId, "報表匯出失敗，請稍後重新申請。");
+                    TryDeleteFile(temporaryPath, job.JobId);
+                    TryDeleteFile(completedPath, job.JobId);
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                TryMarkFailed(job.JobId, "網站已停止，請重新申請匯出。");
-                throw;
-            }
-            catch (Exception exception)
-            {
-                _logger.LogError(exception, "背景報表匯出失敗。JobId={JobId}, ReportCode={ReportCode}", job.JobId, job.SearchCondition.ReportCode);
-                TryMarkFailed(job.JobId, "報表匯出失敗，請稍後重新申請。");
-            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -145,6 +159,21 @@ internal sealed class BackgroundReportExportService : BackgroundService
         catch (Exception exception)
         {
             _logger.LogWarning(exception, "無法更新失敗的報表匯出工作。JobId={JobId}", jobId);
+        }
+    }
+
+    private void TryDeleteFile(string? path, Guid jobId)
+    {
+        try
+        {
+            if (path is not null && File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "無法刪除失敗匯出的檔案。JobId={JobId}, Path={Path}", jobId, path);
         }
     }
 }

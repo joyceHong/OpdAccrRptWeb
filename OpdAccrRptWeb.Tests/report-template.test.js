@@ -1030,6 +1030,56 @@ async function verifiesC174BackgroundExportPollsAndStopsAtReady() {
     assert.equal(context.validationMessage, "");
 }
 
+async function verifiesHealthExportPayloadKeepsReportSpecificFilters() {
+    const requests = [];
+    global.fetch = async (_url, options) => {
+        requests.push(JSON.parse(options.body));
+        return {
+            status: 200,
+            blob: async () => ({}),
+            headers: { get: () => null }
+        };
+    };
+    const base = {
+        canExport: true,
+        validationMessage: "",
+        exportJob: null,
+        isExporting: false,
+        downloadBlob: () => {},
+        $emit: () => {}
+    };
+
+    await component.methods.exportResults.call({
+        ...base,
+        selectedReport: { code: "C18" },
+        isC10: false,
+        isC144: false,
+        form: { startDate: "2026-01-01", endDate: "2026-12-31", encounterSource: "Emergency" }
+    });
+    await component.methods.exportResults.call({
+        ...base,
+        selectedReport: { code: "C19" },
+        isC10: false,
+        isC144: false,
+        form: {
+            startDate: "2026-08-05", endDate: "2026-08-05",
+            encounterSource: "Inpatient", stationOrBedPrefix: " 7A "
+        }
+    });
+    await component.methods.exportResults.call({
+        ...base,
+        selectedReport: { code: "C144" },
+        isC10: false,
+        isC144: true,
+        form: { startDate: "2026-08-01", endDate: "2026-08-31", encounterSource: "OpdEr" }
+    });
+
+    assert.equal(requests[0].encounterSource, "Emergency");
+    assert.equal(requests[1].encounterSource, "Inpatient");
+    assert.equal(requests[1].stationOrBedPrefix, "7A");
+    assert.equal(requests[2].source, "OpdEr");
+}
+
 function verifiesExportStatusMarkupAndUnmountCleanup() {
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     assert.match(markup, /role="status"/);
@@ -1496,7 +1546,7 @@ async function verifiesC144SharedQueryPagingAndExportContract() {
     const templateSource = fs.readFileSync("wwwroot/js/reports/report-template.js", "utf8");
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     assert.match(appSource, /C144:\s*window\.ReportComponents\.ReportTemplate/);
-    assert.match(templateSource, /\["C10",\s*"C144",\s*"C174"\]/);
+    assert.match(templateSource, /\["C10",\s*"C144",\s*"C171",\s*"C172",\s*"C173",\s*"C174",\s*"C18",\s*"C19"\]/);
     assert.match(templateSource, /this\.isC10 \|\| this\.isC144 \? this\.form\.encounterSource/);
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
 }
@@ -1743,6 +1793,7 @@ verifiesC171RequestsServerPages()
     .then(verifiesOtherReportsRetainClientSlicing)
     .then(verifiesC174SynchronousExportDownloadsBlob)
     .then(verifiesC174BackgroundExportPollsAndStopsAtReady)
+    .then(verifiesHealthExportPayloadKeepsReportSpecificFilters)
     .then(verifiesExportStatusMarkupAndUnmountCleanup)
     .then(verifiesLoadingStateAndExclusiveResultMarkup)
     .then(verifiesAccessibleLoadingMarkup)

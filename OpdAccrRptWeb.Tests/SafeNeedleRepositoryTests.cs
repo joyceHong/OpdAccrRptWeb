@@ -150,6 +150,17 @@ public sealed class SafeNeedleRepositoryTests
         }));
     }
 
+    [Fact]
+    public void GetBatch_InvalidBounds_ThrowsBeforeOpeningConnection()
+    {
+        var provider = new ThrowingConnectionStringProvider();
+        var repository = new SafeNeedleRepository(provider);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => repository.GetBatch(
+            new SearchReportCondition { EncounterSource = EncounterSources.Emergency }, -1, 5_000));
+        Assert.Equal(0, provider.Calls);
+    }
+
     private static T ReadProperty<T>(object value, string name) =>
         (T)value.GetType().GetProperty(name)!.GetValue(value)!;
 

@@ -118,6 +118,17 @@ public sealed class ReferralMemberRepositoryTests
         Assert.Equal(((long)int.MaxValue - 1) * 50, ReadProperty<long>(parameters, "rowOffset"));
     }
 
+    [Fact]
+    public void GetBatch_InvalidBounds_ThrowsBeforeOpeningConnection()
+    {
+        var provider = new ThrowingConnectionStringProvider();
+        var repository = new ReferralMemberRepository(provider);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => repository.GetBatch(
+            new SearchReportCondition { EncounterSource = EncounterSources.Emergency }, -1, 5_000));
+        Assert.Equal(0, provider.Calls);
+    }
+
     private static void AssertSharedRules(string sql)
     {
         Assert.Contains("JOIN GenReferralMemberTbl f", sql);

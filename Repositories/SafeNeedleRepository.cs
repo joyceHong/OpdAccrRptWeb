@@ -115,6 +115,19 @@ public sealed class SafeNeedleRepository : ISafeNeedleRepository
             CreateParameters(searchCondition)).ToList();
     }
 
+    public List<SafeNeedleReportViewModel> GetBatch(
+        SearchReportCondition searchCondition,
+        int offset,
+        int batchSize)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+        using IDbConnection connection = CreateConnection();
+        return connection.Query<SafeNeedleReportViewModel>(
+            GetPageSql(searchCondition.EncounterSource),
+            CreateParameters(searchCondition, offset, batchSize)).ToList();
+    }
+
     internal static string GetBaseSql(string? encounterSource) => encounterSource switch
     {
         EncounterSources.Emergency => OutpatientEmergencySql,
@@ -148,6 +161,26 @@ public sealed class SafeNeedleRepository : ISafeNeedleRepository
                 : $"{searchCondition.StationOrBedPrefix.Trim()}%",
             rowOffset = ((long)pageNumber - 1) * pageSize,
             pageSize
+        };
+    }
+
+    private static object CreateParameters(
+        SearchReportCondition searchCondition,
+        int offset,
+        int batchSize)
+    {
+        GetBaseSql(searchCondition.EncounterSource);
+        string reportDate = searchCondition.StartDate
+            ?? throw new ArgumentException("C19 缺少查詢日期。", nameof(searchCondition));
+        return new
+        {
+            orderDateStart = $"{reportDate}0000",
+            orderDateEnd = $"{reportDate}9999",
+            stationPrefix = string.IsNullOrWhiteSpace(searchCondition.StationOrBedPrefix)
+                ? null
+                : $"{searchCondition.StationOrBedPrefix.Trim()}%",
+            rowOffset = offset,
+            pageSize = batchSize
         };
     }
 

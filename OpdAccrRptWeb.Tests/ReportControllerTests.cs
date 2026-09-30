@@ -375,7 +375,7 @@ public sealed class ReportControllerTests
     }
 
     [Theory]
-    [InlineData("C171", "2026-08-01", "2026-08-31")]
+    [InlineData("C170", "2026-08-01", "2026-08-31")]
     [InlineData("C174", "bad", "2026-08-31")]
     [InlineData("C174", "2026-09-01", "2026-08-31")]
     public void Export_InvalidRequest_ReturnsBadRequestWithoutDispatch(string code, string startDate, string endDate)
@@ -384,6 +384,71 @@ public sealed class ReportControllerTests
         var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>(), exportService: exportService);
 
         var result = controller.Export(new SearchReportCondition { ReportCode = code, StartDate = startDate, EndDate = endDate });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(0, exportService.DispatchCalls);
+    }
+
+    [Theory]
+    [InlineData("C171")]
+    [InlineData("C172")]
+    [InlineData("C173")]
+    [InlineData("C174")]
+    public void Export_HealthReportCodeWithValidDates_Dispatches(string reportCode)
+    {
+        var exportService = new FakeReportExportService();
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>(), exportService: exportService);
+
+        IActionResult result = controller.Export(new SearchReportCondition
+        {
+            ReportCode = reportCode,
+            StartDate = "2026-08-01",
+            EndDate = "2026-08-31"
+        });
+
+        Assert.IsType<FileContentResult>(result);
+        Assert.Equal(1, exportService.DispatchCalls);
+    }
+
+    [Theory]
+    [InlineData("C18", "Emergency", "2026-08-01", "2026-08-31")]
+    [InlineData("C19", "Inpatient", "2026-08-05", "2026-08-05")]
+    public void Export_FilteredHealthReportWithValidFilters_Dispatches(
+        string reportCode, string source, string startDate, string endDate)
+    {
+        var exportService = new FakeReportExportService();
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>(), exportService: exportService);
+
+        IActionResult result = controller.Export(new SearchReportCondition
+        {
+            ReportCode = reportCode,
+            EncounterSource = source,
+            StartDate = startDate,
+            EndDate = endDate
+        });
+
+        Assert.IsType<FileContentResult>(result);
+        Assert.Equal(1, exportService.DispatchCalls);
+    }
+
+    [Theory]
+    [InlineData("C18", null, "2026-08-01", "2026-08-31")]
+    [InlineData("C18", "Emergency", "2025-12-31", "2026-01-01")]
+    [InlineData("C19", null, "2026-08-05", "2026-08-05")]
+    [InlineData("C19", "Emergency", "2026-08-05", "2026-08-06")]
+    public void Export_FilteredHealthReportWithInvalidFilters_DoesNotDispatch(
+        string reportCode, string? source, string startDate, string endDate)
+    {
+        var exportService = new FakeReportExportService();
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>(), exportService: exportService);
+
+        IActionResult result = controller.Export(new SearchReportCondition
+        {
+            ReportCode = reportCode,
+            EncounterSource = source,
+            StartDate = startDate,
+            EndDate = endDate
+        });
 
         Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal(0, exportService.DispatchCalls);

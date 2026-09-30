@@ -11,6 +11,8 @@
     "test:m1": "node OpdAccrRptWeb.Tests/m1-doctor-daily-report.test.js",
     "test:m2": "node OpdAccrRptWeb.Tests/m2-doctor-monthly-report.test.js",
     "test:m3": "node OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js"
+    ,"test:app": "node OpdAccrRptWeb.Tests/report-app-bootstrap.test.js"
+    ,"test:q1": "node OpdAccrRptWeb.Tests/opd-price-query.test.js"
   },
   "dependencies": {
     "vue": "3.5.18",

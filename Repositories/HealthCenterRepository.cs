@@ -57,6 +57,25 @@ namespace OpdAccrRptWeb.Repositories
             });
         }
 
+        public List<HealthCenterDetailViewModel> GetHealthCenterDataBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(offset);
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+            using IDbConnection connection = CreateConnection();
+            return connection.Query<HealthCenterDetailViewModel>(
+                C171PageSql,
+                new
+                {
+                    strSDate = searchCondition.StartDate,
+                    strEDate = searchCondition.EndDate,
+                    rowOffset = offset,
+                    pageSize = batchSize
+                }).ToList();
+        }
+
         internal int ExecuteC171Count(SearchReportCondition searchCondition, Func<int> query)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -346,6 +365,82 @@ namespace OpdAccrRptWeb.Repositories
         {
             return ModelDescriptionsHelper.GetPropertyDescriptions<HealthCenterCountViewModel>();
         }
+
+        public int GetHealthCenterCountDataCount(SearchReportCondition searchCondition)
+        {
+            using IDbConnection connection = CreateConnection();
+            return connection.ExecuteScalar<int>(
+                C172CountSql,
+                new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate });
+        }
+
+        public List<HealthCenterCountViewModel> GetHealthCenterCountDataBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(offset);
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+            using IDbConnection connection = CreateConnection();
+            return connection.Query<HealthCenterCountViewModel>(
+                C172BatchSql,
+                new
+                {
+                    strSDate = searchCondition.StartDate,
+                    strEDate = searchCondition.EndDate,
+                    rowOffset = offset,
+                    pageSize = batchSize
+                }).ToList();
+        }
+
+        internal const string C172ExportBaseSql = @"SELECT
+                    RTRIM(s.chnewsecno) AS CenterCode,
+                    b.chop1date AS VisitDate,
+                    RTRIM(o.chop4ordno) AS BillingCode,
+                    RTRIM(o.chop4ordname) AS BillingName,
+                    SUM(o.rlop4sub1 + o.rlop4sub2 + o.rlop4sub3 + o.rlop4sub4 + o.rlop4sub5 + o.rlop4sub6) AS TotalAmount
+                FROM opdordtbl o
+                JOIN opdbasictbl b
+                  ON o.chop1date = b.chop1date
+                 AND o.chop1time = b.chop1time
+                 AND o.chop1room = b.chop1room
+                 AND o.intop1no = b.intop1no
+                JOIN gensectiontbl s ON b.chop1sec = s.chsecno
+                WHERE b.chop1date BETWEEN :strSDate AND :strEDate
+                  AND (b.chop1room IN ('6F4', '6021') OR b.chop1sec LIKE '0294%')
+                  AND b.chop1mrno NOT IN ('C36979', '1000000')
+                  AND o.chop4stat <> 'DC'
+                  AND o.chop4ordno NOT IN ('ACC-69', 'ACC-64')
+                GROUP BY s.chnewsecno, b.chop1date, o.chop4ordno, o.chop4ordname
+                HAVING SUM(o.rlop4sub1 + o.rlop4sub2 + o.rlop4sub3 + o.rlop4sub4 + o.rlop4sub5 + o.rlop4sub6) <> 0
+                UNION ALL
+                SELECT
+                    RTRIM(s.chnewsecno) AS CenterCode,
+                    b.chop1date AS VisitDate,
+                    RTRIM(d.chop3drgno) AS BillingCode,
+                    RTRIM(d.chop3drgname) AS BillingName,
+                    SUM(d.rlop3sub1 + d.rlop3sub2 + d.rlop3sub3 + d.rlop3sub4 + d.rlop3sub5 + d.rlop3sub6) AS TotalAmount
+                FROM opddrgtbl d
+                JOIN opdbasictbl b
+                  ON d.chop1date = b.chop1date
+                 AND d.chop1time = b.chop1time
+                 AND d.chop1room = b.chop1room
+                 AND d.intop1no = b.intop1no
+                JOIN gensectiontbl s ON b.chop1sec = s.chsecno
+                WHERE b.chop1date BETWEEN :strSDate AND :strEDate
+                  AND (b.chop1room IN ('6F4', '6021') OR b.chop1sec LIKE '0294%')
+                  AND b.chop1mrno NOT IN ('C36979', '1000000')
+                  AND d.chop3stat <> 'DC'
+                GROUP BY s.chnewsecno, b.chop1date, d.chop3drgno, d.chop3drgname
+                HAVING SUM(d.rlop3sub1 + d.rlop3sub2 + d.rlop3sub3 + d.rlop3sub4 + d.rlop3sub5 + d.rlop3sub6) <> 0";
+
+        internal static readonly string C172CountSql =
+            $"SELECT COUNT(*) FROM ({C172ExportBaseSql}) C172Rows";
+
+        internal static readonly string C172BatchSql = $@"SELECT *
+            FROM ({C172ExportBaseSql}) C172Rows
+            ORDER BY CenterCode, VisitDate, BillingCode, BillingName
+            OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
         #endregion
 
         #region C173 健檢人次的統計
@@ -410,6 +505,68 @@ namespace OpdAccrRptWeb.Repositories
                 return null;
             }
         }
+
+        public int GetHealthCheckupVisitsCount(SearchReportCondition searchCondition)
+        {
+            using IDbConnection connection = CreateConnection();
+            return connection.ExecuteScalar<int>(
+                C173CountSql,
+                new { strSDate = searchCondition.StartDate, strEDate = searchCondition.EndDate });
+        }
+
+        public List<HealthCheckupVisits> GetHealthCheckupVisitsBatch(
+            SearchReportCondition searchCondition,
+            int offset,
+            int batchSize)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(offset);
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+            using IDbConnection connection = CreateConnection();
+            return connection.Query<HealthCheckupVisits>(
+                C173BatchSql,
+                new
+                {
+                    strSDate = searchCondition.StartDate,
+                    strEDate = searchCondition.EndDate,
+                    rowOffset = offset,
+                    pageSize = batchSize
+                }).ToList();
+        }
+
+        internal const string C173ExportBaseSql = @"SELECT
+                SUBSTR(chop1date, 1, 5) AS Chop1date,
+                RTRIM(chop1sec) AS Chop1sec,
+                COUNT(*) AS Visits
+            FROM (
+                SELECT DISTINCT
+                    b.chop1date,
+                    b.chop1time,
+                    b.chop1room,
+                    b.intop1no,
+                    s.chnewsecno AS chop1sec
+                FROM opdbasictbl b
+                JOIN opdordtbl o
+                  ON b.chop1date = o.chop1date
+                 AND b.chop1time = o.chop1time
+                 AND b.chop1room = o.chop1room
+                 AND b.intop1no = o.intop1no
+                JOIN gensectiontbl s ON b.chop1sec = s.chsecno
+                WHERE b.chop1date BETWEEN :strSDate AND :strEDate
+                  AND b.chop1room NOT IN ('AAAA', 'RRRR', 'SSSS', 'ZZZZ')
+                  AND b.chop1mrno NOT IN ('C36979', '1000000')
+                  AND b.chop1sec LIKE '0294%'
+                  AND RTRIM(o.chop4dcdate) IS NULL
+                  AND o.chop4stat <> 'DC'
+            )
+            GROUP BY SUBSTR(chop1date, 1, 5), chop1sec";
+
+        internal static readonly string C173CountSql =
+            $"SELECT COUNT(*) FROM ({C173ExportBaseSql}) C173Rows";
+
+        internal static readonly string C173BatchSql = $@"SELECT *
+            FROM ({C173ExportBaseSql}) C173Rows
+            ORDER BY Chop1date, Chop1sec
+            OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
         #endregion
 
 

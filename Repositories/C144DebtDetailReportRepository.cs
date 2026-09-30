@@ -31,6 +31,14 @@ public sealed class C144DebtDetailReportRepository(
         return ReadRows(command, cancellationToken);
     }
 
+    public List<C144DebtDetailReportViewModel> GetBatch(
+        C144Query query, int offset, int batchSize, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+        return GetPage(query, offset, batchSize, cancellationToken);
+    }
+
     public List<C144DebtDetailReportViewModel> GetAll(
         C144Query query, CancellationToken cancellationToken = default)
     {

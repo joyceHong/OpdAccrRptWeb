@@ -2,15 +2,41 @@
 @{ Layout = null; }
 <section class="m3-print-report">
     <header><h1>@Model.Title</h1><div>查詢日期：@Model.QueryDate　@Model.Weekday</div><div>產表：@Model.GeneratedAt　程式：@Model.ProgramId　使用者：@Model.UserName</div></header>
-    <table class="m3-preview-kpis"><tbody>
-        <tr><th>門診早</th><td>@Model.NineKpis.OutpatientMorning</td><th>門診午</th><td>@Model.NineKpis.OutpatientAfternoon</td><th>門診夜</th><td>@Model.NineKpis.OutpatientNight</td></tr>
-        <tr><th>急診白</th><td>@Model.NineKpis.EmergencyDay</td><th>急診小夜</th><td>@Model.NineKpis.EmergencyEvening</td><th>急診大夜</th><td>@Model.NineKpis.EmergencyNight</td></tr>
-        <tr><th>預約</th><td>@Model.NineKpis.Appointment</td><th>未到</th><td>@Model.NineKpis.NoShow</td><th>淨預約</th><td>@Model.NineKpis.NetAppointment</td></tr>
-    </tbody></table>
-    <table class="m3-preview-table"><thead><tr><th>科別</th><th>名稱</th><th>門初S</th><th>門初H</th><th>門複S</th><th>門複H</th><th>急初S</th><th>急初H</th><th>急複S</th><th>急複H</th><th>日總</th><th>月總</th><th>年總</th></tr></thead><tbody>
-    @foreach (var row in Model.Rows) { <tr><td>@row.DepartmentId</td><td>@row.DepartmentName</td><td>@row.Op1SQty</td><td>@row.Op1HQty</td><td>@row.Op2SQty</td><td>@row.Op2HQty</td><td>@row.Em1SQty</td><td>@row.Em1HQty</td><td>@row.Em2SQty</td><td>@row.Em2HQty</td><td>@row.OEDaySum</td><td>@row.OEMonSum</td><td>@row.OEYearSum</td></tr> }
-    </tbody></table>
+    <table class="m3-preview-table">
+        <thead>
+            <tr><th rowspan="2">科別</th><th colspan="5">門診初診</th><th colspan="5">門診複診</th><th colspan="5">急診初診</th><th colspan="5">急診複診</th><th colspan="5">門急診合計</th></tr>
+            <tr>
+                @for (var group = 0; group < 5; group++) { <th>自費</th><th>健保</th><th>日合計</th><th>月合計</th><th>年合計</th> }
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var row in Model.Rows)
+        {
+            <tr>
+                <td>@row.DepartmentId　@row.DepartmentName</td>
+                <td>@row.Op1SQty</td><td>@row.Op1HQty</td><td>@row.Op1DaySum</td><td>@row.Op1MonQty</td><td>@row.Op1YearQty</td>
+                <td>@row.Op2SQty</td><td>@row.Op2HQty</td><td>@row.Op2DaySum</td><td>@row.Op2MonQty</td><td>@row.Op2YearQty</td>
+                <td>@row.Em1SQty</td><td>@row.Em1HQty</td><td>@row.Em1DaySum</td><td>@row.Em1MonQty</td><td>@row.Em1YearQty</td>
+                <td>@row.Em2SQty</td><td>@row.Em2HQty</td><td>@row.Em2DaySum</td><td>@row.Em2MonQty</td><td>@row.Em2YearQty</td>
+                <td>@row.OESQty</td><td>@row.OEHQty</td><td>@row.OEDaySum</td><td>@row.OEMonSum</td><td>@row.OEYearSum</td>
+            </tr>
+        }
+            <tr class="m3-total-row">
+                <th>總計</th>
+                <td>@Model.Rows.Sum(row => row.Op1SQty)</td><td>@Model.Rows.Sum(row => row.Op1HQty)</td><td>@Model.Rows.Sum(row => row.Op1DaySum)</td><td>@Model.Rows.Sum(row => row.Op1MonQty)</td><td>@Model.Rows.Sum(row => row.Op1YearQty)</td>
+                <td>@Model.Rows.Sum(row => row.Op2SQty)</td><td>@Model.Rows.Sum(row => row.Op2HQty)</td><td>@Model.Rows.Sum(row => row.Op2DaySum)</td><td>@Model.Rows.Sum(row => row.Op2MonQty)</td><td>@Model.Rows.Sum(row => row.Op2YearQty)</td>
+                <td>@Model.Rows.Sum(row => row.Em1SQty)</td><td>@Model.Rows.Sum(row => row.Em1HQty)</td><td>@Model.Rows.Sum(row => row.Em1DaySum)</td><td>@Model.Rows.Sum(row => row.Em1MonQty)</td><td>@Model.Rows.Sum(row => row.Em1YearQty)</td>
+                <td>@Model.Rows.Sum(row => row.Em2SQty)</td><td>@Model.Rows.Sum(row => row.Em2HQty)</td><td>@Model.Rows.Sum(row => row.Em2DaySum)</td><td>@Model.Rows.Sum(row => row.Em2MonQty)</td><td>@Model.Rows.Sum(row => row.Em2YearQty)</td>
+                <td>@Model.Rows.Sum(row => row.OESQty)</td><td>@Model.Rows.Sum(row => row.OEHQty)</td><td>@Model.Rows.Sum(row => row.OEDaySum)</td><td>@Model.Rows.Sum(row => row.OEMonSum)</td><td>@Model.Rows.Sum(row => row.OEYearSum)</td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="m3-summary-stats">
+        <dl><dt>門診早：</dt><dd>@Model.NineKpis.OutpatientMorning</dd><dt>門診午：</dt><dd>@Model.NineKpis.OutpatientAfternoon</dd><dt>門診夜：</dt><dd>@Model.NineKpis.OutpatientNight</dd></dl>
+        <dl><dt>急診白：</dt><dd>@Model.NineKpis.EmergencyDay</dd><dt>急診小夜：</dt><dd>@Model.NineKpis.EmergencyEvening</dd><dt>急診大夜：</dt><dd>@Model.NineKpis.EmergencyNight</dd></dl>
+        <dl><dt>預約人數：</dt><dd>@Model.NineKpis.Appointment</dd><dt>預約未到：</dt><dd>@Model.NineKpis.NoShow</dd><dt>淨預約：</dt><dd>@Model.NineKpis.NetAppointment</dd></dl>
+    </div>
 </section>
 <style>
-.m3-print-report{font-family:"Microsoft JhengHei",sans-serif;font-size:11px}.m3-print-report header{text-align:center;margin-bottom:10px}.m3-print-report h1{margin:0 0 4px}.m3-print-report table{width:100%;border-collapse:collapse;margin-bottom:10px}.m3-print-report th,.m3-print-report td{border:1px solid #555;padding:3px;text-align:right}.m3-print-report th:first-child,.m3-print-report td:first-child,.m3-print-report td:nth-child(2){text-align:left}@@media print{@@page{size:A4 landscape;margin:10mm}}
+.m3-print-report{page:m3-portrait;max-width:100%;font-family:"PMingLiU","Noto Serif TC",serif;font-size:10px}.m3-print-report header{text-align:center;margin-bottom:8px}.m3-print-report h1{margin:0 0 4px;font-size:18px;letter-spacing:.15em}.m3-print-report table{width:100%;border-collapse:collapse;margin-bottom:8px}.m3-print-report th,.m3-print-report td{border:1px solid #333;padding:1px;text-align:right}.m3-preview-table{table-layout:auto;font-size:8px;line-height:1.15}.m3-preview-table thead th{text-align:center;white-space:normal;overflow-wrap:anywhere}.m3-preview-table th:first-child,.m3-preview-table td:first-child{width:1%;text-align:left;white-space:nowrap}.m3-preview-table th:not(:first-child),.m3-preview-table td:not(:first-child){width:auto;white-space:normal;overflow-wrap:anywhere}.m3-total-row{font-weight:700}.m3-summary-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10mm;margin:12px 10mm 0;font-size:11px}.m3-summary-stats dl{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;margin:0}.m3-summary-stats dt{text-align:right}.m3-summary-stats dd{margin:0;text-align:right}@@page m3-portrait{size:A4 portrait;margin:0}@@media print{.m3-preview-table{font-size:8px}}
 </style>

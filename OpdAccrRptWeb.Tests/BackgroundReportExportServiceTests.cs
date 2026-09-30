@@ -55,7 +55,7 @@ public sealed class BackgroundReportExportServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_OpenXmlGenerator_WritesWorkbookToTemporaryFile()
+    public async Task ExecuteAsync_MiniExcelGenerator_WritesWorkbookToTemporaryFile()
     {
         var root = Path.Combine(Path.GetTempPath(), "OpdAccrRptWeb.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -95,6 +95,102 @@ public sealed class BackgroundReportExportServiceTests
         }
     }
 
+    [Fact]
+    public async Task ExecuteAsync_FirstJobFails_ContinuesAndCompletesNextJob()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "OpdAccrRptWeb.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var options = Options.Create(new ReportExportOptions { QueueCapacity = 2, CleanupIntervalMinutes = 60 });
+            var queue = new ReportExportWorkQueue(options);
+            var store = new RecordingStore(root);
+            var service = new BackgroundReportExportService(
+                options, queue, store, new FailFirstWorkbookGenerator(), TimeProvider.System,
+                NullLogger<BackgroundReportExportService>.Instance);
+
+            await service.StartAsync(CancellationToken.None);
+            Assert.True(queue.TryEnqueue(CreateJob()));
+            Assert.True(queue.TryEnqueue(CreateJob()));
+            await store.Ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await service.StopAsync(CancellationToken.None);
+
+            Assert.Equal(2, store.Events.Count(value => value == "Running"));
+            Assert.Contains("Failed", store.Events);
+            Assert.Equal("Ready", store.Events[^1]);
+            Assert.Empty(Directory.GetFiles(root, "*.tmp"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PublishStateFails_RemovesPublishedFileAndCompletesNextJob()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "OpdAccrRptWeb.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var options = Options.Create(new ReportExportOptions { QueueCapacity = 2, CleanupIntervalMinutes = 60 });
+            var queue = new ReportExportWorkQueue(options);
+            var store = new RecordingStore(root) { FailFirstMarkReady = true };
+            var service = new BackgroundReportExportService(
+                options, queue, store, new RecordingWorkbookGenerator(), TimeProvider.System,
+                NullLogger<BackgroundReportExportService>.Instance);
+
+            await service.StartAsync(CancellationToken.None);
+            Assert.True(queue.TryEnqueue(CreateJob()));
+            Assert.True(queue.TryEnqueue(CreateJob()));
+            await store.Ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await service.StopAsync(CancellationToken.None);
+
+            Assert.Contains("Failed", store.Events);
+            Assert.Equal("Ready", store.Events[^1]);
+            Assert.Single(Directory.GetFiles(root, "*.xlsx"));
+            Assert.Empty(Directory.GetFiles(root, "*.tmp"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_StopWhileQueueIsIdle_CompletesWithoutCancellationFailure()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "OpdAccrRptWeb.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var options = Options.Create(new ReportExportOptions { QueueCapacity = 1, CleanupIntervalMinutes = 60 });
+            var service = new BackgroundReportExportService(
+                options,
+                new ReportExportWorkQueue(options),
+                new RecordingStore(root),
+                new RecordingWorkbookGenerator(),
+                TimeProvider.System,
+                NullLogger<BackgroundReportExportService>.Instance);
+
+            await service.StartAsync(CancellationToken.None);
+            await service.StopAsync(CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
     private static ReportExportJob CreateJob() => new()
     {
         JobId = Guid.NewGuid(),
@@ -114,9 +210,28 @@ public sealed class BackgroundReportExportServiceTests
             destination.Write([1, 2, 3]);
     }
 
+    private sealed class FailFirstWorkbookGenerator : IReportWorkbookGenerator
+    {
+        private int _calls;
+
+        public void GenerateWorkbook(SearchReportCondition searchCondition, Stream destination)
+        {
+            if (Interlocked.Increment(ref _calls) == 1)
+            {
+                destination.Write([1, 2, 3]);
+                throw new IOException("simulated write failure");
+            }
+            destination.Write([4, 5, 6]);
+        }
+    }
+
     private sealed class RecordingStore(string root) : IReportExportJobStore
     {
+        private int _markReadyCalls;
+
         public List<string> Events { get; } = [];
+
+        public bool FailFirstMarkReady { get; init; }
 
         public TaskCompletionSource Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -131,6 +246,10 @@ public sealed class BackgroundReportExportServiceTests
         public void MarkRunning(Guid jobId) => Events.Add("Running");
         public void MarkReady(Guid jobId, string fileName)
         {
+            if (FailFirstMarkReady && Interlocked.Increment(ref _markReadyCalls) == 1)
+            {
+                throw new IOException("simulated state publish failure");
+            }
             Events.Add("Ready");
             Ready.TrySetResult();
             Completed.TrySetResult();

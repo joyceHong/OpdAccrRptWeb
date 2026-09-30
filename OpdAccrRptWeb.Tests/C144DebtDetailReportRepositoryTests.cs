@@ -51,4 +51,26 @@ public sealed class C144DebtDetailReportRepositoryTests
         Assert.Equal("1150901", command.Parameters["StartDate"].Value);
         Assert.Equal("1150916", command.Parameters["EndDate"].Value);
     }
+
+    [Fact]
+    public void GetBatch_InvalidBounds_ThrowsBeforeResolvingConnection()
+    {
+        var provider = new ThrowingConnectionStringProvider();
+        var repository = new C144DebtDetailReportRepository(provider);
+        var query = new C144Query("1150901", "1150916", C144Sources.OpdEr, 1, 10);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => repository.GetBatch(query, -1, 5_000));
+        Assert.Equal(0, provider.Calls);
+    }
+
+    private sealed class ThrowingConnectionStringProvider : OpdAccrRptWeb.Infrastructure.IConnectionStringProvider
+    {
+        public int Calls { get; private set; }
+
+        public string GetConnectionString()
+        {
+            Calls++;
+            throw new InvalidOperationException();
+        }
+    }
 }

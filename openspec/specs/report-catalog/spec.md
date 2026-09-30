@@ -39,10 +39,18 @@ The outpatient accounting report catalog SHALL expose C144 as an available `欠�
 - `M2`：醫師看診人數月表
 - `M3`：門急診日報表
 
+M3 SHALL be marked available and SHALL route selection to its Gregorian single-date query controls.
+
 #### Scenario: Browse medical statistics
 
 - **WHEN** 使用者選擇「醫務統計報表」
 - **THEN** 系統 SHALL 顯示醫師看診人數日表、醫師看診人數月表及門急診日報表
+
+#### Scenario: Select M3 from the catalog
+
+- **WHEN** a user selects M3
+- **THEN** the application displays the M3 Gregorian report-date control
+- **AND** the application permits a validated M3 query submission
 
 ---
 ### Requirement: Preserve inactive legacy entry status
@@ -616,3 +624,19 @@ tests:
   - OpdAccrRptWeb.Tests/c5-report.test.js
   - OpdAccrRptWeb.Tests/c3-report.test.js
 -->
+
+---
+### Requirement: Available M1 catalog entry
+The report catalog SHALL expose M1 as an available `醫師看診人數日表` entry in the `醫務統計報表` category and SHALL identify its dedicated query component and route.
+
+#### Scenario: Load the M1 catalog definition
+- **WHEN** the report catalog is built
+- **THEN** M1 is marked available with the display label `M1 醫師看診人數日表`, the medical-statistics category, and the dedicated doctor-daily route
+
+---
+### Requirement: Available M2 catalog entry
+The report catalog SHALL list M2 as an available doctor monthly report in the medical statistics category.
+
+#### Scenario: Read the medical statistics catalog
+- **WHEN** the report catalog is loaded
+- **THEN** M2 is marked available with its doctor-monthly route

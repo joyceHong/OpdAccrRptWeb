@@ -10,4 +10,9 @@ public interface IReferralMemberRepository
     int GetCount(SearchReportCondition searchCondition);
 
     List<ReferralMemberReportViewModel> GetPage(SearchReportCondition searchCondition);
+
+    List<ReferralMemberReportViewModel> GetBatch(
+        SearchReportCondition searchCondition,
+        int offset,
+        int batchSize);
 }

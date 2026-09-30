@@ -887,12 +887,20 @@ public sealed class ReportController : Controller
             ? ValidateC144Condition(searchCondition)
             : null;
         if (c144Validation is not null) return c144Validation;
-        if (searchCondition.ReportCode is not ("C10" or "C144" or "C174")
+        IActionResult? c18Validation = searchCondition.ReportCode == "C18"
+            ? ValidateC18Condition(searchCondition)
+            : null;
+        if (c18Validation is not null) return c18Validation;
+        IActionResult? c19Validation = searchCondition.ReportCode == "C19"
+            ? ValidateC19Condition(searchCondition)
+            : null;
+        if (c19Validation is not null) return c19Validation;
+        if (searchCondition.ReportCode is not ("C10" or "C144" or "C171" or "C172" or "C173" or "C174" or "C18" or "C19")
             || !TryParseDate(searchCondition.StartDate, out var startDate)
             || !TryParseDate(searchCondition.EndDate, out var endDate)
             || startDate > endDate)
         {
-            return BadRequest("僅支援有效日期區間的 C10、C144 或 C174 報表匯出。");
+            return BadRequest("此報表不支援匯出，或日期區間不正確。");
         }
 
         try

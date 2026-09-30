@@ -17,6 +17,7 @@ builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNe
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IOpdPriceTokenService, OpdPriceTokenService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services
@@ -50,6 +51,10 @@ builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, Inpatie
 builder.Services.AddSingleton<IAssistiveDeviceDepositBalanceRepository, AssistiveDeviceDepositBalanceRepository>();
 builder.Services.AddScoped<IC15AssistiveDeviceDepositDetailRepository, C15AssistiveDeviceDepositDetailRepository>();
 builder.Services.AddScoped<IC16ReportRepository, C16ReportRepository>();
+builder.Services.AddScoped<IOpdPriceQueryRepository, OpdPriceQueryRepository>();
+builder.Services.AddScoped<IOpdPriceQueryService, OpdPriceQueryService>();
+builder.Services.AddScoped<IOpdPriceReceiptRenderer, OpdPriceReceiptRenderer>();
+builder.Services.AddSingleton<IOpdPricePatientAccessAuditWriter, OpdPriceSerilogAuditWriter>();
 builder.Services.AddC3ReportServices();
 builder.Services.AddScoped<IC4MaterialReportRepository, C4MaterialReportRepository>();
 builder.Services.AddScoped<IC4MaterialReportService, C4MaterialReportService>();
@@ -108,7 +113,6 @@ builder.Services.AddScoped<IC16ReportService, C16ReportService>();
 builder.Services.AddScoped<IC13HighRiskEmergencyReportService, C13HighRiskEmergencyReportService>();
 builder.Services.AddScoped<IC143AccountingBalanceDebtReportService, C143AccountingBalanceDebtReportService>();
 builder.Services.AddScoped<IC144DebtDetailReportService, C144DebtDetailReportService>();
-builder.Services.AddSingleton<IC144XlsxRenderer, C144XlsxRenderer>();
 builder.Services.AddScoped<IC211ContractBalanceReportService, C211ContractBalanceReportService>();
 builder.Services.AddSingleton<IC212AmountCompatibilityPolicy, C212PreserveDecimalAmountPolicy>();
 builder.Services.AddScoped<IC212BoneBankBalanceReportService, C212BoneBankBalanceReportService>();

@@ -217,6 +217,36 @@ public sealed class HealthCenterRepositoryTests
             batchSize: 5_000));
     }
 
+    [Fact]
+    public void ExportBatchSql_ForC172AndC173_UsesBoundPagingAndDeterministicAggregateOrder()
+    {
+        Assert.Contains("OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY", HealthCenterRepository.C172BatchSql);
+        Assert.Contains("ORDER BY CenterCode, VisitDate, BillingCode, BillingName", HealthCenterRepository.C172BatchSql);
+        Assert.Contains("SUM(", HealthCenterRepository.C172ExportBaseSql);
+        Assert.Contains("OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY", HealthCenterRepository.C173BatchSql);
+        Assert.Contains("ORDER BY Chop1date, Chop1sec", HealthCenterRepository.C173BatchSql);
+        Assert.Contains("COUNT(*) AS Visits", HealthCenterRepository.C173ExportBaseSql);
+    }
+
+    [Theory]
+    [InlineData("C171")]
+    [InlineData("C172")]
+    [InlineData("C173")]
+    public void ExportBatch_InvalidBounds_ThrowsBeforeOpeningConnection(string reportCode)
+    {
+        var provider = new InvalidConnectionStringProvider();
+        var repository = CreateRepository(provider);
+        var condition = new SearchReportCondition { StartDate = "1150801", EndDate = "1150831" };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => reportCode switch
+        {
+            "C171" => repository.GetHealthCenterDataBatch(condition, -1, 5_000),
+            "C172" => repository.GetHealthCenterCountDataBatch(condition, -1, 5_000),
+            _ => repository.GetHealthCheckupVisitsBatch(condition, -1, 5_000)
+        });
+        Assert.Equal(0, provider.Calls);
+    }
+
     private static HealthCenterRepository CreateRepository(
         IConnectionStringProvider provider,
         Microsoft.Extensions.Logging.ILogger<HealthCenterRepository>? logger = null) =>

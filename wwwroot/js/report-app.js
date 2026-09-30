@@ -38,13 +38,15 @@
         C19: window.ReportComponents.ReportTemplate,
         M1: window.ReportComponents.M1DoctorDailyReport,
         M2: window.ReportComponents.M2DoctorMonthlyReport,
-        M3: window.ReportComponents.M3OpdEmergencyDailyReport
+        M3: window.ReportComponents.M3OpdEmergencyDailyReport,
+        Q1: window.ReportComponents.OpdPriceQuery
     });
     const unavailableReportComponent = {
-        template: '<section class="panel empty-result"><strong>此報表畫面尚未建置</strong><p>請選擇已開放的報表。</p></section>'
+        props: ["selectedReport"],
+        template: '<section class="panel empty-result"><strong>{{ selectedReport ? selectedReport.name : "此功能" }}尚未建置</strong><p>請選擇已開放的查詢或報表。</p></section>'
     };
     const reportRoutes = Object.entries(reportComponentMap).map(([reportCode, component]) => ({
-        path: `/Report/${reportCode}`,
+        path: reportCode === "Q1" ? "/data-query/opd-price" : `/Report/${reportCode}`,
         component,
         meta: { reportCode }
     }));
@@ -119,6 +121,7 @@
                 if (this.$route.path !== path) this.$router.push(path);
             },
             reportPath(report) {
+                if (report.code === "Q1") return "/data-query/opd-price";
                 if (report.code === "M1") return "/medical-statistics/doctor-daily";
                 if (report.code === "M2") return "/medical-statistics/doctor-monthly";
                 if (report.code === "M3") return "/medical-statistics/opd-emergency-daily";

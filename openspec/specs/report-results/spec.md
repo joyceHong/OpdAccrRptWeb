@@ -500,6 +500,60 @@ C9 SHALL render its mapped columns in the shared result table, display the serve
 - **WHEN** a user activates C9 preview after a successful query
 - **THEN** both printable documents appear in an accessible in-page modal with close and print actions and no new window, tab, or target-blank form
 
+---
+### Requirement: Shared M1 result browsing experience
+The report page SHALL render M1 query results through the shared pending skeleton, error presentation, empty state, total count, page-size selector, and first, previous, next, and last pagination controls. An M1-specific result component SHALL display section, doctor, visit type, self-pay, insurance, morning, afternoon, night, appointment, and total columns.
+
+#### Scenario: Query M1 while pending
+- **WHEN** an M1 query is in progress
+- **THEN** the shared table skeleton is displayed and no report-specific spinner or text-only loading indicator replaces it
+
+#### Scenario: Browse M1 detail rows
+- **WHEN** an M1 query returns one or more rows
+- **THEN** the page displays the M1 detail columns, total count, page-size control, pagination controls, preview action, and XLSX action
+- **AND** the page does not display a PDF action
+
+#### Scenario: Display an empty M1 result
+- **WHEN** an M1 query completes with totalCount zero
+- **THEN** the shared empty state is displayed and preview and export actions are unavailable
+
+#### Scenario: Reset stale M1 results
+- **WHEN** the user changes the report date after a completed M1 query
+- **THEN** the component clears the previous runId and result navigation and resets the next query to page one
+
+#### Scenario: Change M1 page without recalculation
+- **WHEN** the user selects another valid page or page size for an active M1 run
+- **THEN** the component requests rows from the active snapshot and does not initiate a new Oracle calculation
+
+---
+### Requirement: Shared M2 result browsing experience
+The shared report page SHALL render M2 through the existing pending table skeleton, empty state, total count, page-size selector, and first, previous, next, and last pagination controls. It SHALL use an M2-specific horizontally scrollable result component with sticky section and doctor identifiers followed by D01 through D31 and MonthlyTotal. The Actual Visit control SHALL be a checkbox. Visit scope and time slot selects SHALL use the same shared styled-select classes and visual states as established report query controls, using C1 as the visual reference. Changing any result-affecting condition MUST clear the active ReportRunId and return navigation to page one.
+
+#### Scenario: Query M2 while pending
+- **WHEN** a user submits a valid M2 query
+- **THEN** the shared table skeleton is displayed until the request completes
+- **AND** no report-specific spinner or text-only loading indicator is displayed
+
+#### Scenario: Display M2 monthly rows
+- **WHEN** a nonempty M2 query succeeds
+- **THEN** the result displays section, doctor, D01 through D31, MonthlyTotal, total count, and pagination
+- **AND** the wide result can be scrolled horizontally while identifiers remain visible
+
+#### Scenario: Change an M2 condition
+- **WHEN** the user changes month, the Actual Visit checkbox, visit scope, or time slot
+- **THEN** the existing ReportRunId is cleared
+- **AND** the next query starts at page one
+
+#### Scenario: Display styled select controls
+- **WHEN** the M2 query controls are displayed
+- **THEN** visit scope and time slot use the established shared select styling
+- **AND** the calculation control is rendered as an Actual Visit checkbox rather than a select
+
+#### Scenario: Display an empty M2 result
+- **WHEN** a valid M2 query returns no rows
+- **THEN** the shared empty state is displayed
+- **AND** preview and export actions are unavailable
+
 ## Planned Requirements
 
 下列能力屬下一階段工作。

@@ -25,7 +25,6 @@
         <aside class="sidebar" :class="{ open: sidebarOpen }">
             <div class="sidebar-heading"><span>報表清單</span><button type="button" v-on:click="collapseAll">全部收合</button></div>
             <label class="report-filter"><span>⌕</span><input v-model.trim="reportKeyword" placeholder="搜尋報表名稱或代碼" /></label>
-            <div v-if="activeCategory.key === 'query'" class="empty-menu">資料查詢功能建置中</div>
             <div v-for="(group, groupIndex) in filteredGroups" :key="group.name" class="tree-group">
                 <button class="tree-parent" type="button" v-on:click="toggleGroup(groupIndex)">
                     <span>{{ group.name }}</span><span :class="['chevron', { open: openGroups.includes(groupIndex) }]">⌄</span>
@@ -41,25 +40,20 @@
         </aside>
 
         <main class="content">
-            <div v-if="activeCategory.key === 'query'" class="coming-soon panel">
-                <div class="coming-icon">⌕</div><h1>資料查詢</h1><p>此功能尚在規劃中，後續將依需求逐步開放。</p>
-            </div>
-            <template v-else>
-                <div class="breadcrumb">{{ activeCategory.name }} <span>›</span> {{ selectedReport ? selectedReport.name : '請選擇報表' }}</div>
-                <router-view v-slot="{ Component }">
-                    <component
-                        v-if="Component && selectedReport"
-                        :key="selectedReport.code"
-                        :is="Component"
-                        :selected-report="selectedReport"
-                        :default-start-date="state.defaultStartDate"
-                        :default-end-date="state.defaultEndDate"
-                        :c21-rebuild-enabled="state.c21RebuildEnabled"
-                        :c23-rebuild-enabled="state.c23RebuildEnabled"
-                        v-on:show-toast="showToast">
-                    </component>
-                </router-view>
-            </template>
+            <div class="breadcrumb">{{ activeCategory.name }} <span>›</span> {{ selectedReport ? selectedReport.name : '請選擇報表' }}</div>
+            <router-view v-slot="{ Component }">
+                <component
+                    v-if="Component && selectedReport"
+                    :key="selectedReport.code"
+                    :is="Component"
+                    :selected-report="selectedReport"
+                    :default-start-date="state.defaultStartDate"
+                    :default-end-date="state.defaultEndDate"
+                    :c21-rebuild-enabled="state.c21RebuildEnabled"
+                    :c23-rebuild-enabled="state.c23RebuildEnabled"
+                    v-on:show-toast="showToast">
+                </component>
+            </router-view>
         </main>
     </div>
     <div v-if="toast" class="toast">{{ toast }}</div>
@@ -79,5 +73,7 @@
     @await Html.PartialAsync("_M1DoctorDailyReport")
     @await Html.PartialAsync("_M2DoctorMonthlyReport")
     @await Html.PartialAsync("_M3OpdEmergencyDailyReport")
+    @await Html.PartialAsync("_OpdPriceQuery")
+    <script src="~/js/reports/opd-price-query.js" asp-append-version="true"></script>
     <script src="~/js/report-app.js" asp-append-version="true"></script>
 }

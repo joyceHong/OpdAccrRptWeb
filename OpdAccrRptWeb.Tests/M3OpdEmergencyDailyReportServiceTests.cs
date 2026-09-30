@@ -54,6 +54,52 @@ public sealed class M3OpdEmergencyDailyReportServiceTests
     }
 
     [Fact]
+    public void CrystalDisplayFormulas_Match1150925ReferenceImage()
+    {
+        var internalMedicine = new M3OpdEmergencyDailyReportRow("9900", "M123測試內科",
+            5, 18, 6, 20, 3, 5, 3, 6, 17, 49,
+            42, 48, 14, 0, 0, 0, 57, 66, 18, 0, 0, 0);
+        var surgery = new M3OpdEmergencyDailyReportRow("9901", "M123測試外科",
+            4, 13, 4, 15, 4, 4, 2, 5, 14, 37,
+            29, 35, 13, 0, 0, 0, 39, 47, 19, 0, 0, 0);
+
+        Assert.Equal([23, 26, 8, 9],
+            new[] { internalMedicine.Op1DaySum, internalMedicine.Op2DaySum,
+                internalMedicine.Em1DaySum, internalMedicine.Em2DaySum });
+        Assert.Equal([17, 19, 8, 7],
+            new[] { surgery.Op1DaySum, surgery.Op2DaySum, surgery.Em1DaySum, surgery.Em2DaySum });
+        Assert.Equal(40, internalMedicine.Op1DaySum + surgery.Op1DaySum);
+        Assert.Equal(71, internalMedicine.Op1MonQty + surgery.Op1MonQty);
+        Assert.Equal(96, internalMedicine.Op1YearQty + surgery.Op1YearQty);
+        Assert.Equal([9, 31, 40, 71, 96],
+            new[] { internalMedicine.Op1SQty + surgery.Op1SQty,
+                internalMedicine.Op1HQty + surgery.Op1HQty,
+                internalMedicine.Op1DaySum + surgery.Op1DaySum,
+                internalMedicine.Op1MonQty + surgery.Op1MonQty,
+                internalMedicine.Op1YearQty + surgery.Op1YearQty });
+        Assert.Equal([10, 35, 45, 83, 113],
+            new[] { internalMedicine.Op2SQty + surgery.Op2SQty,
+                internalMedicine.Op2HQty + surgery.Op2HQty,
+                internalMedicine.Op2DaySum + surgery.Op2DaySum,
+                internalMedicine.Op2MonQty + surgery.Op2MonQty,
+                internalMedicine.Op2YearQty + surgery.Op2YearQty });
+        Assert.Equal([7, 9, 16, 27, 37],
+            new[] { internalMedicine.Em1SQty + surgery.Em1SQty,
+                internalMedicine.Em1HQty + surgery.Em1HQty,
+                internalMedicine.Em1DaySum + surgery.Em1DaySum,
+                internalMedicine.Em1MonQty + surgery.Em1MonQty,
+                internalMedicine.Em1YearQty + surgery.Em1YearQty });
+        Assert.Equal([5, 11, 16],
+            new[] { internalMedicine.Em2SQty + surgery.Em2SQty,
+                internalMedicine.Em2HQty + surgery.Em2HQty,
+                internalMedicine.Em2DaySum + surgery.Em2DaySum });
+
+        M3NineKpis kpis = M3OpdEmergencyDailyReportService.CalculateKpis(
+            new(24, 23, 16, 48, 7), new(1, 1, 1));
+        Assert.Equal(new M3NineKpis(23, 22, 15, 1, 1, 1, 48, 7, 41), kpis);
+    }
+
+    [Fact]
     public async Task ExistingRun_PagesWithoutQueryingRepository()
     {
         var repo = new Repository { Result = new(Enumerable.Range(1,12).Select(i=>Aggregate(i.ToString("0000"),1)).ToArray(),[],[],new(0,0,0),new(null,null,null,null,null)) };

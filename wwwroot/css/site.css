@@ -93,3 +93,10 @@ button, input, select { font:inherit; } button { cursor:pointer; } button:disabl
 .m3-kpis small { display:block; color:#64748b; }
 .m3-kpis strong { font-size:1.15rem; }
 @media (max-width:900px) { .m3-kpis { grid-template-columns:repeat(3,1fr); } }
+/* M1/M2 use content-height landscape sheets; M3 keeps a compact portrait sheet. */
+.m1-preview-paper,.m2-preview-paper{min-height:0}
+.m3-preview-overlay{padding-inline:max(24px,calc((100vw - 850px)/2))}
+.m3-preview-paper{width:210mm;min-height:297mm;padding:7mm;overflow:hidden}
+@media print{body:has(.m1-preview-overlay) .m1-preview-paper,body:has(.m2-preview-overlay) .m2-preview-paper{width:297mm;min-height:0;height:auto;padding:8mm}body:has(.m3-preview-overlay) .m3-preview-paper{width:210mm;min-height:0;height:auto;padding:6mm;overflow:hidden}}
+/* Q1 outpatient price query */
+.q1-report .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}.q1-report label{display:grid;gap:6px}.q1-report .check-field{display:flex;align-items:center;gap:6px}.q1-report tbody tr{cursor:pointer}.q1-report tbody tr.selected{background:#e7f2ff}.q1-patient{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:8px 12px}.q1-patient dt{font-weight:700}.q1-patient dd{margin:0}.q1-receipt-body{background:#eee}.q1-receipt-actions{display:flex;gap:8px;justify-content:center;margin:16px}.q1-receipt-paper{background:#fff;width:190mm;min-height:270mm;margin:auto;padding:10mm;box-sizing:border-box}.q1-receipt-paper h1{text-align:center}.q1-receipt-paper dl{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:8px}.q1-receipt-paper dd{margin:0}.q1-receipt-paper table{width:100%;border-collapse:collapse}.q1-receipt-paper th,.q1-receipt-paper td{border:1px solid #333;padding:6px}.q1-receipt-totals{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}@page{size:A4 portrait;margin:10mm}@media print{.q1-receipt-actions{display:none!important}.q1-receipt-body{background:#fff}.q1-receipt-paper{width:auto;min-height:0;margin:0;padding:0}}

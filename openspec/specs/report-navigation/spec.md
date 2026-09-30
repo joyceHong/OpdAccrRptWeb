@@ -228,3 +228,32 @@ tests:
   - OpdAccrRptWeb.Tests/c5-report.test.js
   - OpdAccrRptWeb.Tests/c3-report.test.js
 -->
+
+---
+### Requirement: M1 medical statistics navigation
+The primary report navigation SHALL list `M1 醫師看診人數日表` under `醫務統計報表` and SHALL route its selection to `/medical-statistics/doctor-daily`.
+
+#### Scenario: Select M1 from medical statistics
+- **WHEN** an authenticated user opens the medical statistics category and selects M1
+- **THEN** the application displays the M1 doctor daily report query experience at `/medical-statistics/doctor-daily`
+
+---
+### Requirement: M2 medical statistics navigation
+The medical statistics navigation SHALL expose an available M2 doctor monthly report entry and SHALL route it to the dedicated doctor-monthly report experience.
+
+#### Scenario: Select M2 from medical statistics
+- **WHEN** a user selects M2 doctor monthly report
+- **THEN** the application displays the M2 Gregorian month and report option controls
+
+---
+### Requirement: M3 uses the medical-statistics report route
+The report tree SHALL present M3 as an available medical-statistics report and SHALL open its query experience at /medical-statistics/opd-emergency-daily in the existing site layout. The selected report state SHALL remain M3 when the query route is opened or shared.
+
+#### Scenario: Open M3 from the report tree
+- **WHEN** a user selects M3 from the medical-statistics report group
+- **THEN** the application opens /medical-statistics/opd-emergency-daily in the same browsing context
+- **AND** the query page identifies M3 as the selected report
+
+#### Scenario: Open a shared M3 query URL
+- **WHEN** a user opens /medical-statistics/opd-emergency-daily directly
+- **THEN** the application renders the M3 query experience with the standard site navigation

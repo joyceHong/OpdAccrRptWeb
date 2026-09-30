@@ -40,7 +40,8 @@ public sealed class ReportCatalogService : IReportCatalogService
                         Report("C18", "醫療群會員急診住院查詢"), Report("C19", "安全針具使用情形查檢表"))),
                 Category("medical", "醫務統計報表",
                     Group("醫務統計報表", Report("M1", "醫師看診人數日表"), Report("M2", "醫師看診人數月表"), Report("M3", "門急診日報表"))),
-                Category("query", "資料查詢", Group("資料查詢"))
+                Category("query", "資料查詢", Group("資料查詢",
+                    Report("Q1", "批價查詢"), Report("Q2", "病歷查詢"), Report("Q3", "掛號查詢")))
             ]
         };
     }

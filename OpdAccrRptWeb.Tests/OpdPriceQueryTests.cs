@@ -16,7 +16,7 @@ public sealed class OpdPriceQueryTests
     { string json=JsonSerializer.Serialize(new OpdPriceVisitPage([],0,1,10,0),new JsonSerializerOptions(JsonSerializerDefaults.Web));Assert.Contains("\"rows\"",json);Assert.Contains("\"totalCount\":0",json);Assert.Contains("\"pageSize\":10",json); }
 
     [Fact] public void Sql_PreservesParameterizedLegacyBranches()
-    { Assert.Contains(":VisitDate",OpdPriceQuerySql.Visits);Assert.Contains(":LegacySection",OpdPriceQuerySql.Visits);Assert.Contains("ROW_NUMBER() OVER (ORDER BY B.chOp1Date DESC, B.chOp1Time",OpdPriceQuerySql.Visits);Assert.Contains(":ShowDc=1",OpdPriceQuerySql.Drugs);Assert.Contains("chOp3Stat='DC'",OpdPriceQuerySql.Drugs);Assert.Contains("chOp4Stat='PR'",OpdPriceQuerySql.Orders);Assert.Contains("chop4proj NOT IN ('I','S')",OpdPriceQuerySql.Orders);Assert.Contains("LNNVL(R.chOp2Stat='D')",OpdPriceQuerySql.Receipts);Assert.DoesNotContain("Receipt.mdb",OpdPriceQuerySql.ReceiptHeader); }
+    { Assert.Contains(":ApplyDate = 0 OR B.chOp1Date = :VisitDate",OpdPriceQuerySql.Visits);Assert.Contains(":LegacySection",OpdPriceQuerySql.Visits);Assert.Contains("ROW_NUMBER() OVER (ORDER BY B.chOp1Date DESC, B.chOp1Time",OpdPriceQuerySql.Visits);Assert.Contains(":ShowDc=1",OpdPriceQuerySql.Drugs);Assert.Contains("chOp3Stat='DC'",OpdPriceQuerySql.Drugs);Assert.Contains("chOp4Stat='PR'",OpdPriceQuerySql.Orders);Assert.Contains("chop4proj NOT IN ('I','S')",OpdPriceQuerySql.Orders);Assert.Contains("LNNVL(R.chOp2Stat='D')",OpdPriceQuerySql.Receipts);Assert.DoesNotContain("Receipt.mdb",OpdPriceQuerySql.ReceiptHeader); }
 
     [Fact] public void Token_IsOpaqueActorBoundAndTypeBound()
     { using var memory=new MemoryCache(new MemoryCacheOptions());var service=new OpdPriceTokenService(memory);var key=new OpdPriceVisitKey("1150930","1","0101",2,"MR1");string token=service.ProtectVisit(key,"A");Assert.DoesNotContain("MR1",token);Assert.True(service.TryReadVisit(token,"A",out var actual));Assert.Equal(key,actual);Assert.False(service.TryReadVisit(token,"B",out _));Assert.False(service.TryReadReceipt(token,"A",out _)); }
@@ -46,6 +46,22 @@ public sealed class OpdPriceQueryTests
 
     [Fact] public async Task Service_RejectsInvalidPagingBeforeRepository()
     { using var memory=new MemoryCache(new MemoryCacheOptions());var repo=new FakeRepository();var service=new OpdPriceQueryService(repo,new FakeUnits(),new ReportTotalCountCache(memory),new OpdPriceTokenService(memory),new FakeRenderer());await Assert.ThrowsAsync<ArgumentException>(()=>service.QueryVisitsAsync(new("MR",new DateOnly(2026,9,30),null,PageNumber:0),"actor",default));Assert.Equal(0,repo.CountCalls); }
+
+    [Fact] public async Task Service_AllowsEmptyDateAndQueriesAllVisits()
+    {
+        var repo=new FakeRepository();using var memory=new MemoryCache(new MemoryCacheOptions());
+        var service=new OpdPriceQueryService(repo,new FakeUnits(),new ReportTotalCountCache(memory),new OpdPriceTokenService(memory),new FakeRenderer());
+        OpdPriceVisitPage result=await service.QueryVisitsAsync(new(" ab123 ",null,null),"actor",default);
+        Assert.Equal("AB123",repo.MedicalRecordNo);Assert.Equal(string.Empty,repo.RocDate);Assert.Single(result.Rows);
+    }
+
+    [Fact] public async Task Service_RejectsEmptyMedicalRecordNumber()
+    {
+        var repo=new FakeRepository();using var memory=new MemoryCache(new MemoryCacheOptions());
+        var service=new OpdPriceQueryService(repo,new FakeUnits(),new ReportTotalCountCache(memory),new OpdPriceTokenService(memory),new FakeRenderer());
+        await Assert.ThrowsAsync<ArgumentException>(()=>service.QueryVisitsAsync(new(" ",null,null),"actor",default));
+        Assert.Equal(0,repo.CountCalls);
+    }
 
     [Fact] public async Task Detail_MapsDrugThenOrderAndProtectsReceipt()
     {

@@ -129,7 +129,8 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
     private OracleConnection CreateConnection()=>new(connections.GetConnectionString());
     internal static OracleCommand CreateCommand(OracleConnection connection,string sql)=>new(sql,connection){BindByName=true};
     private static void AddVisitFilters(OracleCommand c,string mrNo,string date,string? section)
-    { Add(c,"VisitDate",OracleDbType.Char,date);Add(c,"MrNo",OracleDbType.Varchar2,mrNo);
+    { Add(c,"ApplyDate",OracleDbType.Int32,string.IsNullOrWhiteSpace(date)?0:1);
+      Add(c,"VisitDate",OracleDbType.Char,string.IsNullOrWhiteSpace(date)?DBNull.Value:date);Add(c,"MrNo",OracleDbType.Varchar2,mrNo);
       Add(c,"ApplySection",OracleDbType.Int32,string.IsNullOrWhiteSpace(section)?0:1);
       Add(c,"LegacySection",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(section)?DBNull.Value:section); }
     private static void AddKey(OracleCommand c,OpdPriceVisitKey key)

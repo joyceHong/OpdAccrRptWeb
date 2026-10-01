@@ -80,21 +80,12 @@
                     </template>
                     <div v-if="isC4" class="advanced-grid">
                         <label><span>科別／部門</span>
-                            <div class="report-autocomplete">
-                                <input v-model="form.organizationQuery" autocomplete="off" placeholder="輸入新碼或名稱"
-                                       role="combobox" aria-autocomplete="list" aria-controls="c4-organization-options"
-                                       :aria-expanded="c4Organizations.length ? 'true' : 'false'"
-                                       v-on:input="onC4OrganizationInput" />
-                                <div v-if="c4Organizations.length" id="c4-organization-options"
-                                     class="report-autocomplete-panel" role="listbox">
-                                    <button v-for="item in c4Organizations" :key="`${item.source}-${item.legacyCode}`"
-                                            type="button" class="report-autocomplete-option" role="option"
-                                            v-on:mousedown.prevent="selectC4Organization(item)">
-                                        <strong>{{ item.newCode }}</strong>
-                                        <span>{{ item.displayName }}（{{ item.source }}）</span>
-                                    </button>
-                                </div>
-                            </div>
+                            <report-autocomplete v-model="form.organizationQuery" id-prefix="c4-organization"
+                                                 placeholder="輸入新碼或名稱" :options="c4OrganizationOptions"
+                                                 :open="c4Organizations.length > 0"
+                                                 v-on:input="onC4OrganizationInput"
+                                                 v-on:select="selectC4OrganizationOption"
+                                                 v-on:update:open="setC4OrganizationOpen" />
                         </label>
                     </div>
                     <fieldset v-if="isC16" class="source-fieldset">

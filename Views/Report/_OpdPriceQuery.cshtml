@@ -1,10 +1,178 @@
 <script type="text/x-template" id="opd-price-query-template">
-<section class="report-page q1-report"><div class="breadcrumb">資料查詢 <span>›</span> 批價查詢</div>
-<div class="panel query-panel"><div class="panel-title"><h1>批價查詢</h1><span class="report-code">Q1</span></div><form v-on:submit.prevent="search"><div class="form-grid">
-<label>病歷號<span class="required">*</span><input v-model.trim="form.medicalRecordNo" autocomplete="off" /></label><label>就診日期<span class="required">*</span><input type="date" v-model="form.visitDate" /></label>
-<label ref="sectionAutocomplete" class="report-autocomplete">科別<input v-model.trim="form.sectionCode" v-on:input="loadSections" v-on:keydown="onSectionKeydown" autocomplete="off" /><div v-if="sectionOpen" class="autocomplete-list"><button v-for="(item,index) in sectionOptions" :key="item.code" type="button" v-on:click="selectSection(item)" :class="{active:index===sectionActiveIndex}">{{item.code}} {{item.name}}</button></div></label>
-<label class="check-field"><input type="checkbox" v-model="form.showDc" v-on:change="invalidate" /> 顯示 DC</label><label class="check-field"><input type="checkbox" v-model="form.showExtendedCode" v-on:change="invalidate" /> 顯示延伸碼</label></div><div class="form-actions"><button class="primary-button" type="submit" :disabled="loading">查詢</button><button type="button" v-on:click="reset">清除</button></div></form></div>
-<div v-if="error" class="validation-summary">{{error}}</div><template v-if="loading"><partial name="_TableSkeleton" /><span class="visually-hidden" role="status">資料查詢中</span></template>
-<section v-else-if="searched" class="panel result-panel"><div class="result-heading"><h2>就診資料</h2><span>共 {{totalCount}} 筆</span></div><div v-if="!visits.length" class="empty-result">無此筆資料</div><template v-else><div class="table-wrap"><table><thead><tr><th>就診日</th><th>時段</th><th>診間</th><th>掛號序號</th><th>科別</th><th>健保序號</th><th>狀態</th></tr></thead><tbody><tr v-for="row in visits" :key="row.visitToken" v-on:click="selectVisit(row)" :class="{selected:selectedToken===row.visitToken}"><td>{{row.visitDate}}</td><td>{{row.visitTime}}</td><td>{{row.room}}</td><td>{{row.registrationNo}}</td><td>{{row.sectionCode}}</td><td>{{row.insuranceSequence}}</td><td>{{row.cancellationLabel}}</td></tr></tbody></table></div><div class="pagination"><button type="button" aria-label="第一頁" :disabled="pageNumber===1" v-on:click="goToPage(1)">‹‹</button><button type="button" :disabled="pageNumber===1" v-on:click="goToPage(pageNumber-1)">‹</button><span>{{pageNumber}} / {{Math.max(totalPages,1)}}</span><button type="button" :disabled="pageNumber>=totalPages" v-on:click="goToPage(pageNumber+1)">›</button><button type="button" aria-label="最後一頁" :disabled="pageNumber>=totalPages" v-on:click="goToPage(totalPages)">››</button></div></template></section>
-<section v-if="detail" class="panel q1-detail"><h2>就診明細</h2><dl class="q1-patient"><dt>病歷號</dt><dd>{{detail.patient.medicalRecordNo}}</dd><dt>姓名</dt><dd>{{detail.patient.name}}</dd><dt>生日</dt><dd>{{detail.patient.birthday}}</dd><dt>身分證號</dt><dd>{{detail.patient.identityNumber}}</dd></dl><h3>藥品／醫令</h3><div class="table-wrap"><table><thead><tr><th>類別</th><th>代碼</th><th>名稱</th><th>數量</th><th>單價</th><th>金額</th><th>狀態</th></tr></thead><tbody><tr v-for="(row,index) in detail.charges" :key="index"><td>{{row.category}}</td><td>{{row.code}}</td><td>{{row.name}}</td><td>{{row.quantity}}</td><td>{{row.unitPrice}}</td><td>{{row.amount}}</td><td>{{row.status}}</td></tr></tbody></table></div><h3>收據</h3><div class="table-wrap"><table><thead><tr><th>收據號</th><th>結帳日</th><th>應收</th><th>現金</th><th>刷卡</th><th>動作</th></tr></thead><tbody><tr v-for="row in detail.receipts" :key="row.receiptNo"><td>{{row.receiptNo}}</td><td>{{row.checkoutDate}}</td><td>{{row.receivable}}</td><td>{{row.cash}}</td><td>{{row.card}}</td><td><button v-if="row.receiptToken" type="button" v-on:click="previewReceipt(row.receiptToken)">列印收據</button></td></tr></tbody></table></div></section></section>
+    <section class="report-page q1-report">
+       @*   <div class="breadcrumb">資料查詢 <span>›</span> 批價查詢</div>  *@
+
+        <div class="panel query-panel">
+            <div class="panel-title">
+                <h1>批價查詢</h1>
+                <span class="report-code">Q1</span>
+            </div>
+
+            <form v-on:submit.prevent="search">
+                <div class="q1-basic-row">
+                    <label class="q1-medical-record-field">
+                        <span>病歷號 <i>*</i></span>
+                        <input v-model.trim="form.medicalRecordNo" autocomplete="off" required />
+                    </label>
+                    <div class="q1-basic-actions">
+                        <button class="primary-button" type="submit" :disabled="loading">{{ loading ? '查詢中…' : '⌕ 查詢' }}</button>
+                        <button class="ghost-button" type="button" :disabled="loading" v-on:click="reset">↺ 重設</button>
+                        <button class="q1-filter-toggle" type="button" :aria-expanded="advancedOpen ? 'true' : 'false'"
+                                aria-controls="q1-advanced-filters" v-on:click="advancedOpen = !advancedOpen">
+                            進階篩選 <span class="chevron" :class="{ open: advancedOpen }">⌄</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="q1-advanced-filters" class="q1-advanced-collapse" :class="{ open: advancedOpen }">
+                    <div class="q1-advanced-content">
+                        <div class="advanced-grid">
+                            <label><span>就診日期</span><input type="date" v-model="form.visitDate" /></label>
+                            <label><span>科別</span>
+                                <report-autocomplete v-model="form.sectionQuery" id-prefix="q1-section"
+                                                     placeholder="輸入新科別碼或中文名稱"
+                                                     :options="normalizedSectionOptions" :open="sectionOpen"
+                                                     v-on:input="loadSections" v-on:select="selectSectionOption"
+                                                     v-on:update:open="sectionOpen = $event" />
+                            </label>
+                            <label class="check-field"><input type="checkbox" v-model="form.showDc" v-on:change="invalidate" /> 顯示 DC</label>
+                            <label class="check-field"><input type="checkbox" v-model="form.showExtendedCode" v-on:change="invalidate" /> 顯示延伸碼</label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div v-if="error" class="validation-summary">{{error}}</div>
+
+        <template v-if="loading">
+            <partial name="_TableSkeleton" />
+            <span class="visually-hidden" role="status">資料查詢中</span>
+        </template>
+
+        <section v-else class="panel result-panel">
+            <div class="result-heading">
+                <strong>查詢結果</strong>
+                <span v-if="searched">共 {{totalCount}} 筆</span>
+            </div>
+
+            <div v-if="!visits.length" class="empty-result">
+                <div>▤</div>
+                <strong>{{ searched ? '查無資料' : '尚無查詢結果' }}</strong>
+                <p>{{ searched ? '目前條件沒有符合的資料。' : '請設定查詢條件後按下「查詢」。' }}</p>
+            </div>
+
+            <template v-else>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>就診日</th>
+                                <th>時段</th>
+                                <th>診間</th>
+                                <th>掛號序號</th>
+                                <th>科別</th>
+                                <th>健保序號</th>
+                                <th>狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="row in visits"
+                                :key="row.visitToken"
+                                v-on:click="selectVisit(row)"
+                                :class="{selected:selectedToken===row.visitToken}">
+                                <td>{{row.visitDate}}</td>
+                                <td>{{row.visitTime}}</td>
+                                <td>{{row.room}}</td>
+                                <td>{{row.registrationNo}}</td>
+                                <td>{{row.sectionCode}}</td>
+                                <td>{{row.insuranceSequence}}</td>
+                                <td>{{row.cancellationLabel}}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <button type="button" aria-label="第一頁" :disabled="pageNumber===1" v-on:click="goToPage(1)">‹‹</button>
+                    <button type="button" :disabled="pageNumber===1" v-on:click="goToPage(pageNumber-1)">‹</button>
+                    <span>{{pageNumber}} / {{Math.max(totalPages,1)}}</span>
+                    <button type="button" :disabled="pageNumber>=totalPages" v-on:click="goToPage(pageNumber+1)">›</button>
+                    <button type="button" aria-label="最後一頁" :disabled="pageNumber>=totalPages" v-on:click="goToPage(totalPages)">››</button>
+                </div>
+            </template>
+        </section>
+
+        <section v-if="detail" class="panel q1-detail">
+            <h2>就診明細</h2>
+
+            <dl class="q1-patient">
+                <dt>病歷號</dt>
+                <dd>{{detail.patient.medicalRecordNo}}</dd>
+                <dt>姓名</dt>
+                <dd>{{detail.patient.name}}</dd>
+                <dt>生日</dt>
+                <dd>{{detail.patient.birthday}}</dd>
+                <dt>身分證號</dt>
+                <dd>{{detail.patient.identityNumber}}</dd>
+            </dl>
+
+            <h3>藥品／醫令</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>類別</th>
+                            <th>代碼</th>
+                            <th>名稱</th>
+                            <th>數量</th>
+                            <th>單價</th>
+                            <th>金額</th>
+                            <th>狀態</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(row,index) in detail.charges" :key="index">
+                            <td>{{row.category}}</td>
+                            <td>{{row.code}}</td>
+                            <td>{{row.name}}</td>
+                            <td>{{row.quantity}}</td>
+                            <td>{{row.unitPrice}}</td>
+                            <td>{{row.amount}}</td>
+                            <td>{{row.status}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>收據</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>收據號</th>
+                            <th>結帳日</th>
+                            <th>應收</th>
+                            <th>現金</th>
+                            <th>刷卡</th>
+                            <th>動作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="row in detail.receipts" :key="row.receiptNo">
+                            <td>{{row.receiptNo}}</td>
+                            <td>{{row.checkoutDate}}</td>
+                            <td>{{row.receivable}}</td>
+                            <td>{{row.cash}}</td>
+                            <td>{{row.card}}</td>
+                            <td>
+                                <button v-if="row.receiptToken" type="button" v-on:click="previewReceipt(row.receiptToken)">列印收據</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </section>
 </script>

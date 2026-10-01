@@ -63,17 +63,18 @@
 
 @section Scripts {
     <script src="~/vendor/vue-router.global.prod.js"></script>
-    @await Html.PartialAsync("_TemplateReport")
-    @await Html.PartialAsync("_C11ReceivablesCollectionReport")
-    @await Html.PartialAsync("_C12MedicalReceiptSummary")
-    @await Html.PartialAsync("_C5ChargeQuantityReport")
-    @await Html.PartialAsync("_C7DailyChargeDetailReport")
-    @await Html.PartialAsync("_C8PatchBillDetailReport")
-    @await Html.PartialAsync("_C9MaterialAccountingMonthlyReport")
-    @await Html.PartialAsync("_M1DoctorDailyReport")
-    @await Html.PartialAsync("_M2DoctorMonthlyReport")
-    @await Html.PartialAsync("_M3OpdEmergencyDailyReport")
-    @await Html.PartialAsync("_OpdPriceQuery")
+    <script src="~/js/components/report-autocomplete.js" asp-append-version="true"></script>
+    @await Html.PartialAsync("~/Views/Report/_TemplateReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_C11ReceivablesCollectionReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_C12MedicalReceiptSummary.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_C5ChargeQuantityReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_C7DailyChargeDetailReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_C8PatchBillDetailReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_C9MaterialAccountingMonthlyReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_M1DoctorDailyReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_M2DoctorMonthlyReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_M3OpdEmergencyDailyReport.cshtml")
+    @await Html.PartialAsync("~/Views/Report/_OpdPriceQuery.cshtml")
     <script src="~/js/reports/opd-price-query.js" asp-append-version="true"></script>
     <script src="~/js/report-app.js" asp-append-version="true"></script>
 }

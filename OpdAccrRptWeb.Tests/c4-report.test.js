@@ -42,9 +42,10 @@ test("C4 stays inside the shared Report shell", () => {
 });
 
 test("C4 organization autocomplete uses the shared floating panel", () => {
-    assert.match(view, /class="report-autocomplete-panel"/);
-    assert.match(view, /selectC4Organization\(item\)/);
-    assert.doesNotMatch(view.match(/<div v-if="isC4"[\s\S]*?<\/div>\s*<\/label>/)?.[0] ?? "", /<select/);
+    assert.match(view, /<report-autocomplete/);
+    assert.match(view, /:options="c4OrganizationOptions"/);
+    assert.match(view, /selectC4OrganizationOption/);
+    assert.doesNotMatch(view.match(/<div v-if="isC4" class="advanced-grid">[\s\S]*?<\/div>/)?.[0] ?? "", /<select/);
     assert.match(styles, /\.report-autocomplete-panel\{[^}]*position:absolute[^}]*width:100%/);
 });
 
@@ -74,11 +75,16 @@ test("C4 organization selection synchronizes visible text and clears stale selec
     state.form.organizationQuery = "0281";
     methods.onC4OrganizationInput.call(state);
     assert.equal(state.form.sectionPrefix, "");
+
+    state.c4Organizations = [{ legacyCode: "0301", newCode: "12010", displayName: "外科", source: "科別" }];
+    methods.selectC4OrganizationOption.call({ ...state, selectC4Organization: item => methods.selectC4Organization.call(state, item) }, { raw: state.c4Organizations[0] });
+    assert.deepEqual(state.form, { sectionPrefix: "0301", organizationQuery: "12010｜外科" });
 });
 
 test("C4 candidate UI presents the new code while retaining legacy code in state", () => {
-    assert.match(view, /<strong>\{\{ item\.newCode \}\}<\/strong>/);
-    assert.doesNotMatch(view, /<strong>\{\{ item\.legacyCode \}\}<\/strong>/);
+    assert.match(script, /code:\s*item\.newCode/);
+    assert.match(script, /label:\s*item\.displayName/);
+    assert.match(script, /suffix:\s*item\.source/);
     assert.match(script, /this\.form\.sectionPrefix\s*=\s*legacyCode/);
 });
 

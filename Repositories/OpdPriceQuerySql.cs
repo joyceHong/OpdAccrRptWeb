@@ -4,7 +4,7 @@ public static class OpdPriceQuerySql
 {
     public const string VisitWhere = """
         FROM OpdBasicTbl B
-        WHERE B.chOp1Date = :VisitDate AND B.chOp1MrNo = :MrNo
+        WHERE (:ApplyDate = 0 OR B.chOp1Date = :VisitDate) AND B.chOp1MrNo = :MrNo
           AND (:ApplySection = 0 OR B.chOp1Sec = :LegacySection)
         """;
     public const string VisitCount = "SELECT COUNT(*) " + VisitWhere;

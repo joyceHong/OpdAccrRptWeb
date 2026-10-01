@@ -10,10 +10,10 @@ public sealed class OpdPriceQueryService(IOpdPriceQueryRepository repository,
     public async Task<OpdPriceVisitPage> QueryVisitsAsync(OpdPriceVisitRequest request,string actor,CancellationToken token)
     {
         string mrNo=(request.MedicalRecordNo??string.Empty).Trim().ToUpperInvariant();
-        if(mrNo.Length==0||request.VisitDate is null||request.VisitDate.Value.Year<1912)
-            throw new ArgumentException("請輸入有效的病歷號與就診日期。");
+        if(mrNo.Length==0)throw new ArgumentException("請輸入病歷號。");
+        if(request.VisitDate is { Year: < 1912 })throw new ArgumentException("請輸入有效的就診日期。");
         if(request.PageNumber<1||request.PageSize is not(10 or 30 or 50))throw new ArgumentException("分頁條件不正確。");
-        string roc=ToRocDate(request.VisitDate.Value); string? legacy=null;
+        string roc=request.VisitDate is null?string.Empty:ToRocDate(request.VisitDate.Value); string? legacy=null;
         if(!string.IsNullOrWhiteSpace(request.SectionCode))
         { var mapping=await organizationUnits.ResolveLegacyCodeAsync(request.SectionCode,false,token);
           legacy=mapping?.LegacyCode??throw new ArgumentException("查無可使用的科別代碼。"); }

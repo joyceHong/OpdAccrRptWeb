@@ -251,6 +251,7 @@
     window.ReportConfigurations = reportConfigurations;
     window.ReportComponents.ReportTemplate = {
         template: "#report-template",
+        components: { ReportAutocomplete: window.ReportComponents.ReportAutocomplete },
         props: {
             selectedReport: { type: Object, required: true },
             defaultStartDate: { type: String, required: true },
@@ -306,6 +307,15 @@
             };
         },
         computed: {
+            c4OrganizationOptions() {
+                return this.c4Organizations.map(item => ({
+                    value: `${item.source}-${item.legacyCode}`,
+                    code: item.newCode,
+                    label: item.displayName,
+                    suffix: item.source,
+                    raw: item
+                }));
+            },
             reportConfiguration() { return getReportConfiguration(this.selectedReport.code); },
             encounterSourceConfiguration() { return this.reportConfiguration.encounterSource ?? null; },
             hasEncounterSource() { return this.encounterSourceConfiguration !== null; },
@@ -734,6 +744,8 @@
                 this.c4Organizations = [];
                 this.currentPage = 1;
             },
+            selectC4OrganizationOption(option) { this.selectC4Organization(option.raw); },
+            setC4OrganizationOpen(open) { if (!open) this.c4Organizations = []; },
             getC4SectionPrefix() {
                 return String(this.form.sectionPrefix ?? "").trim().toUpperCase();
             },

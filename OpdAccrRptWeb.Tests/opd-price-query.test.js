@@ -7,11 +7,52 @@ const component=window.ReportComponents.OpdPriceQuery;
 const catalog=fs.readFileSync("Services/ReportCatalogService.cs","utf8");
 const app=fs.readFileSync("wwwroot/js/report-app.js","utf8");
 const markup=fs.readFileSync("Views/Report/_OpdPriceQuery.cshtml","utf8");
+const styles=fs.readFileSync("wwwroot/css/site.css","utf8");
 const receipt=fs.readFileSync("Views/OpdPriceQuery/Receipt.cshtml","utf8");
+const shell=fs.readFileSync("Views/Report/Index.cshtml","utf8");
 assert.match(catalog,/Report\("Q1", "批價查詢"\).*Report\("Q2", "病歷查詢"\).*Report\("Q3", "掛號查詢"\)/s);
 assert.match(app,/Q1:\s*window\.ReportComponents\.OpdPriceQuery/);assert.match(app,/report\.code === "Q1".*"\/data-query\/opd-price"/);
-assert.match(app,/selectedReport\.name.*尚未建置/);assert.match(markup,/type="date"/);assert.match(markup,/partial name="_TableSkeleton"/);assert.match(markup,/role="status">資料查詢中/);assert.match(markup,/report-autocomplete/);assert.match(markup,/共 \{\{totalCount\}\} 筆/);assert.match(markup,/列印收據/);
+assert.match(app,/selectedReport\.name.*尚未建置/);assert.match(markup,/type="date"/);assert.match(markup,/partial name="_TableSkeleton"/);assert.match(markup,/role="status">資料查詢中/);assert.match(markup,/<report-autocomplete/);assert.match(markup,/normalizedSectionOptions/);assert.match(markup,/placeholder="輸入新科別碼或中文名稱"/);assert.match(markup,/medicalRecordNo"[^>]*required/);assert.match(markup,/class="q1-advanced-collapse"/);assert.match(markup,/aria-expanded="advancedOpen/);assert.match(markup,/aria-controls="q1-advanced-filters"/);assert.match(markup,/進階篩選/);assert.match(markup,/class="ghost-button"[^>]*>↺ 重設<\/button>/);assert.match(markup,/class="primary-button"[^>]*>\{\{ loading \? '查詢中…' : '⌕ 查詢' \}\}<\/button>/);assert.match(markup,/共 \{\{totalCount\}\} 筆/);assert.match(markup,/列印收據/);
+assert.doesNotMatch(markup,/<section v-else-if="searched" class="panel result-panel">/);
+assert.match(markup,/<section v-else class="panel result-panel">/);
+assert.match(markup,/class="empty-result"[\s\S]*<div>▤<\/div>/);
+assert.match(markup,/searched \? '查無資料' : '尚無查詢結果'/);
+assert.match(markup,/目前條件沒有符合的資料。/);
+assert.match(markup,/請設定查詢條件後按下「查詢」。/);
+assert.match(markup,/<div class="result-heading">[\s\S]*<strong>查詢結果<\/strong>/);
+assert.doesNotMatch(markup,/<h2>查詢結果<\/h2>/);
 assert.match(receipt,/window\.print/);assert.doesNotMatch(receipt,/Crystal|Receipt\.mdb/);
+assert.match(styles,/\.q1-advanced-collapse\{[^}]*grid-template-rows:0fr[^}]*transition:/);assert.match(styles,/\.q1-advanced-collapse\.open\{[^}]*grid-template-rows:1fr/);assert.match(styles,/\.q1-advanced-collapse\.open \.q1-advanced-content\{overflow:visible\}/);assert.match(styles,/@media \(prefers-reduced-motion:reduce\)/);
+assert.ok(shell.indexOf("js/components/report-autocomplete.js") < shell.indexOf("_OpdPriceQuery"), "shared autocomplete must load before the Q1 component template");
 
-async function queryContract(){let calls=[];global.fetch=async(url,options)=>{calls.push([url,JSON.parse(options.body)]);if(url.endsWith("visits"))return{ok:true,json:async()=>({rows:[{visitToken:"v1"}],totalCount:1,totalPages:1,pageNumber:1})};return{ok:true,json:async()=>({patient:{},charges:[],receipts:[]})}};const state={...component.data(),async message(){return"error"}};Object.assign(state,{fetchVisits:component.methods.fetchVisits,selectVisit:component.methods.selectVisit});await component.methods.search.call(state);assert.equal(calls[0][0],"/data-query/opd-price/visits");assert.equal(calls[0][1].pageSize,10);assert.equal(calls[1][0],"/data-query/opd-price/detail");assert.equal(calls[1][1].visitToken,"v1");component.methods.invalidate.call(state);assert.equal(state.searched,false);}
+async function queryContract(){
+    let calls=[];
+    global.fetch=async(url,options)=>{
+        if(url.includes("/sections?"))return{ok:true,json:async()=>[]};
+        const body=JSON.parse(options.body);calls.push([url,body]);
+        if(url.endsWith("visits"))return{ok:true,json:async()=>({rows:[{visitToken:"v1"}],totalCount:1,totalPages:1,pageNumber:1})};
+        return{ok:true,json:async()=>({patient:{},charges:[],receipts:[]})};
+    };
+    const state={...component.data(),async message(){return"error"}};
+    Object.assign(state,{fetchVisits:component.methods.fetchVisits,selectVisit:component.methods.selectVisit,invalidate:component.methods.invalidate});
+    state.form.medicalRecordNo="MR1";state.advancedOpen=true;
+    const normalized=component.computed.normalizedSectionOptions.call({sectionOptions:[{code:"11910",name:"心臟內科"}]});
+    assert.deepEqual({...normalized[0],raw:undefined},{value:"11910",code:"11910",label:"心臟內科",suffix:"",raw:undefined});
+    component.methods.selectSectionOption.call(state,normalized[0]);
+    assert.equal(state.form.sectionCode,"11910");
+    assert.equal(state.form.sectionQuery,"11910｜心臟內科");
+    await component.methods.search.call(state);
+    assert.equal(calls[0][0],"/data-query/opd-price/visits");
+    assert.equal(calls[0][1].pageSize,10);assert.equal(calls[0][1].visitDate,null);
+    assert.equal(calls[0][1].sectionCode,"11910");assert.equal("sectionQuery" in calls[0][1],false);
+    assert.equal(calls[1][0],"/data-query/opd-price/detail");assert.equal(calls[1][1].visitToken,"v1");
+    state.form.sectionQuery="12010";
+    await component.methods.loadSections.call(state,"12010");
+    assert.equal(state.form.sectionCode,"");
+    state.visits=[];await component.methods.fetchVisits.call(state);
+    assert.equal(calls[2][1].sectionCode,"12010");
+    state.advancedOpen=false;assert.equal(state.form.sectionQuery,"12010");
+    component.methods.reset.call(state);
+    assert.equal(state.advancedOpen,false);assert.equal(state.form.sectionCode,"");assert.equal(state.form.sectionQuery,"");
+}
 queryContract().then(()=>console.log("opd price query tests passed"));

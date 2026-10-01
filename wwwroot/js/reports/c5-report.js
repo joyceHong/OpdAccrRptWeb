@@ -5,9 +5,9 @@
         template: "#c5-report-template",
         props: ["selectedReport", "defaultStartDate", "defaultEndDate"],
         data() {
-            return { isLoading: false, hasSearched: false, validationMessage: "", rows: [], columns: [], totalCount: 0, totalPages: 0, currentPage: 1, pageSize: 10, organizations: [], organizationSearchTimer: null, previewOpen: false, previewLoading: false, preview: null, form: this.initialForm() };
+            return { isLoading: false, hasSearched: false, validationMessage: "", rows: [], columns: [], totalCount: 0, totalPages: 0, currentPage: 1, pageSize: 10, organizations: [], organizationSearchTimer: null, previewOpen: false, previewLoading: false, preview: null, advancedOpen: false, form: this.initialForm() };
         },
-        computed: { hasResults() { return this.rows.length > 0; }, previewRowsJson() { return JSON.stringify(this.preview?.rows ?? [], null, 2); } },
+        computed: { hasResults() { return this.rows.length > 0; }, activeFilterCount() { const f=this.form; return [f.encounterType!==0,f.organizationQuery,f.roomNo,f.chargeCode,f.insuranceIdentityCode].filter(Boolean).length; }, previewRowsJson() { return JSON.stringify(this.preview?.rows ?? [], null, 2); } },
         methods: {
             initialForm() {
                 const isC6 = this.selectedReport?.code === "C6";
@@ -45,7 +45,7 @@
             async load() { this.isLoading = true; this.validationMessage = ""; try { const r = await fetch("/reports/c5/query", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: JSON.stringify(this.payload()) }); if (!r.ok) throw new Error(await r.text()); const x = await r.json(); this.rows = x.data; this.columns = x.columns; this.totalCount = x.totalCount; this.totalPages = x.totalPages; this.currentPage = x.pageNumber; this.hasSearched = true; } catch (e) { this.rows = []; this.totalCount = 0; this.totalPages = 0; this.validationMessage = e.message; } finally { this.isLoading = false; } },
             async goToPage(p) { if (p < 1 || p > this.totalPages || p === this.currentPage) return; this.currentPage = p; await this.load(); },
             async changePageSize() { this.currentPage = 1; await this.load(); },
-            resetForm() { this.form = this.initialForm(); this.organizations = []; this.rows = []; this.columns = []; this.totalCount = 0; this.totalPages = 0; this.currentPage = 1; this.pageSize = 10; this.hasSearched = false; this.validationMessage = ""; this.closePreview(); },
+            resetForm() { this.form = this.initialForm(); this.advancedOpen = false; this.organizations = []; this.rows = []; this.columns = []; this.totalCount = 0; this.totalPages = 0; this.currentPage = 1; this.pageSize = 10; this.hasSearched = false; this.validationMessage = ""; this.closePreview(); },
             async openPreview() { if (!this.hasResults || this.previewLoading) return; this.previewLoading = true; this.previewOpen = false; this.preview = null; this.validationMessage = ""; try { const r = await fetch("/reports/c5/preview", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: JSON.stringify(this.payload()) }); if (!r.ok) throw new Error(await r.text() || "無法建立 C5 預覽。"); const x = await r.json(); if (!Array.isArray(x?.rows) || x.rows.length === 0) throw new Error("查無此筆資料"); this.preview = x; this.previewOpen = true; } catch (e) { this.preview = null; this.previewOpen = false; this.validationMessage = e instanceof Error ? e.message : "無法建立 C5 預覽。"; } finally { this.previewLoading = false; } },
             closePreview() { this.previewOpen = false; this.preview = null; },
             printPreview() { if (this.previewOpen) window.print(); }

@@ -20,7 +20,7 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
     {
         await using OracleConnection connection = CreateConnection(); await connection.OpenAsync(token);
         await using OracleCommand command = CreateCommand(connection, OpdPriceQuerySql.Visits);
-        AddVisitFilters(command, mrNo, date, section); Add(command,"Offset",OracleDbType.Int32,offset);
+        AddVisitFilters(command, mrNo, date, section); Add(command,"RowOffset",OracleDbType.Int32,offset);
         Add(command,"PageEnd",OracleDbType.Int32,checked(offset+pageSize));
         await using OracleDataReader reader = await command.ExecuteReaderAsync(token);
         var rows = new List<OpdPriceVisitSource>();
@@ -39,7 +39,7 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
     {
         await using OracleConnection connection=CreateConnection(); await connection.OpenAsync(token);
         await using OracleCommand command=CreateCommand(connection,OpdPriceQuerySql.Patient);
-        Add(command,"MrNo",OracleDbType.Varchar2,mrNo);
+        AddMedicalRecordNumber(command, mrNo);
         await using OracleDataReader reader=await command.ExecuteReaderAsync(token);
         return await reader.ReadAsync(token)?new(Text(reader,0),Text(reader,1),Text(reader,2),Text(reader,3)):null;
     }
@@ -130,7 +130,7 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
     internal static OracleCommand CreateCommand(OracleConnection connection,string sql)=>new(sql,connection){BindByName=true};
     private static void AddVisitFilters(OracleCommand c,string mrNo,string date,string? section)
     { Add(c,"ApplyDate",OracleDbType.Int32,string.IsNullOrWhiteSpace(date)?0:1);
-      Add(c,"VisitDate",OracleDbType.Char,string.IsNullOrWhiteSpace(date)?DBNull.Value:date);Add(c,"MrNo",OracleDbType.Varchar2,mrNo);
+      Add(c,"VisitDate",OracleDbType.Char,string.IsNullOrWhiteSpace(date)?DBNull.Value:date);AddMedicalRecordNumber(c,mrNo);
       Add(c,"ApplySection",OracleDbType.Int32,string.IsNullOrWhiteSpace(section)?0:1);
       Add(c,"LegacySection",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(section)?DBNull.Value:section); }
     private static void AddKey(OracleCommand c,OpdPriceVisitKey key)
@@ -141,6 +141,8 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
       Add(c,"ReceiptSequence",OracleDbType.Decimal,key.ReceiptSequence); }
     private static void Add(OracleCommand c,string name,OracleDbType type,object value)=>
         c.Parameters.Add(name,type,value,ParameterDirection.Input);
+    internal static void AddMedicalRecordNumber(OracleCommand command, string medicalRecordNumber) =>
+        command.Parameters.Add("MrNo", OracleDbType.Char, 10, medicalRecordNumber, ParameterDirection.Input);
     private static OpdPriceVisitSource Visit(OracleDataReader r)=>new(new(Text(r,0),Text(r,1),Text(r,2),
         Decimal(r,3),Text(r,4)),Text(r,5),Text(r,6),!r.IsDBNull(9)&&Convert.ToInt32(r.GetValue(9))==1,
         Text(r,7),Text(r,8));

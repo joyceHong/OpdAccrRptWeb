@@ -554,6 +554,22 @@ The shared report page SHALL render M2 through the existing pending table skelet
 - **THEN** the shared empty state is displayed
 - **AND** preview and export actions are unavailable
 
+---
+### Requirement: Shared Excel export availability for health reports
+
+The shared report result UI SHALL enable the existing Excel export flow for C171, C172, C173, C174, C18, C19, and C144 after a successful non-empty query. It SHALL submit every filter required by the selected report and SHALL retain the existing direct-download and background-polling behavior.
+
+#### Scenario: Export a supported report result
+
+- **WHEN** a user has non-empty results for one of C171, C172, C173, C174, C18, C19, or C144 and selects Excel export
+- **THEN** the UI SHALL submit the selected report code and its current filters to `/Report/Export`
+- **AND** it SHALL download an HTTP 200 workbook or track an HTTP 202 job until a terminal state
+
+#### Scenario: Change reports during background polling
+
+- **WHEN** the user changes reports or the component is unmounted while an export job is being polled
+- **THEN** the UI SHALL stop the existing polling timer and clear stale export state
+
 ## Planned Requirements
 
 下列能力屬下一階段工作。
@@ -1179,6 +1195,78 @@ tests:
   - OpdAccrRptWeb.Tests/report-template.test.js
   - OpdAccrRptWeb.Tests/c5-report.test.js
   - OpdAccrRptWeb.Tests/c3-report.test.js
+-->
+
+
+<!-- @trace
+source: unify-health-reports-miniexcel-export
+updated: 2026-10-01
+code:
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - Services/ReportExportDefinitions.cs
+  - Repositories/SafeNeedleRepository.cs
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - Views/Shared/_TableSkeleton.cshtml
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - package.json
+  - Repositories/IReferralMemberRepository.cs
+  - Models/OpdPriceQueryModels.cs
+  - Services/C144XlsxRenderer.cs
+  - Services/ReportExportService.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - OpdAccrRptWeb.Tests/C144XlsxRendererTests.cs
+  - Views/Report/_OpdPriceQuery.cshtml
+  - Views/Report/_TemplateReport.cshtml
+  - Repositories/HealthCenterRepository.cs
+  - wwwroot/js/report-app.js
+  - wwwroot/js/reports/opd-price-query.js
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - wwwroot/js/reports/report-template.js
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/M3OpdEmergencyDailyReportServiceTests.cs
+  - Repositories/ReferralMemberRepository.cs
+  - Repositories/IHealthCenterRepository.cs
+  - Services/OpdPriceReceiptRenderer.cs
+  - Views/Report/Index.cshtml
+  - OpdAccrRptWeb.Tests/BackgroundReportExportServiceTests.cs
+  - OpdAccrRptWeb.Tests/SafeNeedleRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/C144DebtDetailReportRepositoryTests.cs
+  - Views/Report/_M1DoctorDailyReport.cshtml
+  - Views/OpdEmergencyDailyReport/Preview.cshtml
+  - Repositories/IC144DebtDetailReportRepository.cs
+  - Services/OpdPriceQueryService.cs
+  - Repositories/ISafeNeedleRepository.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - Repositories/IOpdPriceQueryRepository.cs
+  - Services/ReportCatalogService.cs
+  - Views/Report/_M3OpdEmergencyDailyReport.cshtml
+  - Services/IOpdPriceQueryService.cs
+  - Services/IC144XlsxRenderer.cs
+  - Services/IOpdPriceReceiptRenderer.cs
+  - Controllers/ReportController.cs
+  - Program.cs
+  - Repositories/C144DebtDetailReportRepository.cs
+  - Services/BackgroundReportExportService.cs
+  - Services/OpdPriceTokenService.cs
+  - Repositories/OpdPriceQueryRepository.cs
+  - wwwroot/js/components/report-autocomplete.js
+  - Views/OpdPriceQuery/Receipt.cshtml
+  - OpdAccrRptWeb.csproj
+  - Services/IOpdPricePatientAccessAuditWriter.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Views/DoctorMonthlyReport/Preview.cshtml
+  - Controllers/OpdPriceQueryController.cs
+  - wwwroot/css/site.css
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+  - OpdAccrRptWeb.Tests/c4-report.test.js
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-autocomplete.test.js
 -->
 
 ### Requirement: Excel export

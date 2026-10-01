@@ -11,20 +11,20 @@ public static class OpdPriceQuerySql
     public const string Visits = """
         SELECT * FROM (
           SELECT B.chOp1Date, B.chOp1Time, B.chOp1Room, B.intOp1No, B.chOp1MrNo,
-                 B.chOp1Sec, B.chOp1HinSeq, B.chOp1DrName, B.chOp1PName,
+                 B.chOp1Sec, B.chOp1InSeq, B.chOp1DrName, B.chOp1PName,
                  CASE WHEN EXISTS (SELECT 1 FROM OpdRegPtnTbl R
                     WHERE R.chOp0Date=B.chOp1Date AND R.chOp0Time=B.chOp1Time
                       AND R.chOp0Room=B.chOp1Room AND R.intOp0No=B.intOp1No
                       AND R.chOp0DC='1') THEN 1 ELSE 0 END IsCancelled,
                  ROW_NUMBER() OVER (ORDER BY B.chOp1Date DESC, B.chOp1Time,
                     B.chOp1Room, B.intOp1No) RowNo
-        """ + VisitWhere + """
-        ) WHERE RowNo > :Offset AND RowNo <= :PageEnd
+        """ + "\n" + VisitWhere + """
+        ) WHERE RowNo > :RowOffset AND RowNo <= :PageEnd
         ORDER BY RowNo
         """;
     public const string Visit = """
         SELECT B.chOp1Date,B.chOp1Time,B.chOp1Room,B.intOp1No,B.chOp1MrNo,
-               B.chOp1Sec,B.chOp1HinSeq,B.chOp1DrName,B.chOp1PName,0 IsCancelled
+               B.chOp1Sec,B.chOp1InSeq,B.chOp1DrName,B.chOp1PName,0 IsCancelled
         FROM OpdBasicTbl B WHERE B.chOp1Date=:VisitDate AND B.chOp1Time=:VisitTime
           AND B.chOp1Room=:Room AND B.intOp1No=:RegistrationNo
         """;
@@ -62,7 +62,7 @@ public static class OpdPriceQuerySql
         """;
     public const string ReceiptHeader = """
         SELECT F.chSeqNo,A.chOp1MrNo,A.chOp1PName,A.chOp1PID,A.chOp1Date,B.chSecName,
-               C.chFin1Name,D.chDctTypeName,A.chOp1HinSeq,A.chOp1DrName,E.chDocNo,G.chPPayName
+               C.chFin1Name,D.chDctTypeName,A.chOp1InSeq,A.chOp1DrName,E.chDocNo,G.chPPayName
         FROM OpdBasicTbl A JOIN GenSectionTbl B ON A.chOp1Sec=B.chSecNo
         JOIN GenFin1Tbl C ON A.chOp1PFin1=C.chFin1No JOIN GenDctTypeTbl D ON A.chOp1PFin2=D.chDctType
         JOIN GenDoctorTbl E ON A.chOp1DrName=E.chDocName JOIN OpdRecTbl F

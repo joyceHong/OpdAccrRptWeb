@@ -8,7 +8,7 @@
 <div id="report-app" v-cloak>
     @Html.AntiForgeryToken()
     <header class="app-header">
-        <button class="brand" type="button" v-on:click="sidebarOpen = !sidebarOpen" aria-label="切換側邊選單">
+        <button class="brand" type="button" v-on:click="toggleMobileDrawer" :aria-expanded="mobileDrawerOpen" aria-controls="report-sidebar" aria-label="開啟報表選單">
             <span class="brand-mark">醫</span>
             <span><strong>門急診報表作業</strong><small>Outpatient Report Center</small></span>
         </button>
@@ -21,9 +21,14 @@
         <div class="user-badge"><span>測</span><div>測試使用者<small>報表查詢人員</small></div></div>
     </header>
 
-    <div class="app-shell">
-        <aside class="sidebar" :class="{ open: sidebarOpen }">
-            <div class="sidebar-heading"><span>報表清單</span><button type="button" v-on:click="collapseAll">全部收合</button></div>
+    <div class="app-shell" :class="{ 'sidebar-pinned': sidebarPinned, 'sidebar-collapsed': !sidebarPinned }">
+        <button v-if="!sidebarPinned" ref="sidebarTrigger" class="sidebar-slide-trigger" type="button"
+                v-on:click="togglePinnedSidebar" aria-label="展開報表選單" :aria-expanded="sidebarPinned" aria-controls="report-sidebar">&gt;&gt;</button>
+        <button v-if="mobileDrawerOpen" class="sidebar-backdrop" type="button" v-on:click="closeMobileDrawer" aria-label="關閉報表選單"></button>
+        <aside id="report-sidebar" ref="sidebar" class="sidebar" :class="sidebarClasses"
+               v-on:keydown.esc.stop="closeSidebarOverlay">
+            <div id="sidebar-panel" class="sidebar-panel">
+            <div class="sidebar-heading"><span>報表清單</span><span><button type="button" v-on:click="collapseAll">全部收合</button><button class="sidebar-close" type="button" v-on:click="togglePinnedSidebar" aria-label="收合報表選單" :aria-expanded="sidebarPinned" aria-controls="report-sidebar">&lt;&lt;</button></span></div>
             <label class="report-filter"><span>⌕</span><input v-model.trim="reportKeyword" placeholder="搜尋報表名稱或代碼" /></label>
             <div v-for="(group, groupIndex) in filteredGroups" :key="group.name" class="tree-group">
                 <button class="tree-parent" type="button" v-on:click="toggleGroup(groupIndex)">
@@ -36,6 +41,7 @@
                         <span class="report-code">{{ report.code }}</span><span>{{ report.name }}</span>
                     </button>
                 </div>
+            </div>
             </div>
         </aside>
 

@@ -354,6 +354,13 @@
             hasAdvancedConditions() {
                 return advancedConditionKeys.some(key => this.reportConfiguration[key] !== undefined);
             },
+            activeFilterCount() {
+                const defaults = createInitialForm(this.defaultStartDate, this.defaultEndDate, this.reportConfiguration);
+                return advancedConditionKeys.reduce((count, key) => {
+                    if (this.reportConfiguration[key] === undefined || !(key in this.form)) return count;
+                    return count + (JSON.stringify(this.form[key]) !== JSON.stringify(defaults[key]) ? 1 : 0);
+                }, 0);
+            },
             cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
             isEndDateOnly() { return this.reportConfiguration.endDateOnly === true; },
             isServerPaged() { return getReportConfiguration(this.selectedReport.code).serverPaged === true; },

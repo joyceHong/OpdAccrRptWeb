@@ -1118,3 +1118,173 @@ tests:
   - OpdAccrRptWeb.Tests/c5-report.test.js
   - OpdAccrRptWeb.Tests/c3-report.test.js
 -->
+
+---
+### Requirement: Detail-oriented query component reuse
+A standard query that presents a selectable master list and dependent detail tables SHALL reuse the established query panel, Gregorian date control, shared pending skeleton, result heading, empty state, total count, and pagination styling while permitting capability-specific detail sections below the master list.
+
+#### Scenario: Open outpatient price query
+- **WHEN** a user opens Q1
+- **THEN** the page uses the shared query and result structures for its conditions and visit list
+- **AND** the selected visit's patient, charge, and receipt sections use report-specific content within the same visual system
+
+#### Scenario: Print dependent detail
+- **WHEN** a user explicitly opens a printable receipt from Q1
+- **THEN** the print preview uses a report-specific document layout and the established print media behavior
+
+
+<!-- @trace
+source: add-opd-price-query
+updated: 2026-10-01
+code:
+  - Repositories/IHealthCenterRepository.cs
+  - Program.cs
+  - Services/ReportExportService.cs
+  - Views/OpdEmergencyDailyReport/Preview.cshtml
+  - Services/C144XlsxRenderer.cs
+  - OpdAccrRptWeb.Tests/M3OpdEmergencyDailyReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/BackgroundReportExportServiceTests.cs
+  - Services/IOpdPriceQueryService.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Repositories/ReferralMemberRepository.cs
+  - Views/Shared/_TableSkeleton.cshtml
+  - Services/ReportExportDefinitions.cs
+  - Repositories/IC144DebtDetailReportRepository.cs
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Services/IC144XlsxRenderer.cs
+  - Repositories/C144DebtDetailReportRepository.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - Views/Report/_M3OpdEmergencyDailyReport.cshtml
+  - Views/Report/_TemplateReport.cshtml
+  - Repositories/IOpdPriceQueryRepository.cs
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - Repositories/SafeNeedleRepository.cs
+  - wwwroot/js/reports/report-template.js
+  - wwwroot/css/site.css
+  - Services/ReportCatalogService.cs
+  - Views/OpdPriceQuery/Receipt.cshtml
+  - Views/Report/_M1DoctorDailyReport.cshtml
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - wwwroot/js/report-app.js
+  - Views/Report/_OpdPriceQuery.cshtml
+  - wwwroot/js/reports/opd-price-query.js
+  - Repositories/HealthCenterRepository.cs
+  - Services/BackgroundReportExportService.cs
+  - OpdAccrRptWeb.Tests/SafeNeedleRepositoryTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Views/DoctorMonthlyReport/Preview.cshtml
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - Models/OpdPriceQueryModels.cs
+  - OpdAccrRptWeb.Tests/C144DebtDetailReportRepositoryTests.cs
+  - Services/OpdPriceQueryService.cs
+  - Services/IOpdPricePatientAccessAuditWriter.cs
+  - Views/Report/Index.cshtml
+  - Services/OpdPriceReceiptRenderer.cs
+  - Repositories/ISafeNeedleRepository.cs
+  - Services/OpdPriceTokenService.cs
+  - wwwroot/js/components/report-autocomplete.js
+  - package.json
+  - Controllers/OpdPriceQueryController.cs
+  - Repositories/OpdPriceQueryRepository.cs
+  - OpdAccrRptWeb.Tests/C144XlsxRendererTests.cs
+  - OpdAccrRptWeb.csproj
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+  - Services/IOpdPriceReceiptRenderer.cs
+  - Repositories/IReferralMemberRepository.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/c4-report.test.js
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-autocomplete.test.js
+  - OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+-->
+
+---
+### Requirement: Shared organization autocomplete component
+A report organization or section selector SHALL reuse one presentation component for its input, floating option panel, mouse interaction, keyboard navigation, active-option state, outside-click closing, and combobox/listbox accessibility semantics. The component SHALL display a normalized code and Traditional Chinese label, SHALL allow an optional source suffix, and MUST delegate API requests and domain-value mapping to the consuming report.
+
+#### Scenario: Render C4 and Q1 organization options
+- **WHEN** C4 supplies a normalized option from `{ newCode, displayName, source, legacyCode }`
+- **THEN** the shared component displays the new code, Traditional Chinese name, and source while C4 retains the legacy code as its selected domain value
+- **WHEN** Q1 supplies a normalized option from `{ code, name }`
+- **THEN** the same component displays the new section code and Traditional Chinese name in both the option and the selected input text while Q1 retains only the new code as its selected domain value
+
+#### Scenario: Operate the shared selector by keyboard
+- **WHEN** a user presses ArrowDown, ArrowUp, Enter, or Escape while the selector is active
+- **THEN** the component updates the active option, selects the active option, or closes the panel using the same behavior in C4 and Q1
+
+<!-- @trace
+source: add-opd-price-query
+updated: 2026-10-01
+code:
+  - Repositories/IHealthCenterRepository.cs
+  - Program.cs
+  - Services/ReportExportService.cs
+  - Views/OpdEmergencyDailyReport/Preview.cshtml
+  - Services/C144XlsxRenderer.cs
+  - OpdAccrRptWeb.Tests/M3OpdEmergencyDailyReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/BackgroundReportExportServiceTests.cs
+  - Services/IOpdPriceQueryService.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Repositories/ReferralMemberRepository.cs
+  - Views/Shared/_TableSkeleton.cshtml
+  - Services/ReportExportDefinitions.cs
+  - Repositories/IC144DebtDetailReportRepository.cs
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Services/IC144XlsxRenderer.cs
+  - Repositories/C144DebtDetailReportRepository.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - Views/Report/_M3OpdEmergencyDailyReport.cshtml
+  - Views/Report/_TemplateReport.cshtml
+  - Repositories/IOpdPriceQueryRepository.cs
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - Repositories/SafeNeedleRepository.cs
+  - wwwroot/js/reports/report-template.js
+  - wwwroot/css/site.css
+  - Services/ReportCatalogService.cs
+  - Views/OpdPriceQuery/Receipt.cshtml
+  - Views/Report/_M1DoctorDailyReport.cshtml
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - wwwroot/js/report-app.js
+  - Views/Report/_OpdPriceQuery.cshtml
+  - wwwroot/js/reports/opd-price-query.js
+  - Repositories/HealthCenterRepository.cs
+  - Services/BackgroundReportExportService.cs
+  - OpdAccrRptWeb.Tests/SafeNeedleRepositoryTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Views/DoctorMonthlyReport/Preview.cshtml
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - Models/OpdPriceQueryModels.cs
+  - OpdAccrRptWeb.Tests/C144DebtDetailReportRepositoryTests.cs
+  - Services/OpdPriceQueryService.cs
+  - Services/IOpdPricePatientAccessAuditWriter.cs
+  - Views/Report/Index.cshtml
+  - Services/OpdPriceReceiptRenderer.cs
+  - Repositories/ISafeNeedleRepository.cs
+  - Services/OpdPriceTokenService.cs
+  - wwwroot/js/components/report-autocomplete.js
+  - package.json
+  - Controllers/OpdPriceQueryController.cs
+  - Repositories/OpdPriceQueryRepository.cs
+  - OpdAccrRptWeb.Tests/C144XlsxRendererTests.cs
+  - OpdAccrRptWeb.csproj
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+  - Services/IOpdPriceReceiptRenderer.cs
+  - Repositories/IReferralMemberRepository.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/c4-report.test.js
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-autocomplete.test.js
+  - OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+-->

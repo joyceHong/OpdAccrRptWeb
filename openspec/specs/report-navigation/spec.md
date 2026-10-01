@@ -257,3 +257,86 @@ The report tree SHALL present M3 as an available medical-statistics report and S
 #### Scenario: Open a shared M3 query URL
 - **WHEN** a user opens /medical-statistics/opd-emergency-daily directly
 - **THEN** the application renders the M3 query experience with the standard site navigation
+
+---
+### Requirement: Data query routes
+The application SHALL route Q1 selection to the outpatient price query component and SHALL route Q2 and Q3 selection to query-specific unavailable states. Direct navigation to the Q1 route MUST restore the `資料查詢` category and Q1 selection.
+
+#### Scenario: Select outpatient price query
+- **WHEN** a user selects Q1 or directly opens `/data-query/opd-price`
+- **THEN** the application activates `資料查詢`, selects Q1, and displays the outpatient price query component
+
+#### Scenario: Select an unavailable data query
+- **WHEN** a user selects Q2 or Q3
+- **THEN** the application displays that query's name and a `尚未建置` message without displaying the old category-level coming-soon panel
+
+<!-- @trace
+source: add-opd-price-query
+updated: 2026-10-01
+code:
+  - Repositories/IHealthCenterRepository.cs
+  - Program.cs
+  - Services/ReportExportService.cs
+  - Views/OpdEmergencyDailyReport/Preview.cshtml
+  - Services/C144XlsxRenderer.cs
+  - OpdAccrRptWeb.Tests/M3OpdEmergencyDailyReportServiceTests.cs
+  - OpdAccrRptWeb.Tests/BackgroundReportExportServiceTests.cs
+  - Services/IOpdPriceQueryService.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Repositories/ReferralMemberRepository.cs
+  - Views/Shared/_TableSkeleton.cshtml
+  - Services/ReportExportDefinitions.cs
+  - Repositories/IC144DebtDetailReportRepository.cs
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Services/IC144XlsxRenderer.cs
+  - Repositories/C144DebtDetailReportRepository.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - Views/Report/_M3OpdEmergencyDailyReport.cshtml
+  - Views/Report/_TemplateReport.cshtml
+  - Repositories/IOpdPriceQueryRepository.cs
+  - OpdAccrRptWeb.Tests/TestDoubles.cs
+  - Repositories/SafeNeedleRepository.cs
+  - wwwroot/js/reports/report-template.js
+  - wwwroot/css/site.css
+  - Services/ReportCatalogService.cs
+  - Views/OpdPriceQuery/Receipt.cshtml
+  - Views/Report/_M1DoctorDailyReport.cshtml
+  - OpdAccrRptWeb.Tests/ReferralMemberRepositoryTests.cs
+  - wwwroot/js/report-app.js
+  - Views/Report/_OpdPriceQuery.cshtml
+  - wwwroot/js/reports/opd-price-query.js
+  - Repositories/HealthCenterRepository.cs
+  - Services/BackgroundReportExportService.cs
+  - OpdAccrRptWeb.Tests/SafeNeedleRepositoryTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Views/DoctorMonthlyReport/Preview.cshtml
+  - OpdAccrRptWeb.Tests/HealthCenterRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/OpdAccrRptWeb.Tests.csproj
+  - Models/OpdPriceQueryModels.cs
+  - OpdAccrRptWeb.Tests/C144DebtDetailReportRepositoryTests.cs
+  - Services/OpdPriceQueryService.cs
+  - Services/IOpdPricePatientAccessAuditWriter.cs
+  - Views/Report/Index.cshtml
+  - Services/OpdPriceReceiptRenderer.cs
+  - Repositories/ISafeNeedleRepository.cs
+  - Services/OpdPriceTokenService.cs
+  - wwwroot/js/components/report-autocomplete.js
+  - package.json
+  - Controllers/OpdPriceQueryController.cs
+  - Repositories/OpdPriceQueryRepository.cs
+  - OpdAccrRptWeb.Tests/C144XlsxRendererTests.cs
+  - OpdAccrRptWeb.csproj
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+  - Services/IOpdPriceReceiptRenderer.cs
+  - Repositories/IReferralMemberRepository.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/c4-report.test.js
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-autocomplete.test.js
+  - OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+-->

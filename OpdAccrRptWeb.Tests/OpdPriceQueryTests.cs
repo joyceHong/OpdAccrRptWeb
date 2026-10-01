@@ -9,6 +9,37 @@ namespace OpdAccrRptWeb.Tests;
 
 public sealed class OpdPriceQueryTests
 {
+    [Fact]
+    public void MedicalRecordParameter_MatchesLegacyCharColumn()
+    {
+        using var command = new Oracle.ManagedDataAccess.Client.OracleCommand();
+        OpdPriceQueryRepository.AddMedicalRecordNumber(command, "1908897");
+        var parameter = command.Parameters["MrNo"];
+        Assert.Equal(Oracle.ManagedDataAccess.Client.OracleDbType.Char, parameter.OracleDbType);
+        Assert.Equal(10, parameter.Size);
+        Assert.Equal("1908897", parameter.Value);
+    }
+
+    [Fact]
+    public void VisitPaging_DoesNotUseOracleOffsetKeywordAsBindName()
+    {
+        Assert.Contains(":RowOffset", OpdPriceQuerySql.Visits);
+        Assert.DoesNotContain(":Offset", OpdPriceQuerySql.Visits);
+    }
+
+    [Fact]
+    public void VisitPaging_SeparatesSelectListFromFromClause()
+    {
+        Assert.DoesNotContain("RowNoFROM", OpdPriceQuerySql.Visits);
+    }
+
+    [Fact]
+    public void VisitQueries_UseDbtest3InsuranceSequenceColumn()
+    {
+        string sql = OpdPriceQuerySql.Visits + OpdPriceQuerySql.Visit + OpdPriceQuerySql.ReceiptHeader;
+        Assert.Contains("chOp1InSeq", sql);
+        Assert.DoesNotContain("chOp1HinSeq", sql);
+    }
     [Fact] public void Catalog_ContainsThreeDataQueries()
     { var query=new ReportCatalogService().GetReportIndex().Categories.Single(x=>x.Key=="query");Assert.Equal(["Q1","Q2","Q3"],query.Groups.Single().Reports.Select(x=>x.Code)); }
 

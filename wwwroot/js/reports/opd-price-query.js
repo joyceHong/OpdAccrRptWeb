@@ -14,6 +14,10 @@
             };
         },
         computed: {
+            activeFilterCount() {
+                return [this.form.visitDate, this.form.sectionCode || this.form.sectionQuery, this.form.showDc, this.form.showExtendedCode]
+                    .filter(value => Boolean(typeof value === "string" ? value.trim() : value)).length;
+            },
             normalizedSectionOptions() {
                 return this.sectionOptions.map(item => ({ value: item.code, code: item.code, label: item.name, suffix: "", raw: item }));
             }

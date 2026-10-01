@@ -9,23 +9,23 @@
             </div>
 
             <form v-on:submit.prevent="search">
-                <div class="q1-basic-row">
-                    <label class="q1-medical-record-field">
+                <div class="q1-basic-row" :class="'query-basic-row'">
+                    <label class="q1-medical-record-field" :class="'query-primary-field'">
                         <span>病歷號 <i>*</i></span>
                         <input v-model.trim="form.medicalRecordNo" autocomplete="off" required />
                     </label>
-                    <div class="q1-basic-actions">
+                    <div class="q1-basic-actions" :class="'query-actions'">
                         <button class="primary-button" type="submit" :disabled="loading">{{ loading ? '查詢中…' : '⌕ 查詢' }}</button>
                         <button class="ghost-button" type="button" :disabled="loading" v-on:click="reset">↺ 重設</button>
-                        <button class="q1-filter-toggle" type="button" :aria-expanded="advancedOpen ? 'true' : 'false'"
+                        <button class="q1-filter-toggle" :class="'advanced-filter-toggle'" type="button" :aria-expanded="advancedOpen ? 'true' : 'false'"
                                 aria-controls="q1-advanced-filters" v-on:click="advancedOpen = !advancedOpen">
-                            進階篩選 <span class="chevron" :class="{ open: advancedOpen }">⌄</span>
+                            進階篩選 <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span><span class="chevron" :class="{ open: advancedOpen }">⌄</span>
                         </button>
                     </div>
                 </div>
 
-                <div id="q1-advanced-filters" class="q1-advanced-collapse" :class="{ open: advancedOpen }">
-                    <div class="q1-advanced-content">
+                <div id="q1-advanced-filters" class="q1-advanced-collapse" :class="['advanced-filter-region', { open: advancedOpen }]" :aria-hidden="advancedOpen ? 'false' : 'true'">
+                    <div class="q1-advanced-content" :class="'advanced-filter-content'">
                         <div class="advanced-grid">
                             <label><span>就診日期</span><input type="date" v-model="form.visitDate" /></label>
                             <label><span>科別</span>

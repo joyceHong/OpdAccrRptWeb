@@ -33,7 +33,7 @@
                     <small><i>*</i> 為必填欄位</small>
                 </div>
                 <form v-on:submit.prevent="search">
-                    <div class="date-row">
+                    <div class="date-row" :class="'query-basic-row'">
                         <label v-if="!isEndDateOnly"><span>起始日期 <i>*</i></span><input v-model="form.startDate" type="date" required v-on:change="currentPage = 1" /></label>
                         <span v-if="!isEndDateOnly" class="date-arrow">→</span>
                         <label><span>截止日期 <i>*</i></span><input v-model="form.endDate" type="date" required v-on:change="currentPage = 1" /></label>
@@ -135,11 +135,11 @@
                         <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" maxlength="10" /></label>
                         <label v-if="canForceC24Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
-                    <button v-if="hasAdvancedConditions" class="advanced-toggle" type="button" v-on:click="advancedOpen = !advancedOpen">
-                        <span><strong>進階條件</strong><small>（選填）</small></span>
+                    <button v-if="hasAdvancedConditions" class="advanced-toggle" :class="'advanced-filter-toggle'" type="button" :aria-expanded="advancedOpen ? 'true' : 'false'" aria-controls="template-advanced-filters" v-on:click="advancedOpen = !advancedOpen">
+                        <span><strong>進階篩選</strong><small>（選填）</small><span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span></span>
                         <span>{{ advancedOpen ? '收合 ︿' : '展開 ﹀' }}</span>
                     </button>
-                    <div v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid">
+                    <div v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid" :class="['advanced-filter-region','open']" id="template-advanced-filters">
                         <label v-if="hasStationOrBedPrefix"><span>護理站／床號前綴</span><input v-model.trim="form.stationOrBedPrefix" placeholder="例如：7A" /></label>
                         <label v-if="hasCashierUserId"><span>批價員代碼</span><input v-model.trim="form.cashierUserId" placeholder="請輸入批價員代碼" /></label>
                         <label v-if="hasCashierCashSort"><span>排序方式 <i>*</i></span><select v-model="form.cashierCashSortType" required><option v-for="option in cashierCashSortConfiguration.options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>

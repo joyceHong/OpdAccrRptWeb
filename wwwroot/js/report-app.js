@@ -1,4 +1,17 @@
 (() => {
+    const SIDEBAR_PREFERENCE_KEY = "opd-report-sidebar:v1";
+    const readSidebarPreference = () => {
+        try {
+            const value = window.localStorage.getItem(SIDEBAR_PREFERENCE_KEY);
+            return value === "collapsed" || value === "expanded" ? value : "expanded";
+        } catch {
+            return "expanded";
+        }
+    };
+    const writeSidebarPreference = value => {
+        try { window.localStorage.setItem(SIDEBAR_PREFERENCE_KEY, value); } catch { /* storage is optional */ }
+    };
+    window.ReportLayout = Object.freeze({ SIDEBAR_PREFERENCE_KEY, readSidebarPreference, writeSidebarPreference });
     const initialState = JSON.parse(document.getElementById("report-initial-state").textContent);
     const { createApp } = Vue;
     const reportComponentMap = Object.freeze({
@@ -68,7 +81,8 @@
                 state: initialState,
                 activeCategory: initialState.categories[0],
                 selectedReport: initialState.categories[0].groups[0].reports[0],
-                sidebarOpen: false,
+                sidebarPinned: true,
+                mobileDrawerOpen: false,
                 reportKeyword: "",
                 openGroups: [0],
                 toast: "",
@@ -76,6 +90,13 @@
             };
         },
         computed: {
+            sidebarClasses() {
+                return {
+                    "is-pinned": this.sidebarPinned,
+                    "is-collapsed": !this.sidebarPinned,
+                    "is-drawer-open": this.mobileDrawerOpen
+                };
+            },
             filteredGroups() {
                 const keyword = this.reportKeyword.toLowerCase();
                 if (!keyword) return this.activeCategory.groups;
@@ -110,13 +131,13 @@
                 this.openGroups = [0];
                 this.reportKeyword = "";
                 this.selectedReport = category.groups[0]?.reports[0] ?? null;
-                this.sidebarOpen = false;
+                this.closeMobileDrawer();
                 const path = this.selectedReport ? this.reportPath(this.selectedReport) : "/Report";
                 if (this.$route.path !== path) this.$router.push(path);
             },
             selectReport(report) {
                 this.selectedReport = report;
-                this.sidebarOpen = false;
+                this.closeMobileDrawer();
                 const path = this.reportPath(report);
                 if (this.$route.path !== path) this.$router.push(path);
             },
@@ -129,7 +150,25 @@
             },
             toggleGroup(index) { this.openGroups = this.openGroups.includes(index) ? this.openGroups.filter(value => value !== index) : [...this.openGroups, index]; },
             collapseAll() { this.openGroups = []; },
+            togglePinnedSidebar() {
+                this.sidebarPinned = !this.sidebarPinned;
+                writeSidebarPreference(this.sidebarPinned ? "expanded" : "collapsed");
+                if (this.sidebarPinned) this.mobileDrawerOpen = false;
+            },
+            closeSidebarOverlay() {
+                if (this.sidebarPinned) {
+                    this.sidebarPinned = false;
+                    writeSidebarPreference("collapsed");
+                    this.$nextTick(() => this.$refs.sidebarTrigger?.focus());
+                }
+                this.closeMobileDrawer();
+            },
+            toggleMobileDrawer() { this.mobileDrawerOpen = !this.mobileDrawerOpen; },
+            closeMobileDrawer() { this.mobileDrawerOpen = false; },
             showToast(message) { this.toast = message; window.clearTimeout(this.toastTimer); this.toastTimer = window.setTimeout(() => { this.toast = ""; }, 3000); }
+        },
+        beforeUnmount() {
+            window.clearTimeout(this.toastTimer);
         }
     });
 

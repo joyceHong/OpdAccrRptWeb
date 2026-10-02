@@ -15,3 +15,5 @@ openspec/.vector-search.db*
 .tmp/
 /.gitignore
 /document
+/docs
+/.chrome-ui-test

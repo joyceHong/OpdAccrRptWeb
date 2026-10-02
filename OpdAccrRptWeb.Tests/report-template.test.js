@@ -218,7 +218,7 @@ function verifiesC213UsesSharedComponentWithoutAdvancedConditionsOrExport() {
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
     const componentFiles = fs.readdirSync("wwwroot/js/reports");
-    assert.match(markup, /v-if="hasAdvancedConditions" class="advanced-toggle"/);
+    assert.match(markup, /v-if="hasAdvancedConditions" class="advanced-filter-toggle"/);
     assert.match(markup, /v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid"/);
     assert.match(appSource, /C213:\s*window\.ReportComponents\.ReportTemplate/);
     assert.equal(componentFiles.some(file => /c213/i.test(file)), false);
@@ -1428,7 +1428,7 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     const preview = fs.readFileSync("Views/Report/_C13HighRiskEmergencyPreview.cshtml", "utf8");
     assert.match(appSource, /C13:\s*window\.ReportComponents\.ReportTemplate/);
     assert.match(markup, /v-if="isC13"[\s\S]*?previewC13/);
-    assert.match(markup, /v-if="hasAdvancedConditions" class="advanced-toggle"/);
+    assert.match(markup, /v-if="hasAdvancedConditions" class="advanced-filter-toggle"/);
     assert.match(markup, /v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid"/);
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
     assert.match(markup, /legacyPreviewOpen[\s\S]*report-preview-overlay[\s\S]*role="dialog"[\s\S]*closeLegacyPreview[\s\S]*printLegacyPreview/);

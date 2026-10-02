@@ -24,7 +24,7 @@
                     </div>
                 </div>
 
-                <div id="q1-advanced-filters" class="q1-advanced-collapse" :class="['advanced-filter-region', { open: advancedOpen }]" :aria-hidden="advancedOpen ? 'false' : 'true'">
+                <div id="q1-advanced-filters" class="q1-advanced-collapse" :class="['advanced-filter-region', { open: advancedOpen }]" :aria-hidden="advancedOpen ? 'false' : 'true'" :inert="!advancedOpen">
                     <div class="q1-advanced-content" :class="'advanced-filter-content'">
                         <div class="advanced-grid">
                             <label><span>就診日期</span><input type="date" v-model="form.visitDate" /></label>
@@ -59,7 +59,7 @@
             <div v-if="!visits.length" class="empty-result">
                 <div>▤</div>
                 <strong>{{ searched ? '查無資料' : '尚無查詢結果' }}</strong>
-                <p>{{ searched ? '目前條件沒有符合的資料。' : '請設定查詢條件後按下「查詢」。' }}</p>
+                <p>{{ searched ? '目前條件沒有符合的資料，請調整病歷號或進階篩選條件後再查詢。' : '請輸入病歷號並點擊「查詢」，即可查看就診與批價資料。' }}</p>
             </div>
 
             <template v-else>

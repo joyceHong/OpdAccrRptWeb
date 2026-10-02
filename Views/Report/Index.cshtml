@@ -31,14 +31,14 @@
             <div class="sidebar-heading"><span>報表清單</span><span><button type="button" v-on:click="collapseAll">全部收合</button><button class="sidebar-close" type="button" v-on:click="togglePinnedSidebar" aria-label="收合報表選單" :aria-expanded="sidebarPinned" aria-controls="report-sidebar">&lt;&lt;</button></span></div>
             <label class="report-filter"><span>⌕</span><input v-model.trim="reportKeyword" placeholder="搜尋報表名稱或代碼" /></label>
             <div v-for="(group, groupIndex) in filteredGroups" :key="group.name" class="tree-group">
-                <button class="tree-parent" type="button" v-on:click="toggleGroup(groupIndex)">
-                    <span>{{ group.name }}</span><span :class="['chevron', { open: openGroups.includes(groupIndex) }]">⌄</span>
+                <button class="tree-parent" type="button" :title="group.name" v-on:click="toggleGroup(groupIndex)">
+                    <span class="tree-group-name">{{ group.name }}</span><span :class="['chevron', { open: openGroups.includes(groupIndex) }]">⌄</span>
                 </button>
                 <div v-show="openGroups.includes(groupIndex)" class="tree-children">
-                    <button v-for="report in group.reports" :key="report.code" type="button"
+                    <button v-for="report in group.reports" :key="report.code" type="button" :title="`${report.code} ${report.name}`"
                             :class="{ active: selectedReport && selectedReport.code === report.code }"
                             v-on:click="selectReport(report)">
-                        <span class="report-code">{{ report.code }}</span><span>{{ report.name }}</span>
+                        <span class="report-code">{{ report.code }}</span><span class="report-name">{{ report.name }}</span>
                     </button>
                 </div>
             </div>
@@ -46,11 +46,11 @@
         </aside>
 
         <main class="content">
+            <div class="content-inner">
             <div class="breadcrumb">{{ activeCategory.name }} <span>›</span> {{ selectedReport ? selectedReport.name : '請選擇報表' }}</div>
             <router-view v-slot="{ Component }">
+                <div v-if="Component && selectedReport" :key="selectedReport.code" class="report-content" v-report-query-collapse="selectedReport.code">
                 <component
-                    v-if="Component && selectedReport"
-                    :key="selectedReport.code"
                     :is="Component"
                     :selected-report="selectedReport"
                     :default-start-date="state.defaultStartDate"
@@ -59,7 +59,9 @@
                     :c23-rebuild-enabled="state.c23RebuildEnabled"
                     v-on:show-toast="showToast">
                 </component>
+                </div>
             </router-view>
+            </div>
         </main>
     </div>
     <div v-if="toast" class="toast">{{ toast }}</div>

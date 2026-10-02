@@ -14,6 +14,146 @@
     window.ReportLayout = Object.freeze({ SIDEBAR_PREFERENCE_KEY, readSidebarPreference, writeSidebarPreference });
     const initialState = JSON.parse(document.getElementById("report-initial-state").textContent);
     const { createApp } = Vue;
+    const queryCollapseCleanups = new WeakMap();
+    const queryConditionTags = form => Array.from(form.querySelectorAll("input, select, textarea"))
+        .filter(control => !control.disabled && control.type !== "hidden" && control.type !== "submit" && control.type !== "button")
+        .filter(control => !["checkbox", "radio"].includes(control.type) || control.checked)
+        .map(control => {
+            const label = control.closest("label");
+            const group = control.closest("fieldset");
+            const caption = (control.type === "radio"
+                ? group?.querySelector("legend")?.textContent.trim()
+                : label?.querySelector("span")?.textContent.trim() || label?.textContent.trim())?.replace(/\s*\*$/, "");
+            const value = control.tagName === "SELECT"
+                ? control.selectedOptions[0]?.textContent.trim()
+                : control.type === "radio"
+                    ? label?.textContent.trim()
+                    : control.type === "checkbox"
+                        ? ""
+                        : String(control.value || "").trim().replaceAll("-", "/");
+            if (!caption || (control.type !== "checkbox" && !value)) return null;
+            return value ? `${caption}：${value}` : caption;
+        })
+        .filter(Boolean);
+    const queryCollapseDirective = {
+        mounted(element, binding) {
+            let active = null;
+            let disposed = false;
+            let observer = null;
+            let collapsed = false;
+            const release = () => {
+                active?.cleanup();
+                active = null;
+            };
+            const synchronize = () => {
+                if (disposed) return;
+                const panel = element.querySelector(".query-panel");
+                const form = panel?.querySelector("form");
+                const title = panel?.querySelector(".panel-title");
+                if (!panel || !form || !title) {
+                    release();
+                    return;
+                }
+                if (active?.panel === panel && active.form === form && active.title === title) {
+                    active.restore();
+                    return;
+                }
+                release();
+                if (!form.id) form.id = `report-query-${String(binding.value || "default").toLowerCase()}`;
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "query-collapse-button";
+                button.setAttribute("aria-controls", form.id);
+                button.setAttribute("aria-expanded", String(!collapsed));
+                button.textContent = collapsed ? "⌄ 展開" : "⌃ 收合";
+                const summary = document.createElement("div");
+                summary.className = "query-condition-tags";
+                summary.hidden = !collapsed;
+                summary.setAttribute("aria-label", "目前查詢條件");
+                const refreshSummary = () => {
+                    const conditions = queryConditionTags(form);
+                    const labels = conditions.length ? conditions : ["尚未設定條件"];
+                    summary.replaceChildren(...labels.map(value => {
+                        const tag = document.createElement("span");
+                        tag.className = "query-condition-tag";
+                        tag.textContent = value;
+                        tag.title = value;
+                        return tag;
+                    }));
+                    summary.title = labels.join(" · ");
+                };
+                let animation = null;
+                const toggle = () => {
+                    const nextCollapsed = !collapsed;
+                    if (nextCollapsed && form.contains(document.activeElement)) button.focus();
+                    const startHeight = form.getBoundingClientRect?.().height ?? form.scrollHeight;
+                    animation?.cancel();
+                    collapsed = nextCollapsed;
+                    form.hidden = false;
+                    form.inert = collapsed;
+                    panel.classList.toggle("query-panel-collapsed", collapsed);
+                    if (collapsed) refreshSummary();
+                    summary.hidden = !collapsed;
+                    button.setAttribute("aria-expanded", String(!collapsed));
+                    button.textContent = collapsed ? "⌄ 展開" : "⌃ 收合";
+                    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                    if (!reducedMotion && typeof form.animate === "function") {
+                        const endHeight = collapsed ? 0 : form.scrollHeight;
+                        form.style.overflow = "hidden";
+                        animation = form.animate([
+                            { height: `${startHeight}px`, opacity: collapsed ? 1 : 0 },
+                            { height: `${endHeight}px`, opacity: collapsed ? 0 : 1 }
+                        ], { duration: 240, easing: "ease-in-out" });
+                        const currentAnimation = animation;
+                        animation.onfinish = () => {
+                            if (animation !== currentAnimation) return;
+                            form.hidden = collapsed;
+                            form.style.overflow = "";
+                            animation = null;
+                        };
+                    } else {
+                        form.hidden = collapsed;
+                        form.style.overflow = "";
+                        animation = null;
+                    }
+                };
+                const restore = () => {
+                    if (!title.contains(summary)) title.insertBefore(summary, title.querySelector("small,.report-code"));
+                    if (!title.contains(button)) title.appendChild(button);
+                };
+                button.addEventListener("click", toggle);
+                form.addEventListener("input", refreshSummary);
+                form.addEventListener("change", refreshSummary);
+                form.hidden = collapsed;
+                form.inert = collapsed;
+                panel.classList.toggle("query-panel-collapsed", collapsed);
+                if (collapsed) refreshSummary();
+                active = { panel, form, title, restore, cleanup: () => {
+                    animation?.cancel();
+                    button.removeEventListener("click", toggle);
+                    form.removeEventListener("input", refreshSummary);
+                    form.removeEventListener("change", refreshSummary);
+                    button.remove?.();
+                    summary.remove?.();
+                } };
+                restore();
+            };
+            synchronize();
+            if (typeof MutationObserver === "function") {
+                observer = new MutationObserver(synchronize);
+                observer.observe(element, { childList: true, subtree: true });
+            }
+            queryCollapseCleanups.set(element, () => {
+                disposed = true;
+                observer?.disconnect();
+                release();
+            });
+        },
+        beforeUnmount(element) {
+            queryCollapseCleanups.get(element)?.();
+            queryCollapseCleanups.delete(element);
+        }
+    };
     const reportComponentMap = Object.freeze({
         C1: window.ReportComponents.ReportTemplate,
         C3: window.ReportComponents.ReportTemplate,
@@ -172,6 +312,7 @@
         }
     });
 
+    app.directive("report-query-collapse", queryCollapseDirective);
     app.use(router);
     app.mount("#report-app");
 })();

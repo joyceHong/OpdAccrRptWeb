@@ -30,7 +30,11 @@ const window = {
     setTimeout() {}
 };
 const document = { getElementById() { return { textContent: JSON.stringify(initialState) }; } };
-const Vue = { createApp() { return { use() { return this; }, mount() { mounted = true; } }; } };
+const Vue = { createApp() { return { directive(name, implementation) {
+    assert.equal(name, "report-query-collapse");
+    assert.equal(typeof implementation.mounted, "function");
+    return this;
+}, use() { return this; }, mount() { mounted = true; } }; } };
 const VueRouter = {
     createWebHistory() { return {}; },
     createRouter(options) {

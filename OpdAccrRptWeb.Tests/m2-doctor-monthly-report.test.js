@@ -1,6 +1,12 @@
 const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const root=path.resolve(__dirname,".."),view=fs.readFileSync(path.join(root,"Views/Report/_M2DoctorMonthlyReport.cshtml"),"utf8"),script=fs.readFileSync(path.join(root,"wwwroot/js/reports/m2-doctor-monthly-report.js"),"utf8"),app=fs.readFileSync(path.join(root,"wwwroot/js/report-app.js"),"utf8");
+const css=fs.readFileSync(path.join(root,"wwwroot/css/site.css"),"utf8");
 for(const value of ['type="month"','type="checkbox"','實際看診人數','class="advanced-grid"','class="source-option"','_TableSkeleton','empty-result','pagination','m2-sticky','預覽／列印','Excel'])assert.match(view,new RegExp(value));
+assert.match(view,/panel query-panel m2-report/);
+assert.match(view,/query-basic-row m2-basic-row/);
+assert.ok(view.indexOf("實際看診人數") < view.indexOf("進階篩選"));
+assert.match(css,/\.m2-report input\[type=month\]\{width:100%;height:38px;[^}]*border-radius:7px/);
+assert.match(css,/\.m2-report \.m2-basic-row \.source-fieldset\{margin:0;min-height:38px;align-self:end\}/);
 assert.doesNotMatch(view,/exportReport\('pdf'\)|>PDF</);
 assert.ok(!view.includes('<span>計算口徑</span>'));assert.ok(!view.includes('form.calculationBasis'));
 for(const value of ['actualVisit','calculationBasis:this.form.actualVisit?1:0','visitScope','timeSlot','this.runId=null','/medical-statistics/doctor-monthly/query','/medical-statistics/doctor-monthly/preview'])assert.ok(script.includes(value),`missing ${value}`);

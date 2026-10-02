@@ -17,8 +17,9 @@ assert.doesNotMatch(markup,/<section v-else-if="searched" class="panel result-pa
 assert.match(markup,/<section v-else class="panel result-panel">/);
 assert.match(markup,/class="empty-result"[\s\S]*<div>▤<\/div>/);
 assert.match(markup,/searched \? '查無資料' : '尚無查詢結果'/);
-assert.match(markup,/目前條件沒有符合的資料。/);
-assert.match(markup,/請設定查詢條件後按下「查詢」。/);
+assert.match(markup,/目前條件沒有符合的資料，請調整病歷號或進階篩選條件後再查詢。/);
+assert.match(markup,/:inert="!advancedOpen"/);
+assert.match(markup,/請輸入病歷號並點擊「查詢」/);
 assert.match(markup,/<div class="result-heading">[\s\S]*<strong>查詢結果<\/strong>/);
 assert.doesNotMatch(markup,/<h2>查詢結果<\/h2>/);
 assert.match(receipt,/window\.print/);assert.doesNotMatch(receipt,/Crystal|Receipt\.mdb/);

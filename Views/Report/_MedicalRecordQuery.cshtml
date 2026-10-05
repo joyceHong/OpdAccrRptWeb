@@ -1,0 +1,234 @@
+<template id="medical-record-query-template">
+    <section class="report-page medical-record-report">
+        <section class="page-title">
+            <div>
+                <span class="eyebrow">Q2</span>
+                <h1>{{ selectedReport.name }}</h1>
+                <p>依病歷基本資料查詢病患，結果僅供瀏覽，不提供資料維護或列印。</p>
+            </div>
+        </section>
+
+        <section class="panel query-panel">
+            <div class="panel-title">
+                <span>查詢條件</span>
+                <small>至少輸入一項條件</small>
+            </div>
+            <form v-on:submit.prevent="search">
+                <div class="query-basic-row medical-record-basic-row">
+                    <label class="q1-medical-record-field query-primary-field">
+                        <span>病歷號</span>
+                        <input v-model.trim="form.medicalRecordNo" type="text" maxlength="10" autocomplete="off" />
+                    </label>
+                    <label class="q1-medical-record-field query-primary-field">
+                        <span>身份證</span>
+                        <input v-model.trim="form.identityNumber" type="text" maxlength="10" autocomplete="off" />
+                    </label>
+                    <label class="q1-medical-record-field query-primary-field">
+                        <span>姓名</span>
+                        <input v-model.trim="form.name" type="text" maxlength="10" autocomplete="off" />
+                    </label>
+                    <button class="advanced-filter-toggle" type="button"
+                            :aria-expanded="advancedOpen ? 'true' : 'false'"
+                            aria-controls="medical-record-advanced-filters"
+                            v-on:click="advancedOpen = !advancedOpen">
+                        進階篩選
+                        <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span>
+                        <span class="chevron" :class="{ open: advancedOpen }">⌄</span>
+                    </button>
+                </div>
+                <transition name="advanced-filter">
+                    <div v-show="advancedOpen" id="medical-record-advanced-filters" class="advanced-grid advanced-filter-region open">
+                        <label>
+                            <span>住址一</span>
+                            <input v-model.trim="form.address1" type="text" maxlength="60" autocomplete="off" />
+                        </label>
+                        <label>
+                            <span>住址二</span>
+                            <input v-model.trim="form.address2" type="text" maxlength="60" autocomplete="off" />
+                        </label>
+                        <label>
+                            <span>新身份證</span>
+                            <input v-model.trim="form.newIdentityNumber" type="text" maxlength="10" autocomplete="off" />
+                        </label>
+                        <label>
+                            <span>新姓名</span>
+                            <input v-model.trim="form.newName" type="text" maxlength="10" autocomplete="off" />
+                        </label>
+                        <label>
+                            <span>新生日</span>
+                            <input v-model="form.newBirthday" type="date" />
+                        </label>
+                    </div>
+                </transition>
+                <div class="form-actions">
+                    <button class="ghost-button" type="button" :disabled="loading" v-on:click="resetForm">重設</button>
+                    <button class="primary-button" type="submit" :disabled="loading">⌕ 查詢</button>
+                </div>
+                <p v-if="conditionError" class="validation-message" role="alert">{{ conditionError }}</p>
+            </form>
+        </section>
+
+        <section class="panel result-panel" :aria-busy="loading ? 'true' : 'false'">
+            <div class="result-heading">
+                <div>
+                    <strong>查詢結果</strong>
+                    <span v-if="searched && !loading">共 {{ totalCount }} 筆</span>
+                </div>
+                <label v-if="searched && hasResults && !loading">
+                    每頁顯示
+                    <select v-model.number="pageSize" v-on:change="changePageSize">
+                        <option :value="10">10 筆</option>
+                        <option :value="30">30 筆</option>
+                        <option :value="50">50 筆</option>
+                    </select>
+                </label>
+            </div>
+
+            <template v-if="loading">
+                <span class="visually-hidden" role="status">資料查詢中</span>
+                @await Html.PartialAsync("_TableSkeleton")
+            </template>
+            <div v-else-if="error && searched" class="validation-summary" role="alert">{{ error }}</div>
+            <div v-else-if="!hasResults" class="empty-result">
+                <div>▤</div>
+                <strong>{{ searched ? '查無此筆資料, 請重新輸入' : '尚無查詢結果' }}</strong>
+                <p>{{ searched ? '目前條件沒有符合的病歷資料。' : '請設定查詢條件後按下「查詢」。' }}</p>
+            </div>
+            <template v-else>
+                <div class="table-wrap medical-record-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>病歷號</th>
+                                <th>身份證</th>
+                                <th>姓名</th>
+                                <th>生日</th>
+                                <th>結婚否</th>
+                                <th>性別</th>
+                                <th>血型</th>
+                                <th>身份別</th>
+                                <th>折扣別</th>
+                                <th>電話(H)</th>
+                                <th>電話(O)</th>
+                                <th>機密等級</th>
+                                <th>病患狀況</th>
+                                <th>明細</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in rows" :key="row.medicalRecordNo">
+                                <td>{{ row.medicalRecordNo }}</td>
+                                <td>{{ row.identityNumber }}</td>
+                                <td>{{ row.name }}</td>
+                                <td>{{ row.birthday }}</td>
+                                <td>{{ row.maritalStatus }}</td>
+                                <td>{{ row.sex }}</td>
+                                <td>{{ row.bloodType }}</td>
+                                <td>{{ row.insuranceType }}</td>
+                                <td>{{ row.discountType }}</td>
+                                <td>{{ row.homePhone }}</td>
+                                <td>{{ row.officePhone }}</td>
+                                <td>{{ row.secretLevel }}</td>
+                                <td>{{ row.patientCondition }}</td>
+                                <td><button type="button" class="medical-record-row-action"
+                                            v-on:click.stop="openDetail(row, $event)">明細</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <span>第 {{ pageNumber }} / {{ totalPages }} 頁</span>
+                    <div>
+                        <button type="button" aria-label="第一頁" :disabled="pageNumber === 1" v-on:click="goToPage(1)">‹‹</button>
+                        <button type="button" aria-label="上一頁" :disabled="pageNumber === 1" v-on:click="goToPage(pageNumber - 1)">‹</button>
+                        <button class="active" type="button" :aria-label="'第 ' + pageNumber + ' 頁'" aria-current="page">{{ pageNumber }}</button>
+                        <button type="button" aria-label="下一頁" :disabled="pageNumber >= totalPages" v-on:click="goToPage(pageNumber + 1)">›</button>
+                        <button type="button" aria-label="最後一頁" :disabled="pageNumber >= totalPages" v-on:click="goToPage(totalPages)">››</button>
+                    </div>
+                </div>
+            </template>
+        </section>
+
+        <div v-if="modalOpen" class="medical-record-modal-backdrop" v-on:click.self="closeModal">
+            <section class="medical-record-modal panel" role="dialog" aria-modal="true"
+                     aria-labelledby="medical-record-modal-title"
+                     v-on:keydown.esc.stop="closeModal">
+                <header class="medical-record-modal-header">
+                    <div>
+                        <h2 id="medical-record-modal-title">病歷明細</h2>
+                        <p v-if="modalRow">{{ modalRow.name || '載入中' }}／{{ modalRow.medicalRecordNo || '—' }}</p>
+                    </div>
+                    <button ref="modalClose" type="button" v-on:click="closeModal" aria-label="關閉視窗">×</button>
+                </header>
+
+                <div class="medical-record-modal-body" aria-live="polite">
+                    <div v-if="modalLoading" class="medical-record-modal-state" role="status">
+                        <span class="visually-hidden">明細載入中</span>
+                        @await Html.PartialAsync("_TableSkeleton")
+                    </div>
+                    <div v-else-if="modalError" class="validation-summary" role="alert">{{ modalError }}</div>
+                    <template v-else-if="modalDetail">
+                        <section class="medical-record-detail-section">
+                            <h3>基本資料</h3>
+                            <dl class="medical-record-detail-grid">
+                                <dt>病歷號</dt><dd>{{ modalDetail.medicalRecordNo }}</dd>
+                                <dt>身份證</dt><dd>{{ modalDetail.identityNumber }}</dd>
+                                <dt>姓名</dt><dd>{{ modalDetail.name }}</dd>
+                                <dt>生日</dt><dd>{{ modalDetail.birthday }}</dd>
+                                <dt>結婚否</dt><dd>{{ modalDetail.maritalStatus }}</dd>
+                                <dt>性別</dt><dd>{{ modalDetail.sex }}</dd>
+                                <dt>血型</dt><dd>{{ modalDetail.bloodType }}</dd>
+                                <dt>身份別</dt><dd>{{ modalDetail.insuranceType }}</dd>
+                                <dt>折扣別</dt><dd>{{ modalDetail.discountType }}</dd>
+                                <dt>機密等級</dt><dd>{{ modalDetail.secretLevel }}</dd>
+                                <dt>病患狀況</dt><dd>{{ modalDetail.patientCondition }}</dd>
+                            </dl>
+                        </section>
+
+                        <section class="medical-record-detail-section">
+                            <h3>聯絡與地址</h3>
+                            <dl class="medical-record-detail-grid">
+                                <dt>電話(H)</dt><dd>{{ modalDetail.homePhone }}</dd>
+                                <dt>電話(O)</dt><dd>{{ modalDetail.officePhone }}</dd>
+                                <dt>郵遞區號（住址一）</dt><dd>{{ modalDetail.zipCode1 }}</dd>
+                                <dt>住址一</dt><dd>{{ modalDetail.address1 }}</dd>
+                                <dt>郵遞區號（住址二）</dt><dd>{{ modalDetail.zipCode2 }}</dd>
+                                <dt>住址二</dt><dd>{{ modalDetail.address2 }}</dd>
+                            </dl>
+                        </section>
+
+                        <section class="medical-record-detail-section">
+                            <h3>其他資料</h3>
+                            <dl class="medical-record-detail-grid">
+                                <dt>出生地</dt><dd>{{ modalDetail.birthPlace }}</dd>
+                                <dt>種族</dt><dd>{{ modalDetail.race }}</dd>
+                                <dt>語言</dt><dd>{{ modalDetail.language }}</dd>
+                                <dt>籍貫</dt><dd>{{ modalDetail.nativePlace }}</dd>
+                                <dt>新身份證</dt><dd>{{ modalDetail.newIdentityNumber }}</dd>
+                                <dt>新姓名</dt><dd>{{ modalDetail.newName }}</dd>
+                                <dt>新生日</dt><dd>{{ modalDetail.newBirthday }}</dd>
+                                <dt>特別姓名</dt><dd>{{ modalDetail.specialName }}</dd>
+                                <dt>舊病歷號</dt><dd>{{ modalDetail.oldMedicalRecordNo }}</dd>
+                                <dt>社服列管</dt><dd>{{ modalDetail.socialServiceStatus }}</dd>
+                                <dt>初診日</dt><dd>{{ modalDetail.firstVisitDate }}</dd>
+                            </dl>
+                        </section>
+
+                        <section class="medical-record-detail-section">
+                            <h3>關聯與欠款資訊</h3>
+                            <dl class="medical-record-detail-grid">
+                                <dt>欠款總額</dt><dd>{{ modalDetail.debtTotal }}</dd>
+                                <dt>配偶 ID</dt><dd>{{ modalDetail.spouseId }}</dd>
+                                <dt>父親 ID</dt><dd>{{ modalDetail.fatherId }}</dd>
+                            </dl>
+                        </section>
+                    </template>
+                </div>
+
+                <footer class="medical-record-modal-actions">
+                    <button type="button" class="ghost-button" v-on:click="closeModal">關閉</button>
+                </footer>
+            </section>
+        </div>
+    </section>
+</template>

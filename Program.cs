@@ -53,6 +53,8 @@ builder.Services.AddScoped<IC15AssistiveDeviceDepositDetailRepository, C15Assist
 builder.Services.AddScoped<IC16ReportRepository, C16ReportRepository>();
 builder.Services.AddScoped<IOpdPriceQueryRepository, OpdPriceQueryRepository>();
 builder.Services.AddScoped<IOpdPriceQueryService, OpdPriceQueryService>();
+builder.Services.AddScoped<IMedicalRecordQueryRepository, MedicalRecordQueryRepository>();
+builder.Services.AddScoped<IMedicalRecordQueryService, MedicalRecordQueryService>();
 builder.Services.AddScoped<IOpdPriceReceiptRenderer, OpdPriceReceiptRenderer>();
 builder.Services.AddSingleton<IOpdPricePatientAccessAuditWriter, OpdPriceSerilogAuditWriter>();
 builder.Services.AddC3ReportServices();

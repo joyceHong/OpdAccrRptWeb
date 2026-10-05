@@ -7,6 +7,7 @@ const source = fs.readFileSync(`${root}/wwwroot/js/report-app.js`, "utf8");
 const view = fs.readFileSync(`${root}/Views/Report/Index.cshtml`, "utf8");
 const css = fs.readFileSync(`${root}/wwwroot/css/site.css`, "utf8");
 const q1 = fs.readFileSync(`${root}/Views/Report/_OpdPriceQuery.cshtml`, "utf8");
+const q2 = fs.readFileSync(`${root}/Views/Report/_MedicalRecordQuery.cshtml`, "utf8");
 const specializedViews = ["_C5ChargeQuantityReport.cshtml","_C7DailyChargeDetailReport.cshtml","_C8PatchBillDetailReport.cshtml","_C9MaterialAccountingMonthlyReport.cshtml","_C11ReceivablesCollectionReport.cshtml","_C12MedicalReceiptSummary.cshtml","_M1DoctorDailyReport.cshtml","_M2DoctorMonthlyReport.cshtml","_M3OpdEmergencyDailyReport.cshtml","_OpdPriceQuery.cshtml"]
     .map(name => fs.readFileSync(`${root}/Views/Report/${name}`, "utf8"));
 
@@ -62,6 +63,10 @@ assert.doesNotMatch(source, /HOVER_OPEN_DELAY|openSidebarSoon/);
 assert.match(css, /\.table-wrap thead th\{position:sticky/);
 assert.match(q1, /query-basic-row/);
 assert.match(q1, /active-filter-count/);
+assert.equal((q2.match(/<label class="q1-medical-record-field query-primary-field">/g) || []).length, 3);
+assert.match(q2, /<span>病歷號<\/span>\s*<input v-model\.trim="form\.medicalRecordNo" type="text" maxlength="10" autocomplete="off" \/>/);
+assert.match(q2, /<span>身份證<\/span>\s*<input v-model\.trim="form\.identityNumber" type="text" maxlength="10" autocomplete="off" \/>/);
+assert.match(q2, /<span>姓名<\/span>\s*<input v-model\.trim="form\.name" type="text" maxlength="10" autocomplete="off" \/>/);
 for (const reportView of specializedViews) assert.match(reportView, /panel query-panel/);
 assert.match(css, /\.query-panel form\{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;padding:12px 16px\}/);
 assert.match(css, /\.query-panel \.primary-button\{background:#173f63/);

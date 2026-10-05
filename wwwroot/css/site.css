@@ -251,3 +251,37 @@ body{background:var(--bg)}
 @media(max-width:1050px){.q1-report .q1-top-grid{grid-template-columns:minmax(0,1fr)}.q1-patient{grid-template-columns:minmax(72px,auto) minmax(0,1fr) minmax(72px,auto) minmax(0,1fr)}}
 @media(max-width:560px){.q1-patient{grid-template-columns:minmax(78px,auto) minmax(0,1fr);gap:8px 10px}.q1-diagnoses{grid-template-columns:1fr}.q1-patient-content{padding:14px 14px 14px 20px}.q1-report .query-panel form{padding:14px}}
 @media print{.q1-batch-paper{margin:0}.q1-batch-paper:last-of-type{break-after:auto;page-break-after:auto}}
+
+/* Q2 medical record query keeps the shared report workspace while allowing the legacy-width table to scroll. */
+.medical-record-report .medical-record-basic-row{flex:1 1 100%;width:100%;align-items:end;gap:12px}
+.medical-record-report .medical-record-basic-row .query-primary-field{flex:1 1 190px;min-width:170px}
+.medical-record-report .medical-record-basic-row .advanced-filter-toggle{align-self:end}
+.medical-record-report .medical-record-table-wrap{max-width:100%;overflow-x:auto}
+.medical-record-report .medical-record-table-wrap table{min-width:1180px}
+.medical-record-report .medical-record-table-wrap tbody tr:hover{background:#ecf6fc}
+.medical-record-report .medical-record-table-wrap table th:last-child,.medical-record-report .medical-record-table-wrap table td:last-child{position:sticky;right:0;min-width:88px;text-align:center;box-shadow:-2px 0 4px #1b3a5614}
+.medical-record-report .medical-record-table-wrap table th:last-child{z-index:4;background:#f7f9fb}
+.medical-record-report .medical-record-table-wrap table td:last-child{z-index:2;background:#fff}
+.medical-record-report .medical-record-table-wrap tbody tr:hover td:last-child{background:#ecf6fc}
+.medical-record-row-action{display:inline-flex;min-width:64px;min-height:44px;align-items:center;justify-content:center;padding:7px 13px;border:1px solid #cbd9e5;border-radius:7px;color:#31536f;background:#fff;font:inherit;font-size:13px;font-weight:700;line-height:1.2;white-space:nowrap;cursor:pointer;transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+.medical-record-row-action:hover{border-color:#8eb8d5;color:#155886;background:#f1f8fc}
+.medical-record-row-action:focus-visible{outline:3px solid #79bce3;outline-offset:2px;box-shadow:0 0 0 2px #fff}
+.medical-record-modal-backdrop{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:20px;background:#0f172acc}
+.medical-record-modal{width:min(1080px,100%);max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;padding:0}
+.medical-record-modal-header,.medical-record-modal-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:#fff}
+.medical-record-modal-header{border-bottom:1px solid #dce5ee}
+.medical-record-modal-header h2{margin:0}
+.medical-record-modal-header p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.medical-record-modal-header button{font-size:24px;background:transparent;border:0;cursor:pointer}
+.medical-record-modal-header button:focus-visible,.medical-record-modal-actions button:focus-visible{outline:3px solid #79bce3;outline-offset:2px;box-shadow:0 0 0 2px #fff}
+.medical-record-modal-body{min-height:0;flex:1 1 auto;overflow-x:hidden;overflow-y:auto;padding:0 18px 14px}
+.medical-record-modal-state{padding:18px 0;color:var(--muted)}
+.medical-record-modal-actions{justify-content:flex-end;border-top:1px solid #dce5ee}
+.medical-record-detail-section{margin-top:16px}
+.medical-record-detail-section h3{margin:0 0 8px;color:var(--navy);font-size:15px}
+.medical-record-detail-grid{display:grid;grid-template-columns:minmax(150px,auto) minmax(0,1fr) minmax(150px,auto) minmax(0,1fr);gap:0 18px;margin:0;padding:0 2px}
+.medical-record-detail-grid dt,.medical-record-detail-grid dd{min-width:0;padding:9px 0;border-bottom:1px solid #edf1f4}
+.medical-record-detail-grid dt{color:#526b82;font-weight:700}
+.medical-record-detail-grid dd{margin:0;overflow-wrap:anywhere;color:#20344b}
+@media(max-width:1050px){.medical-record-report .medical-record-basic-row{flex-wrap:wrap}.medical-record-report .medical-record-basic-row .advanced-filter-toggle{margin-right:auto}}
+@media(max-width:760px){.medical-record-report .medical-record-basic-row .query-primary-field{flex-basis:100%;min-width:0}.medical-record-report .medical-record-basic-row .advanced-filter-toggle{width:100%;margin-right:0}.medical-record-detail-grid{grid-template-columns:minmax(120px,auto) minmax(0,1fr);padding:0 2px}.medical-record-detail-grid dt,.medical-record-detail-grid dd{padding:8px 0}.medical-record-modal-backdrop{padding:8px}.medical-record-modal{width:100%;max-height:calc(100vh - 16px)}.medical-record-modal-body{padding-right:14px;padding-left:14px}}

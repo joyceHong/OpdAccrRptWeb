@@ -6,8 +6,10 @@ public interface IOpdPriceQueryService
 {
     Task<OpdPriceVisitPage> QueryVisitsAsync(OpdPriceVisitRequest request,string actor,CancellationToken token);
     Task<OpdPriceDetail> QueryDetailAsync(OpdPriceDetailRequest request,string actor,CancellationToken token);
+    Task<OpdPriceBasic> QueryBasicAsync(string visitToken,string actor,CancellationToken token);
     Task<IReadOnlyList<OpdPriceSectionOption>> SearchSectionsAsync(string query,CancellationToken token);
     Task<OpdReceiptPreview> CreateReceiptAsync(string receiptToken,string actor,CancellationToken token);
+    Task<OpdPriceReceiptBatch> CreateReceiptBatchAsync(OpdPriceReceiptBatchRequest request,string actor,CancellationToken token);
 }
 
 public interface IOpdPriceTokenService

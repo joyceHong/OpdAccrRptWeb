@@ -35,15 +35,6 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
         return await reader.ReadAsync(token)?Visit(reader):null;
     }
 
-    public async Task<OpdPricePatient?> QueryPatientAsync(string mrNo,CancellationToken token)
-    {
-        await using OracleConnection connection=CreateConnection(); await connection.OpenAsync(token);
-        await using OracleCommand command=CreateCommand(connection,OpdPriceQuerySql.Patient);
-        AddMedicalRecordNumber(command, mrNo);
-        await using OracleDataReader reader=await command.ExecuteReaderAsync(token);
-        return await reader.ReadAsync(token)?new(Text(reader,0),Text(reader,1),Text(reader,2),Text(reader,3)):null;
-    }
-
     public Task<IReadOnlyList<OpdPriceChargeSource>> QueryDrugsAsync(OpdPriceVisitKey key,bool showDc,CancellationToken token) =>
         QueryChargesAsync(OpdPriceQuerySql.Drugs,key,showDc,true,token);
     public Task<IReadOnlyList<OpdPriceChargeSource>> QueryOrdersAsync(OpdPriceVisitKey key,bool showDc,CancellationToken token) =>
@@ -61,13 +52,20 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
         {
             int shift=drug?0:1;
             string code=Text(reader,0); string extended=drug?string.Empty:Text(reader,1);
+            string requestType=drug?string.Empty:Text(reader,30);
+            string reportNo=drug?Text(reader,29):requestType.Length==0?string.Empty:
+                requestType+Text(reader,31)+"-"+Text(reader,32);
             rows.Add(new(drug,code,extended,Text(reader,1+shift),Decimal(reader,2+shift),
                 Decimal(reader,3+shift),Text(reader,4+shift),Decimal(reader,5+shift),Decimal(reader,6+shift),
                 Decimal(reader,7+shift),Decimal(reader,8+shift),Text(reader,9+shift),Text(reader,10+shift),
-                Text(reader,11+shift),Text(reader,12+shift),Text(reader,13+shift),
+                drug?Text(reader,25):Text(reader,27),Text(reader,12+shift),drug?Text(reader,28):Text(reader,29),
                 [Decimal(reader,14+shift),Decimal(reader,15+shift),Decimal(reader,16+shift),
                  Decimal(reader,17+shift),Decimal(reader,18+shift),Decimal(reader,19+shift)],
-                Text(reader,20+shift),Text(reader,21+shift)));
+                drug?Text(reader,20):string.Empty,Text(reader,21+shift),
+                Text(reader,22+shift),Text(reader,23+shift),drug?Text(reader,3):Text(reader,25),
+                drug?Text(reader,24):Text(reader,26),drug?Text(reader,26):Text(reader,21),
+                drug?Text(reader,27):Text(reader,28),reportNo,
+                drug?string.Empty:Text(reader,33),drug?string.Empty:Text(reader,34),requestType));
         }
         return rows;
     }
@@ -130,7 +128,7 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
     internal static OracleCommand CreateCommand(OracleConnection connection,string sql)=>new(sql,connection){BindByName=true};
     private static void AddVisitFilters(OracleCommand c,string mrNo,string date,string? section)
     { Add(c,"ApplyDate",OracleDbType.Int32,string.IsNullOrWhiteSpace(date)?0:1);
-      Add(c,"VisitDate",OracleDbType.Char,string.IsNullOrWhiteSpace(date)?DBNull.Value:date);AddMedicalRecordNumber(c,mrNo);
+      Add(c,"VisitDate",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(date)?DBNull.Value:date+"%");AddMedicalRecordNumber(c,mrNo);
       Add(c,"ApplySection",OracleDbType.Int32,string.IsNullOrWhiteSpace(section)?0:1);
       Add(c,"LegacySection",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(section)?DBNull.Value:section); }
     private static void AddKey(OracleCommand c,OpdPriceVisitKey key)
@@ -142,10 +140,14 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
     private static void Add(OracleCommand c,string name,OracleDbType type,object value)=>
         c.Parameters.Add(name,type,value,ParameterDirection.Input);
     internal static void AddMedicalRecordNumber(OracleCommand command, string medicalRecordNumber) =>
-        command.Parameters.Add("MrNo", OracleDbType.Char, 10, medicalRecordNumber, ParameterDirection.Input);
+        command.Parameters.Add("MrNo", OracleDbType.Char, 10, medicalRecordNumber.PadRight(10, ' '), ParameterDirection.Input);
     private static OpdPriceVisitSource Visit(OracleDataReader r)=>new(new(Text(r,0),Text(r,1),Text(r,2),
         Decimal(r,3),Text(r,4)),Text(r,5),Text(r,6),!r.IsDBNull(9)&&Convert.ToInt32(r.GetValue(9))==1,
-        Text(r,7),Text(r,8));
+        Text(r,7),Text(r,8),r.FieldCount>10?Text(r,10):string.Empty,
+        r.FieldCount>11?Text(r,11):string.Empty,r.FieldCount>12?Text(r,12):string.Empty,
+        r.FieldCount>13?Text(r,13):string.Empty,r.FieldCount>14?Text(r,14):string.Empty,
+        r.FieldCount>15?Text(r,15):string.Empty,r.FieldCount>21?
+            [Text(r,16),Text(r,17),Text(r,18),Text(r,19),Text(r,20),Text(r,21)]:null);
     private static string Text(OracleDataReader r,int i)=>r.IsDBNull(i)?string.Empty:Convert.ToString(r.GetValue(i))?.Trim()??string.Empty;
     private static decimal Decimal(OracleDataReader r,int i)=>r.IsDBNull(i)?0m:Convert.ToDecimal(r.GetValue(i));
 }

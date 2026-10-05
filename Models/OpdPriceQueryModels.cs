@@ -10,7 +10,10 @@ public sealed record OpdPriceVisitKey(string VisitDate, string VisitTime, string
 public sealed record OpdPriceReceiptKey(string VisitDate, string VisitTime, string Room,
     decimal RegistrationNo, decimal ReceiptSequence, string MedicalRecordNo);
 public sealed record OpdPriceVisitSource(OpdPriceVisitKey Key, string SectionCode,
-    string InsuranceSequence, bool IsCancelled, string DoctorName, string PatientName);
+    string InsuranceSequence, bool IsCancelled, string DoctorName, string PatientName,
+    string Birthday = "", string IdentityNumber = "", string DoctorId = "",
+    string IdentityType = "", string DiscountType = "", string Copayment = "",
+    IReadOnlyList<string>? Diagnoses = null);
 public sealed record OpdPriceVisitRow(string VisitDate, string VisitTime, string Room,
     decimal RegistrationNo, string SectionCode, string InsuranceSequence,
     string CancellationLabel, string VisitToken);
@@ -27,11 +30,17 @@ public sealed record OpdPriceChargeSource(bool IsDrug, string Code, string Exten
     decimal InsurancePrice, decimal SelfPayPrice, decimal InsuranceAmount,
     decimal SelfPayAmount, string Status, string Project, string InputUser,
     string PriceUser, string DeleteUser, IReadOnlyList<decimal> SubAmounts,
-    string PrescriptionDate, string ReceiptSequence);
+    string PrescriptionDate, string ReceiptSequence, string Dose = "", string Frequency = "",
+    string Days = "", string InputDate = "", string PriceDate = "",
+    string DeleteDate = "", string ReportOrPickupNo = "", string ExecutionDate = "",
+    string ExecutionDoctor = "", string RequestType = "");
 public sealed record OpdPriceChargeRow(string Category, string Code, string Name,
     decimal Quantity, decimal DaysOrPercent, string PaymentLabel, decimal UnitPrice,
     decimal Amount, string Status, string InputUser, string PriceUser, string DeleteUser,
-    IReadOnlyList<decimal> SubAmounts, string PrescriptionDate, string ReceiptSequence);
+    IReadOnlyList<decimal> SubAmounts, string PrescriptionDate, string ReceiptSequence,
+    string Dose = "", string Frequency = "", string Days = "", string InputDate = "",
+    string PriceDate = "", string DeleteDate = "", string ReportOrPickupNo = "",
+    string ExecutionDate = "", string ExecutionDoctor = "");
 public sealed record OpdPriceReceiptSource(OpdPriceReceiptKey Key, string ReceiptNo,
     string CheckoutDate, string CheckoutUser, decimal Receivable, decimal Cash,
     decimal Check, decimal Card, decimal OnAccount, decimal SocialService,
@@ -39,9 +48,11 @@ public sealed record OpdPriceReceiptSource(OpdPriceReceiptKey Key, string Receip
 public sealed record OpdPriceReceiptRow(string ReceiptNo, string CheckoutDate,
     string CheckoutUser, decimal Receivable, decimal Cash, decimal Check, decimal Card,
     decimal OnAccount, decimal SocialService, string DcDate, string DcUser,
-    string? ReceiptToken);
+    string? ReceiptToken, string Status = "");
 public sealed record OpdPriceDetail(OpdPricePatient Patient, OpdPriceEncounter Encounter,
-    IReadOnlyList<OpdPriceChargeRow> Charges, IReadOnlyList<OpdPriceReceiptRow> Receipts);
+    IReadOnlyList<OpdPriceChargeRow> Charges, IReadOnlyList<OpdPriceReceiptRow> Receipts,
+    string FacilityCode = "亞東紀念醫院");
+public sealed record OpdPriceBasic(OpdPricePatient Patient, OpdPriceEncounter Encounter);
 public sealed record OpdPriceSectionOption(string Code, string Name);
 
 public sealed record OpdReceiptHeader(string ReceiptNo, string MedicalRecordNo,
@@ -56,3 +67,12 @@ public sealed record OpdReceiptPreview(OpdReceiptHeader Header,
     IReadOnlyList<IReadOnlyList<OpdReceiptItem>> ItemRows, decimal Total,
     decimal Insurance, decimal SelfPay, decimal Discount, decimal Subsidy,
     decimal Collected, decimal Balance, string ChineseCollected, string RoomType);
+
+public sealed record OpdPriceReceiptBatchRequest(string? VisitToken, IReadOnlyList<string>? ReceiptTokens);
+public sealed record OpdPriceReceiptBatchResult(string ReceiptNo, bool Ready, string Message);
+public sealed record OpdPriceReceiptBatch(IReadOnlyList<OpdReceiptPreview> Receipts,
+    IReadOnlyList<OpdPriceReceiptBatchResult> Results)
+{
+    public int ReadyCount => Results.Count(x => x.Ready);
+    public int FailedCount => Results.Count - ReadyCount;
+}

@@ -1,0 +1,84 @@
+@model OpdAccrRptWeb.Models.OpdPriceReceiptBatch
+@{ Layout = null; }
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8" />
+    <title>批價查詢收據列印預覽</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="q1-receipt-body">
+    <div class="q1-receipt-batch-summary no-print" role="status">
+        <h1>收據列印預覽</h1>
+        <p id="receipt-print-status">可列印 @Model.ReadyCount 張收據，失敗 @Model.FailedCount 張。實際列印頁數會依瀏覽器設定及收據內容長度而不同。</p>
+        <p id="receipt-print-dialog-status" aria-live="polite"></p>
+        <ul>
+        @foreach (var result in Model.Results)
+        {
+            <li>@result.ReceiptNo：@result.Message</li>
+        }
+        </ul>
+        @if (Model.ReadyCount > 0)
+        {
+            <button type="button" onclick="openReceiptPrintPreview()">再次開啟瀏覽器列印預覽</button>
+        }
+        <button type="button" onclick="window.close()">關閉</button>
+    </div>
+    @foreach (var receipt in Model.Receipts)
+    {
+        <section class="q1-receipt-paper q1-batch-paper">
+            <h1>亞東紀念醫院醫療費用收據 @receipt.RoomType</h1>
+            <dl>
+                <dt>收據號</dt><dd>@receipt.Header.ReceiptNo</dd>
+                <dt>病歷號</dt><dd>@receipt.Header.MedicalRecordNo</dd>
+                <dt>姓名</dt><dd>@receipt.Header.PatientName</dd>
+                <dt>就醫日</dt><dd>@receipt.Header.VisitDate</dd>
+                <dt>科別</dt><dd>@receipt.Header.SectionName</dd>
+                <dt>醫師</dt><dd>@receipt.Header.DoctorName</dd>
+            </dl>
+            <table>
+                <thead><tr><th colspan="3">收費科目</th></tr></thead>
+                <tbody>
+                @foreach (var row in receipt.ItemRows)
+                {
+                    <tr>
+                    @foreach (var item in row)
+                    {
+                        <td>@item.Name　健保 @item.InsuranceAmount　自費 @item.SelfPayAmount</td>
+                    }
+                    @for (int i = row.Count; i < 3; i++)
+                    {
+                        <td></td>
+                    }
+                    </tr>
+                }
+                </tbody>
+            </table>
+            <div class="q1-receipt-totals">
+                <span>總醫療費 @receipt.Total</span><span>健保 @receipt.Insurance</span>
+                <span>自付 @receipt.SelfPay</span><span>優待 @receipt.Discount</span>
+                <span>補助 @receipt.Subsidy</span><span>實收 @receipt.Collected</span>
+                <span>餘額 @receipt.Balance</span><span>中文實收額 @receipt.ChineseCollected</span>
+            </div>
+        </section>
+    }
+    @if (Model.ReadyCount > 0)
+    {
+        <script>
+            let receiptPrintPreviewActive = false;
+            function openReceiptPrintPreview() {
+                if (receiptPrintPreviewActive) return;
+                receiptPrintPreviewActive = true;
+                window.print();
+            }
+
+            window.addEventListener("load", openReceiptPrintPreview, { once: true });
+            window.addEventListener("afterprint", () => {
+                receiptPrintPreviewActive = false;
+                const status = document.getElementById("receipt-print-dialog-status");
+                if (status) status.textContent = "列印預覽已關閉；您仍可再次開啟瀏覽器列印預覽。";
+            });
+        </script>
+    }
+</body>
+</html>

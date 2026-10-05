@@ -6,6 +6,7 @@ public sealed class OpdPriceReceiptRenderer(IOpdPriceQueryRepository repository)
     public async Task<OpdReceiptPreview> RenderAsync(OpdPriceReceiptKey key,CancellationToken token)
     {
         OpdReceiptHeader header=await repository.QueryReceiptHeaderAsync(key,token)??throw new KeyNotFoundException();
+        if(!string.Equals(header.MedicalRecordNo,key.MedicalRecordNo,StringComparison.Ordinal))throw new KeyNotFoundException();
         IReadOnlyList<OpdReceiptChargeAggregate> source=await repository.QueryReceiptChargesAsync(key,token);
         if(source.Count==0)throw new KeyNotFoundException();
         var included=new List<OpdReceiptChargeAggregate>(); decimal sub169=0,sub1=0,sub3=0,sub5=0,amt1=0,amt2=0;

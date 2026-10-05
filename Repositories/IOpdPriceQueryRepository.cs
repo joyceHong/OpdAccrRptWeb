@@ -4,9 +4,9 @@ namespace OpdAccrRptWeb.Repositories;
 
 public interface IOpdPriceQueryRepository
 {
-    int CountVisits(string medicalRecordNo, string rocDate, string? legacySectionCode);
+    int CountVisits(string medicalRecordNo, string rocDate, string? newSectionCode, string? fallbackLegacySection);
     Task<IReadOnlyList<OpdPriceVisitSource>> QueryVisitsAsync(string medicalRecordNo,
-        string rocDate, string? legacySectionCode, int offset, int pageSize, CancellationToken token);
+        string rocDate, string? newSectionCode, string? fallbackLegacySection, int offset, int pageSize, CancellationToken token);
     Task<OpdPriceVisitSource?> QueryVisitAsync(OpdPriceVisitKey key, CancellationToken token);
     Task<IReadOnlyList<OpdPriceChargeSource>> QueryDrugsAsync(OpdPriceVisitKey key,
         bool showDc, CancellationToken token);

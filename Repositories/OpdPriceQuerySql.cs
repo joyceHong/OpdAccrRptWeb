@@ -5,7 +5,17 @@ public static class OpdPriceQuerySql
     public const string VisitWhere = """
         FROM OpdBasicTbl B
         WHERE (:ApplyDate = 0 OR B.chOp1Date LIKE :VisitDate) AND B.chOp1MrNo = :MrNo
-          AND (:ApplySection = 0 OR B.chOp1Sec = :LegacySection)
+          AND (:ApplySection = 0
+            OR (RTRIM(B.chOp1Room) = '0000' AND (
+                (RTRIM(B.chOp1Sec) = '0201' AND :NewSection = '11910') OR
+                (RTRIM(B.chOp1Sec) = '0281' AND :NewSection = '11920') OR
+                (RTRIM(B.chOp1Sec) IN ('0220', '0221') AND :NewSection = '11930') OR
+                (RTRIM(B.chOp1Sec) = '0230' AND :NewSection = '11309')))
+            OR ((RTRIM(B.chOp1Room) <> '0000' OR RTRIM(B.chOp1Sec) NOT IN ('0201', '0281', '0220', '0221', '0230'))
+                AND EXISTS (SELECT 1 FROM GenSectionTbl S
+                    WHERE RTRIM(S.chSecNo) = RTRIM(B.chOp1Sec)
+                      AND RTRIM(S.chNewSecNo) = :NewSection))
+            OR (:ApplyFallbackSection = 1 AND RTRIM(B.chOp1Sec) = :FallbackLegacySection))
         """;
     public const string VisitCount = "SELECT COUNT(*) " + VisitWhere;
     public const string Visits = """

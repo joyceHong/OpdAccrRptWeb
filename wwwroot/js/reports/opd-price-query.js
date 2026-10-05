@@ -163,6 +163,10 @@
                 if (page < 1 || page > this.totalPages) return;
                 this.pageNumber = page; await this.fetchVisits(false);
             },
+            async changePageSize() {
+                this.pageNumber = 1;
+                if (this.searched && this.snapshot) await this.fetchVisits(false);
+            },
             async loadSections(value) {
                 this.form.sectionCode = "";
                 const query = String(value ?? this.form.sectionQuery).trim();

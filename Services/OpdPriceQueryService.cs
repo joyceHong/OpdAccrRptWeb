@@ -15,14 +15,27 @@ public sealed class OpdPriceQueryService(IOpdPriceQueryRepository repository,
         if(mrNo.Length==0)throw new ArgumentException("請輸入病歷號。");
         if(request.VisitDate is { Year: < 1912 })throw new ArgumentException("請輸入有效的就診日期。");
         if(request.PageNumber<1||request.PageSize is not(10 or 30 or 50))throw new ArgumentException("分頁條件不正確。");
-        string roc=request.VisitDate is null?string.Empty:ToRocDate(request.VisitDate.Value); string? legacy=null;
+        string roc=request.VisitDate is null?string.Empty:ToRocDate(request.VisitDate.Value); string? newSection=null; string? fallbackLegacySection=null;
         if(!string.IsNullOrWhiteSpace(request.SectionCode))
-        { var mapping=await organizationUnits.ResolveLegacyCodeAsync(request.SectionCode,false,token);
-          legacy=mapping?.LegacyCode??throw new ArgumentException("查無可使用的科別代碼。"); }
-        var filters=new Dictionary<string,string?>{{"mr",mrNo},{"date",roc},{"section",legacy}};
-        int count=totals.GetOrCreate("Q1",filters,()=>repository.CountVisits(mrNo,roc,legacy));
+        {
+            newSection=request.SectionCode.Trim().ToUpperInvariant();
+            try
+            {
+                var mapping=await organizationUnits.ResolveLegacyCodeAsync(newSection,false,token);
+                if(mapping is null && newSection is not ("11910" or "11920" or "11930" or "11309"))
+                    throw new ArgumentException("查無可使用的科別代碼。");
+                if(mapping?.Source is OrganizationUnitSource.Place or OrganizationUnitSource.Fixed)
+                    fallbackLegacySection=mapping.LegacyCode;
+            }
+            catch(OrganizationUnitMappingAmbiguousException)
+            {
+                // Multiple legacy sections can legitimately share one new section code.
+            }
+        }
+        var filters=new Dictionary<string,string?>{{"mr",mrNo},{"date",roc},{"section",newSection}};
+        int count=totals.GetOrCreate("Q1",filters,()=>repository.CountVisits(mrNo,roc,newSection,fallbackLegacySection));
         int pages=(int)Math.Ceiling(count/(double)request.PageSize); int page=Math.Min(request.PageNumber,Math.Max(1,pages));
-        IReadOnlyList<OpdPriceVisitSource> source=count==0?[]:await repository.QueryVisitsAsync(mrNo,roc,legacy,(page-1)*request.PageSize,request.PageSize,token);
+        IReadOnlyList<OpdPriceVisitSource> source=count==0?[]:await repository.QueryVisitsAsync(mrNo,roc,newSection,fallbackLegacySection,(page-1)*request.PageSize,request.PageSize,token);
         var rows=new List<OpdPriceVisitRow>(source.Count);
         foreach(var value in source)
         { var map=await organizationUnits.ResolveNewCodeAsync(value.SectionCode,value.Key.Room=="0000"?"E":string.Empty,OrganizationUnitMappingScope.SectionOnly,token);

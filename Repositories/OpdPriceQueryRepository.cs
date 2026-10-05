@@ -7,20 +7,20 @@ namespace OpdAccrRptWeb.Repositories;
 
 public sealed class OpdPriceQueryRepository(IConnectionStringProvider connections) : IOpdPriceQueryRepository
 {
-    public int CountVisits(string mrNo, string date, string? section)
+    public int CountVisits(string mrNo, string date, string? section, string? fallbackLegacySection)
     {
         using OracleConnection connection = CreateConnection(); connection.Open();
         using OracleCommand command = CreateCommand(connection, OpdPriceQuerySql.VisitCount);
-        AddVisitFilters(command, mrNo, date, section);
+        AddVisitFilters(command, mrNo, date, section, fallbackLegacySection);
         return Convert.ToInt32(command.ExecuteScalar());
     }
 
     public async Task<IReadOnlyList<OpdPriceVisitSource>> QueryVisitsAsync(string mrNo,
-        string date, string? section, int offset, int pageSize, CancellationToken token)
+        string date, string? section, string? fallbackLegacySection, int offset, int pageSize, CancellationToken token)
     {
         await using OracleConnection connection = CreateConnection(); await connection.OpenAsync(token);
         await using OracleCommand command = CreateCommand(connection, OpdPriceQuerySql.Visits);
-        AddVisitFilters(command, mrNo, date, section); Add(command,"RowOffset",OracleDbType.Int32,offset);
+        AddVisitFilters(command, mrNo, date, section, fallbackLegacySection); Add(command,"RowOffset",OracleDbType.Int32,offset);
         Add(command,"PageEnd",OracleDbType.Int32,checked(offset+pageSize));
         await using OracleDataReader reader = await command.ExecuteReaderAsync(token);
         var rows = new List<OpdPriceVisitSource>();
@@ -126,11 +126,13 @@ public sealed class OpdPriceQueryRepository(IConnectionStringProvider connection
 
     private OracleConnection CreateConnection()=>new(connections.GetConnectionString());
     internal static OracleCommand CreateCommand(OracleConnection connection,string sql)=>new(sql,connection){BindByName=true};
-    private static void AddVisitFilters(OracleCommand c,string mrNo,string date,string? section)
+    private static void AddVisitFilters(OracleCommand c,string mrNo,string date,string? section,string? fallbackLegacySection)
     { Add(c,"ApplyDate",OracleDbType.Int32,string.IsNullOrWhiteSpace(date)?0:1);
       Add(c,"VisitDate",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(date)?DBNull.Value:date+"%");AddMedicalRecordNumber(c,mrNo);
       Add(c,"ApplySection",OracleDbType.Int32,string.IsNullOrWhiteSpace(section)?0:1);
-      Add(c,"LegacySection",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(section)?DBNull.Value:section); }
+      Add(c,"NewSection",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(section)?DBNull.Value:section);
+      Add(c,"ApplyFallbackSection",OracleDbType.Int32,string.IsNullOrWhiteSpace(fallbackLegacySection)?0:1);
+      Add(c,"FallbackLegacySection",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(fallbackLegacySection)?DBNull.Value:fallbackLegacySection); }
     private static void AddKey(OracleCommand c,OpdPriceVisitKey key)
     { Add(c,"VisitDate",OracleDbType.Char,key.VisitDate);Add(c,"VisitTime",OracleDbType.Char,key.VisitTime);
       Add(c,"Room",OracleDbType.Char,key.Room);Add(c,"RegistrationNo",OracleDbType.Decimal,key.RegistrationNo); }

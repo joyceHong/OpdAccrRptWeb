@@ -48,7 +48,7 @@ public sealed class OpdPriceQueryTests
     { string json=JsonSerializer.Serialize(new OpdPriceVisitPage([],0,1,10,0),new JsonSerializerOptions(JsonSerializerDefaults.Web));Assert.Contains("\"rows\"",json);Assert.Contains("\"totalCount\":0",json);Assert.Contains("\"pageSize\":10",json); }
 
     [Fact] public void Sql_PreservesParameterizedLegacyBranches()
-    { Assert.Contains(":ApplyDate = 0 OR B.chOp1Date LIKE :VisitDate",OpdPriceQuerySql.Visits);Assert.Contains(":LegacySection",OpdPriceQuerySql.Visits);Assert.Contains("ROW_NUMBER() OVER (ORDER BY B.chOp1Date DESC, B.chOp1Time",OpdPriceQuerySql.Visits);Assert.Contains(":ShowDc=1",OpdPriceQuerySql.Drugs);Assert.Contains("chOp3Stat='DC'",OpdPriceQuerySql.Drugs);Assert.Contains("chOp4Stat='PR'",OpdPriceQuerySql.Orders);Assert.Contains("chop4proj NOT IN ('I','S')",OpdPriceQuerySql.Orders);Assert.Contains("LNNVL(R.chOp2Stat='D')",OpdPriceQuerySql.Receipts);Assert.Contains("R.chSeqNo,R.chOp2CDate,R.chOp2CUser",OpdPriceQuerySql.Receipts);Assert.Contains("GROUP BY A.chOp3Dct",OpdPriceQuerySql.ReceiptCharges);Assert.Contains("GROUP BY B.chOp4Dct",OpdPriceQuerySql.ReceiptCharges);Assert.DoesNotContain("Receipt.mdb",OpdPriceQuerySql.ReceiptHeader); }
+    { Assert.Contains(":ApplyDate = 0 OR B.chOp1Date LIKE :VisitDate",OpdPriceQuerySql.Visits);Assert.Contains(":NewSection",OpdPriceQuerySql.Visits);Assert.Contains("GenSectionTbl S",OpdPriceQuerySql.Visits);Assert.Contains("ROW_NUMBER() OVER (ORDER BY B.chOp1Date DESC, B.chOp1Time",OpdPriceQuerySql.Visits);Assert.Contains(":ShowDc=1",OpdPriceQuerySql.Drugs);Assert.Contains("chOp3Stat='DC'",OpdPriceQuerySql.Drugs);Assert.Contains("chOp4Stat='PR'",OpdPriceQuerySql.Orders);Assert.Contains("chop4proj NOT IN ('I','S')",OpdPriceQuerySql.Orders);Assert.Contains("LNNVL(R.chOp2Stat='D')",OpdPriceQuerySql.Receipts);Assert.Contains("R.chSeqNo,R.chOp2CDate,R.chOp2CUser",OpdPriceQuerySql.Receipts);Assert.Contains("GROUP BY A.chOp3Dct",OpdPriceQuerySql.ReceiptCharges);Assert.Contains("GROUP BY B.chOp4Dct",OpdPriceQuerySql.ReceiptCharges);Assert.DoesNotContain("Receipt.mdb",OpdPriceQuerySql.ReceiptHeader); }
 
     [Fact] public void Token_IsOpaqueActorBoundAndTypeBound()
     { using var memory=new MemoryCache(new MemoryCacheOptions());var service=new OpdPriceTokenService(memory);var key=new OpdPriceVisitKey("1150930","1","0101",2,"MR1");string token=service.ProtectVisit(key,"A");Assert.DoesNotContain("MR1",token);Assert.True(service.TryReadVisit(token,"A",out var actual));Assert.Equal(key,actual);Assert.False(service.TryReadVisit(token,"B",out _));Assert.False(service.TryReadReceipt(token,"A",out _)); }
@@ -72,8 +72,18 @@ public sealed class OpdPriceQueryTests
         OpdPriceVisitPage first=await service.QueryVisitsAsync(request,"actor",default);
         await service.QueryVisitsAsync(request,"actor",default);
         Assert.Equal("AB123",repo.MedicalRecordNo);Assert.Equal("1150930",repo.RocDate);
-        Assert.Equal("0201",repo.LegacySection);Assert.Equal(1,repo.CountCalls);Assert.Single(first.Rows);
+        Assert.Equal("11910",repo.LegacySection);Assert.Equal(1,repo.CountCalls);Assert.Single(first.Rows);
         Assert.Equal("11910",first.Rows[0].SectionCode);
+    }
+
+    [Fact] public async Task Service_AcceptsNewSectionCodeWithMultipleLegacyMappings()
+    {
+        var repo=new FakeRepository();using var memory=new MemoryCache(new MemoryCacheOptions());
+        var service=new OpdPriceQueryService(repo,new FakeUnits { Ambiguous = true },new ReportTotalCountCache(memory),
+            new OpdPriceTokenService(memory),new FakeRenderer());
+        await service.QueryVisitsAsync(new("Q1TEST0001",new DateOnly(2026,9,30),"11910"),"actor",default);
+        Assert.Equal("1150930",repo.RocDate);
+        Assert.Equal("11910",repo.LegacySection);
     }
 
     [Fact] public async Task Service_RejectsInvalidPagingBeforeRepository()
@@ -172,7 +182,8 @@ public sealed class OpdPriceQueryTests
 
     private sealed class FakeUnits : IOrganizationUnitCodeService
     {
-        public Task<OrganizationUnitMapping?> ResolveLegacyCodeAsync(string code,bool active,CancellationToken ct=default)=>Task.FromResult<OrganizationUnitMapping?>(new(OrganizationUnitSource.Section,"0201",code,"內科",true));
+        public bool Ambiguous;
+        public Task<OrganizationUnitMapping?> ResolveLegacyCodeAsync(string code,bool active,CancellationToken ct=default)=>Ambiguous?Task.FromException<OrganizationUnitMapping?>(new OrganizationUnitMappingAmbiguousException(code)):Task.FromResult<OrganizationUnitMapping?>(new(OrganizationUnitSource.Section,"0201",code,"內科",true));
         public Task<OrganizationUnitMapping?> ResolveNewCodeAsync(string code,string room,OrganizationUnitMappingScope scope,CancellationToken ct=default)=>Task.FromResult<OrganizationUnitMapping?>(new(OrganizationUnitSource.Section,code,"11910","內科",true));
         public Task<IReadOnlyList<OrganizationUnitMapping>> SearchAsync(string query,bool sections,bool places,bool active,int limit=20,CancellationToken ct=default)=>Task.FromResult<IReadOnlyList<OrganizationUnitMapping>>([]);
     }
@@ -182,8 +193,8 @@ public sealed class OpdPriceQueryTests
     {
         public int CountCalls;public int ChargeQueries;public string? MedicalRecordNo;public string? RocDate;public string? LegacySection;
         public OpdPriceVisitSource? VisitResult;public IReadOnlyList<OpdPriceChargeSource> Drugs=[];public IReadOnlyList<OpdPriceChargeSource> Orders=[];public IReadOnlyList<OpdPriceReceiptSource> Receipts=[];public OpdReceiptHeader? HeaderResult;public IReadOnlyList<OpdReceiptChargeAggregate> ReceiptAggregates=[];public IReadOnlyDictionary<string,string> Names=new Dictionary<string,string>();
-        public int CountVisits(string mr,string date,string? section){CountCalls++;MedicalRecordNo=mr;RocDate=date;LegacySection=section;return 1;}
-        public Task<IReadOnlyList<OpdPriceVisitSource>> QueryVisitsAsync(string mr,string date,string? section,int offset,int size,CancellationToken ct)=>Task.FromResult<IReadOnlyList<OpdPriceVisitSource>>([new(new(date,"1","0101",1,mr),"0201","H1",false,"醫師","病患")]);
+        public int CountVisits(string mr,string date,string? section,string? fallback){CountCalls++;MedicalRecordNo=mr;RocDate=date;LegacySection=section;return 1;}
+        public Task<IReadOnlyList<OpdPriceVisitSource>> QueryVisitsAsync(string mr,string date,string? section,string? fallback,int offset,int size,CancellationToken ct)=>Task.FromResult<IReadOnlyList<OpdPriceVisitSource>>([new(new(date,"1","0101",1,mr),"0201","H1",false,"醫師","病患")]);
         public Task<OpdPriceVisitSource?> QueryVisitAsync(OpdPriceVisitKey key,CancellationToken ct)=>Task.FromResult(VisitResult);
         public Task<IReadOnlyList<OpdPriceChargeSource>> QueryDrugsAsync(OpdPriceVisitKey key,bool show,CancellationToken ct){ChargeQueries++;return Task.FromResult(Drugs);}
         public Task<IReadOnlyList<OpdPriceChargeSource>> QueryOrdersAsync(OpdPriceVisitKey key,bool show,CancellationToken ct){ChargeQueries++;return Task.FromResult(Orders);}

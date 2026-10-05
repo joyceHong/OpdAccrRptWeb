@@ -76,8 +76,16 @@
 
         <section v-else class="panel result-panel">
             <div class="result-heading">
-                <strong>查詢結果</strong>
-                <span v-if="searched">共 {{totalCount}} 筆</span>
+                <div><strong>查詢結果</strong>
+                    <span v-if="searched">共 {{totalCount}} 筆</span>
+                </div>
+                <label v-if="searched && visits.length">每頁顯示
+                    <select v-model.number="pageSize" v-on:change="changePageSize">
+                        <option :value="10">10 筆</option>
+                        <option :value="30">30 筆</option>
+                        <option :value="50">50 筆</option>
+                    </select>
+                </label>
             </div>
 
             <div v-if="!visits.length" class="empty-result">
@@ -126,11 +134,14 @@
                 </div>
 
                 <div class="pagination">
-                    <button type="button" aria-label="第一頁" :disabled="pageNumber===1" v-on:click="goToPage(1)">‹‹</button>
-                    <button type="button" :disabled="pageNumber===1" v-on:click="goToPage(pageNumber-1)">‹</button>
-                    <span>{{pageNumber}} / {{Math.max(totalPages,1)}}</span>
-                    <button type="button" :disabled="pageNumber>=totalPages" v-on:click="goToPage(pageNumber+1)">›</button>
-                    <button type="button" aria-label="最後一頁" :disabled="pageNumber>=totalPages" v-on:click="goToPage(totalPages)">››</button>
+                    <span>第 {{pageNumber}} / {{totalPages}} 頁</span>
+                    <div>
+                        <button type="button" aria-label="第一頁" :disabled="pageNumber===1" v-on:click="goToPage(1)">‹‹</button>
+                        <button type="button" aria-label="上一頁" :disabled="pageNumber===1" v-on:click="goToPage(pageNumber-1)">‹</button>
+                        <button class="active" type="button" :aria-label="'第 ' + pageNumber + ' 頁'" aria-current="page">{{pageNumber}}</button>
+                        <button type="button" aria-label="下一頁" :disabled="pageNumber>=totalPages" v-on:click="goToPage(pageNumber+1)">›</button>
+                        <button type="button" aria-label="最後一頁" :disabled="pageNumber>=totalPages" v-on:click="goToPage(totalPages)">››</button>
+                    </div>
                 </div>
             </template>
         </section>

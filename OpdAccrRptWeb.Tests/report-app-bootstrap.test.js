@@ -41,7 +41,7 @@ const VueRouter = {
     createWebHistory() { return {}; },
     createRouter(options) {
         routesSeen.push(...options.routes);
-        assert.ok(options.routes.every(route => route.component), "routes must never contain an unavailable component");
+        assert.ok(options.routes.every(route => route.component || route.redirect), "routes must render or redirect");
         return {};
     }
 };
@@ -50,6 +50,7 @@ vm.runInNewContext(source, { window, document, Vue, VueRouter });
 
 assert.equal(mounted, true);
 assert.ok(routesSeen.some(route => route.path === "/Report/C1"));
+assert.ok(routesSeen.some(route => route.path === "/Report" && route.redirect === "/Report/C1"));
 assert.ok(routesSeen.some(route => route.path === "/medical-statistics/doctor-daily"));
 assert.ok(routesSeen.some(route => route.path === "/data-query/opd-price"));
 assert.doesNotMatch(indexMarkup, /<template>\s*<div class="breadcrumb">/, "router view must not be hidden inside an inert template element");

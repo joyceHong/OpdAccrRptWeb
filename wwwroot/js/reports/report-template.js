@@ -367,7 +367,9 @@
             filteredRows() { return this.rows; },
             hasResults() { return this.rows.length > 0; },
             canExport() {
-                return ["C10", "C144", "C171", "C172", "C173", "C174", "C18", "C19"]
+                return ["C1", "C21", "C22", "C23", "C24", "C25", "C27", "C28", "C29",
+                    "C143", "C213", "C214", "C10", "C144", "C171", "C172", "C173", "C174",
+                    "C18", "C19"]
                     .includes(this.selectedReport.code) && this.hasResults && !this.isExporting;
             },
             isC13() { return this.reportConfiguration.c13 === true; },
@@ -1027,22 +1029,44 @@
                 this.validationMessage = "";
                 this.exportJob = null;
                 try {
+                    const reportCode = this.selectedReport.code;
+                    const exportPayload = {
+                        reportCode,
+                        startDate: this.isEndDateOnly ? undefined : this.form.startDate,
+                        endDate: this.form.endDate,
+                        source: ["C10", "C143", "C144"].includes(reportCode)
+                            ? this.form.encounterSource
+                            : reportCode === "C24" ? this.form.source : undefined,
+                        encounterSource: ["C18", "C19", "C21", "C23", "C29"].includes(reportCode)
+                            ? this.form.encounterSource : undefined,
+                        stationOrBedPrefix: reportCode === "C19"
+                            ? this.form.stationOrBedPrefix.trim() || undefined : undefined,
+                        cashierUserId: reportCode === "C22"
+                            ? this.form.cashierUserId.trim() || undefined : undefined,
+                        cashierCashSortType: reportCode === "C22"
+                            ? this.form.cashierCashSortType : undefined,
+                        billingCode: ["C21", "C29"].includes(reportCode)
+                            ? this.form.billingCode.trim() || undefined : undefined,
+                        accountingScope: reportCode === "C21" ? this.form.accountingScope : undefined,
+                        forceRebuild: ["C21", "C23", "C24"].includes(reportCode)
+                            ? this.form.forceRebuild : undefined,
+                        dateMode: reportCode === "C23" ? this.form.dateMode : undefined,
+                        inpatientType: reportCode === "C23" ? this.form.inpatientType : undefined,
+                        contractCode: reportCode === "C23"
+                            ? this.form.contractCode.trim() || undefined : undefined,
+                        mode: reportCode === "C24" ? this.form.mode : undefined,
+                        roomScope: ["C10", "C24"].includes(reportCode)
+                            ? this.form.roomScope : undefined,
+                        medicalRecordNo: ["C10", "C24"].includes(reportCode)
+                            ? this.form.medicalRecordNo.trim() || undefined : undefined,
+                        reportType: reportCode === "C143" ? this.form.reportType : undefined,
+                        receivableBalanceType: reportCode === "C214"
+                            ? this.form.receivableBalanceType : undefined
+                    };
                     const response = await fetch("/Report/Export", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            reportCode: this.selectedReport.code,
-                            startDate: this.form.startDate,
-                            endDate: this.form.endDate,
-                            source: this.isC10 || this.isC144 ? this.form.encounterSource : undefined,
-                            encounterSource: ["C18", "C19"].includes(this.selectedReport.code)
-                                ? this.form.encounterSource : undefined,
-                            stationOrBedPrefix: this.selectedReport.code === "C19"
-                                ? this.form.stationOrBedPrefix.trim() || undefined : undefined,
-                            roomScope: this.isC10 ? this.form.roomScope : undefined,
-                            medicalRecordNo: this.isC10 && this.form.medicalRecordNo.trim()
-                                ? this.form.medicalRecordNo.trim() : undefined
-                        })
+                        body: JSON.stringify(exportPayload)
                     });
                     if (response.status === 200) {
                         const blob = await response.blob();

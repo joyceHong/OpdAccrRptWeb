@@ -215,7 +215,7 @@
     reportRoutes.unshift({ path: "/medical-statistics/doctor-monthly", component: window.ReportComponents.M2DoctorMonthlyReport, meta: { reportCode: "M2" } });
     reportRoutes.unshift({ path: "/medical-statistics/opd-emergency-daily", component: window.ReportComponents.M3OpdEmergencyDailyReport, meta: { reportCode: "M3" } });
     reportRoutes.push(
-        { path: "/Report", component: unavailableReportComponent },
+        { path: "/Report", redirect: "/Report/C1" },
         { path: "/Report/:reportCode", component: unavailableReportComponent }
     );
     const router = VueRouter.createRouter({

@@ -73,7 +73,8 @@ public sealed class C143AccountingBalanceDebtReportService(
         });
     }
 
-    internal static C143Query CreateQuery(SearchReportCondition condition)
+    internal static C143Query CreateQuery(
+        SearchReportCondition condition, bool allowExportBatch = false)
     {
         if (!C143Sources.IsSupported(condition.Source))
             throw new ArgumentException("C143 資料來源不正確。", nameof(condition));
@@ -87,7 +88,9 @@ public sealed class C143AccountingBalanceDebtReportService(
             throw new ArgumentException("C143 日期格式或範圍不正確。", nameof(condition));
         int pageNumber = condition.PageNumber ?? 1;
         int pageSize = condition.PageSize ?? 10;
-        if (pageNumber <= 0 || pageSize is not (10 or 30 or 50))
+        if (pageNumber <= 0
+            || allowExportBatch && pageSize <= 0
+            || !allowExportBatch && pageSize is not (10 or 30 or 50))
             throw new ArgumentException("C143 分頁條件不正確。", nameof(condition));
 
         string startDate = condition.ReportType == C143ReportTypes.All

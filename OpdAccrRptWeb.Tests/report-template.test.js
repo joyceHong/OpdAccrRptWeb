@@ -199,12 +199,12 @@ async function verifiesC21SourceScopesPayloadAndWebOnlyMarkup() {
     assert.match(markup, /v-if="isC21"/);
     assert.match(markup, /c21ScopeOptions/);
     assert.match(markup, /重新計算/);
-    assert.equal(component.computed.canExport.call({ selectedReport: { code: "C21" }, hasResults: true, isExporting: false }), false);
+    assert.equal(component.computed.canExport.call({ selectedReport: { code: "C21" }, hasResults: true, isExporting: false }), true);
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
     assert.match(appSource, /C21:\s*window\.ReportComponents\.ReportTemplate/);
 }
 
-function verifiesC213UsesSharedComponentWithoutAdvancedConditionsOrExport() {
+function verifiesC213UsesSharedComponentWithoutAdvancedConditionsAndWithExport() {
     const configuration = window.ReportConfigurations.C213;
     assert.equal(configuration.serverPaged, true);
     assert.equal(configuration.advancedConditions, false);
@@ -213,7 +213,7 @@ function verifiesC213UsesSharedComponentWithoutAdvancedConditionsOrExport() {
         selectedReport: { code: "C213" },
         hasResults: true,
         isExporting: false
-    }), false);
+    }), true);
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
@@ -265,7 +265,7 @@ async function verifiesC214SharedConfigurationPayloadTypeSwitchAndReset() {
         [["SelfPay", "自費"], ["Insurance", "健保"]]);
     assert.equal(component.computed.canExport.call({
         selectedReport: { code: "C214" }, hasResults: true, isExporting: false
-    }), false);
+    }), true);
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
@@ -1546,8 +1546,8 @@ async function verifiesC144SharedQueryPagingAndExportContract() {
     const templateSource = fs.readFileSync("wwwroot/js/reports/report-template.js", "utf8");
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     assert.match(appSource, /C144:\s*window\.ReportComponents\.ReportTemplate/);
-    assert.match(templateSource, /\["C10",\s*"C144",\s*"C171",\s*"C172",\s*"C173",\s*"C174",\s*"C18",\s*"C19"\]/);
-    assert.match(templateSource, /this\.isC10 \|\| this\.isC144 \? this\.form\.encounterSource/);
+    assert.match(templateSource, /\["C1",\s*"C21",\s*"C22",\s*"C23",\s*"C24",\s*"C25",\s*"C27",\s*"C28",\s*"C29",[\s\S]*"C214"/);
+    assert.match(templateSource, /\["C10",\s*"C143",\s*"C144"\]\.includes\(reportCode\)/);
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
 }
 
@@ -1783,7 +1783,7 @@ verifiesC171RequestsServerPages()
     .then(verifiesServerPagingDesignation)
     .then(verifiesC21SourceScopesPayloadAndWebOnlyMarkup)
     .then(verifiesC21RebuildVisibilityFollowsServerCapabilityAndQueryBoundary)
-    .then(verifiesC213UsesSharedComponentWithoutAdvancedConditionsOrExport)
+    .then(verifiesC213UsesSharedComponentWithoutAdvancedConditionsAndWithExport)
     .then(verifiesC213DatePagingPayloadAndResetLifecycle)
     .then(verifiesC214SharedConfigurationPayloadTypeSwitchAndReset)
     .then(verifiesC22DefaultsResetPayloadAndMarkup)

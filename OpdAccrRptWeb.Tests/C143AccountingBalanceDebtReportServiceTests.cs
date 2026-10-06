@@ -120,6 +120,20 @@ public sealed class C143AccountingBalanceDebtReportServiceTests
         Assert.Equal(0, repository.Group2PageCalls);
     }
 
+    [Fact]
+    public void CreateQuery_ExportBatchAllowsInternalBatchSizeButUiQueryDoesNot()
+    {
+        SearchReportCondition exportCondition = Condition("OpdEr", "Difference");
+        exportCondition.PageSize = 5_000;
+
+        C143Query query = C143AccountingBalanceDebtReportService.CreateQuery(
+            exportCondition, allowExportBatch: true);
+
+        Assert.Equal(5_000, query.PageSize);
+        Assert.Throws<ArgumentException>(() =>
+            C143AccountingBalanceDebtReportService.CreateQuery(exportCondition));
+    }
+
     private static SearchReportCondition Condition(string? source, string? reportType) => new()
     {
         ReportCode = "C143", StartDate = "2026-09-01", EndDate = "2026-09-14",

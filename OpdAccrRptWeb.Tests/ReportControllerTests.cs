@@ -87,6 +87,26 @@ public sealed class ReportControllerTests
         Assert.DoesNotContain("sensitive", problem.Title);
     }
 
+    [Fact]
+    public void Root_RedirectsToC1AsDefaultReport()
+    {
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>());
+
+        var result = Assert.IsType<RedirectResult>(controller.Root());
+
+        Assert.Equal("/Report/C1", result.Url);
+    }
+
+    [Fact]
+    public void Index_WithoutReportCode_RedirectsToC1()
+    {
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>());
+
+        var result = Assert.IsType<RedirectResult>(controller.Index());
+
+        Assert.Equal("/Report/C1", result.Url);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -104,7 +124,7 @@ public sealed class ReportControllerTests
             new CapturingLogger<ReportController>(),
             c21Options: options);
 
-        var result = Assert.IsType<ViewResult>(controller.Index());
+        var result = Assert.IsType<ViewResult>(controller.Index("C1"));
         var model = Assert.IsType<ReportIndexViewModel>(result.Model);
 
         Assert.Equal(rebuildEnabled, model.C21RebuildEnabled);
@@ -426,6 +446,32 @@ public sealed class ReportControllerTests
             StartDate = startDate,
             EndDate = endDate
         });
+
+        Assert.IsType<FileContentResult>(result);
+        Assert.Equal(1, exportService.DispatchCalls);
+    }
+
+    [Theory]
+    [InlineData("C1")]
+    [InlineData("C21")]
+    [InlineData("C22")]
+    [InlineData("C23")]
+    [InlineData("C24")]
+    [InlineData("C25")]
+    [InlineData("C27")]
+    [InlineData("C28")]
+    [InlineData("C29")]
+    [InlineData("C143")]
+    [InlineData("C213")]
+    [InlineData("C214")]
+    public void Export_NewOutpatientReportCodes_ValidateAndDispatch(string reportCode)
+    {
+        var exportService = new FakeReportExportService();
+        var controller = CreateController(
+            new CountingReportService(), new CapturingLogger<ReportController>(),
+            exportService: exportService);
+
+        IActionResult result = controller.Export(NewExportCondition(reportCode));
 
         Assert.IsType<FileContentResult>(result);
         Assert.Equal(1, exportService.DispatchCalls);
@@ -1380,6 +1426,20 @@ public sealed class ReportControllerTests
         ReportCode = "C174",
         StartDate = "2026-08-01",
         EndDate = "2026-08-31"
+    };
+
+    private static SearchReportCondition NewExportCondition(string reportCode) => new()
+    {
+        ReportCode = reportCode,
+        StartDate = reportCode is "C27" or "C28" or "C214" ? null : "2026-08-01",
+        EndDate = "2026-08-31",
+        EncounterSource = reportCode is "C21" or "C23" ? "Outpatient" :
+            reportCode == "C29" ? EncounterSources.Emergency : null,
+        CashierCashSortType = reportCode == "C22" ? "Cashier" : null,
+        Source = reportCode == "C24" ? C24Sources.OpdEr :
+            reportCode == "C143" ? C143Sources.OpdEr : null,
+        Mode = reportCode == "C24" ? C24Modes.Accounting : null,
+        ReportType = reportCode == "C143" ? C143ReportTypes.Difference : null
     };
 
     private static ReportExportJob CreateJob(ReportExportJobStatus status) => new()

@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
 using MiniExcelLibs;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
@@ -48,6 +50,41 @@ public sealed class ReportExportServiceTests
             output.Query(useHeaderRow: true).Cast<IDictionary<string, object?>>());
         Assert.Equal("B01", row["記帳代碼"]);
         Assert.Equal(123.45d, row["總金額"]);
+    }
+
+    [Fact]
+    public void GenerateWorkbook_BlankCellsKeepThinBorders()
+    {
+        var repository = new FakeHealthCenterRepository
+        {
+            C174ExportData =
+            [
+                new HealthCenterContractBillingReport
+                {
+                    BillingCode = "B01",
+                    BillingName = null,
+                    TotalAmount = 123.45m
+                }
+            ]
+        };
+        var service = CreateService(repository, new FakeJobStore(), new FakeExportQueue());
+
+        using var output = new MemoryStream();
+        service.GenerateWorkbook(RocCondition(), output);
+
+        output.Position = 0;
+        using SpreadsheetDocument document = SpreadsheetDocument.Open(output, false);
+        WorksheetPart worksheetPart = Assert.Single(document.WorkbookPart!.WorksheetParts);
+        List<Row> rows = worksheetPart.Worksheet.GetFirstChild<SheetData>()!.Elements<Row>().ToList();
+        Row header = rows[0];
+        Row data = rows[1];
+        string blankCellReference = header.Elements<Cell>()
+            .Single(cell => cell.CellValue?.Text == "記帳名稱")
+            .CellReference!.Value!;
+        Cell blankCell = data.Elements<Cell>()
+            .Single(cell => cell.CellReference!.Value == $"{blankCellReference[..^1]}2");
+
+        AssertCellHasThinBorder(document, blankCell);
     }
 
     [Fact]
@@ -201,6 +238,74 @@ public sealed class ReportExportServiceTests
     }
 
     [Fact]
+    public void GenerateWorkbook_C1_UsesFullResultAndConvertsIsoDatesForRepository()
+    {
+        var repository = new FakeSurgicalAccountingRepository
+        {
+            Data = [new SurgicalAccountingReportViewModel
+            {
+                EncounterType = "門診", SurgicalOrderCode = "64202B", Amount = 123.45m
+            }]
+        };
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), new FakeJobStore(), new FakeExportQueue(),
+            Options.Create(new ReportExportOptions { BatchSize = 30 }), TimeProvider.System,
+            surgicalAccountingRepository: repository);
+
+        using var output = new MemoryStream();
+        service.GenerateWorkbook(new SearchReportCondition
+        {
+            ReportCode = "C1", StartDate = "2026-08-01", EndDate = "2026-08-31"
+        }, output);
+
+        output.Position = 0;
+        IDictionary<string, object?> row = Assert.Single(
+            output.Query(useHeaderRow: true).Cast<IDictionary<string, object?>>());
+        Assert.Equal("64202B", row["手術碼"]);
+        Assert.Equal(123.45d, row["金額"]);
+        Assert.Equal("1150801", repository.LastStartDate);
+        Assert.Equal("1150831", repository.LastEndDate);
+    }
+
+    [Fact]
+    public void GenerateWorkbook_C143_CombinesDischargedAndInHospitalRowsInOneWorksheet()
+    {
+        var repository = new FakeC143Repository
+        {
+            DischargedRows =
+            [
+                new() { MedicalRecordNumber = "D1" },
+                new() { MedicalRecordNumber = "D2" }
+            ],
+            InHospitalRows =
+            [
+                new() { MedicalRecordNumber = "I1" },
+                new() { MedicalRecordNumber = "I2" }
+            ]
+        };
+        var services = new ServiceCollection();
+        services.AddSingleton<IC143AccountingBalanceDebtRepository>(repository);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), new FakeJobStore(), new FakeExportQueue(),
+            Options.Create(new ReportExportOptions { BatchSize = 3 }), TimeProvider.System,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        using var output = new MemoryStream();
+        service.GenerateWorkbook(new SearchReportCondition
+        {
+            ReportCode = "C143", StartDate = "2026-08-01", EndDate = "2026-08-31",
+            Source = C143Sources.Inpatient, ReportType = C143ReportTypes.All
+        }, output);
+
+        output.Position = 0;
+        List<IDictionary<string, object?>> rows = output.Query(useHeaderRow: true)
+            .Cast<IDictionary<string, object?>>().ToList();
+        Assert.Equal(["D1", "D2", "I1", "I2"],
+            rows.Select(row => row["病歷號"]));
+    }
+
+    [Fact]
     public void NormalizeHealthReport_C19_PreservesRequiredFiltersAndConvertsDates()
     {
         SearchReportCondition normalized = ReportExportService.NormalizeHealthReport(new SearchReportCondition
@@ -311,6 +416,22 @@ public sealed class ReportExportServiceTests
         EndDate = "1150831"
     };
 
+    private static void AssertCellHasThinBorder(SpreadsheetDocument document, Cell cell)
+    {
+        Assert.NotNull(cell.StyleIndex);
+        Stylesheet stylesheet = document.WorkbookPart!.WorkbookStylesPart!.Stylesheet!;
+        CellFormat cellFormat = stylesheet.CellFormats!.Elements<CellFormat>()
+            .ElementAt(checked((int)cell.StyleIndex!.Value));
+        Assert.NotNull(cellFormat.BorderId);
+        Border border = stylesheet.Borders!.Elements<Border>()
+            .ElementAt(checked((int)cellFormat.BorderId!.Value));
+
+        Assert.Equal(BorderStyleValues.Thin, border.LeftBorder?.Style?.Value);
+        Assert.Equal(BorderStyleValues.Thin, border.RightBorder?.Style?.Value);
+        Assert.Equal(BorderStyleValues.Thin, border.TopBorder?.Style?.Value);
+        Assert.Equal(BorderStyleValues.Thin, border.BottomBorder?.Style?.Value);
+    }
+
     private sealed class FakeExportQueue : IReportExportQueue
     {
         public bool Accept { get; init; } = true;
@@ -370,5 +491,29 @@ public sealed class ReportExportServiceTests
 
         public List<C144DebtDetailReportViewModel> GetAll(
             C144Query query, CancellationToken cancellationToken = default) => Data;
+    }
+
+    private sealed class FakeC143Repository : IC143AccountingBalanceDebtRepository
+    {
+        public List<C143AccountingBalanceDebtReportViewModel> OutpatientRows { get; init; } = [];
+        public List<C143AccountingBalanceDebtReportViewModel> DischargedRows { get; init; } = [];
+        public List<C143AccountingBalanceDebtReportViewModel> InHospitalRows { get; init; } = [];
+
+        public int GetOutpatientEmergencyCount(
+            C143Query query, CancellationToken cancellationToken = default) => OutpatientRows.Count;
+
+        public List<C143AccountingBalanceDebtReportViewModel> GetOutpatientEmergencyPage(
+            C143Query query, int offset, int pageSize, CancellationToken cancellationToken = default) =>
+            OutpatientRows.Skip(offset).Take(pageSize).ToList();
+
+        public int GetInpatientCount(
+            C143Query query, int dischargeGroup, CancellationToken cancellationToken = default) =>
+            dischargeGroup == 1 ? DischargedRows.Count : InHospitalRows.Count;
+
+        public List<C143AccountingBalanceDebtReportViewModel> GetInpatientPage(
+            C143Query query, int dischargeGroup, int offset, int pageSize,
+            CancellationToken cancellationToken = default) =>
+            (dischargeGroup == 1 ? DischargedRows : InHospitalRows)
+                .Skip(offset).Take(pageSize).ToList();
     }
 }

@@ -13,6 +13,8 @@ namespace OpdAccrRptWeb.Controllers;
 
 public sealed class ReportController : Controller
 {
+    private const string DefaultReportPath = "/Report/C1";
+
     private readonly IReportCatalogService _reportCatalogService;
     private readonly IReportService _reportService;
     private readonly IReportExportService _reportExportService;
@@ -63,13 +65,18 @@ public sealed class ReportController : Controller
     [HttpGet("/")]
     public IActionResult Root()
     {
-        return Redirect("/Report");
+        return Redirect(DefaultReportPath);
     }
 
     [HttpGet("Report/{reportCode?}")]
     [Authorize]
     public IActionResult Index(string? reportCode = null)
     {
+        if (string.IsNullOrWhiteSpace(reportCode))
+        {
+            return Redirect(DefaultReportPath);
+        }
+
         ReportIndexViewModel viewModel = _reportCatalogService.GetReportIndex();
         viewModel.C21RebuildEnabled = _c21Options?.Value.RebuildEnabled ?? false;
         viewModel.C23RebuildEnabled = _c23Options?.Value.RebuildEnabled ?? false;
@@ -895,10 +902,37 @@ public sealed class ReportController : Controller
             ? ValidateC19Condition(searchCondition)
             : null;
         if (c19Validation is not null) return c19Validation;
-        if (searchCondition.ReportCode is not ("C10" or "C144" or "C171" or "C172" or "C173" or "C174" or "C18" or "C19")
-            || !TryParseDate(searchCondition.StartDate, out var startDate)
-            || !TryParseDate(searchCondition.EndDate, out var endDate)
-            || startDate > endDate)
+
+        IActionResult? outpatientValidation = searchCondition.ReportCode switch
+        {
+            "C1" => ValidateC1Condition(searchCondition),
+            "C21" => ValidateC21Condition(searchCondition),
+            "C22" => ValidateC22Condition(searchCondition),
+            "C23" => ValidateC23Condition(searchCondition),
+            "C24" => ValidateC24Condition(searchCondition),
+            "C25" => ValidateC25Condition(searchCondition),
+            "C27" => ValidateC27Condition(searchCondition),
+            "C28" => ValidateC28Condition(searchCondition),
+            "C29" => ValidateC29Condition(searchCondition),
+            "C143" => ValidateC143Condition(searchCondition),
+            "C213" => ValidateC213Condition(searchCondition),
+            "C214" => ValidateC214Condition(searchCondition),
+            _ => null
+        };
+        if (outpatientValidation is not null) return outpatientValidation;
+
+        bool endDateOnly = searchCondition.ReportCode is "C27" or "C28" or "C214";
+        bool supportedReport = searchCondition.ReportCode is
+            ("C1" or "C21" or "C22" or "C23" or "C24" or "C25" or "C27" or "C28" or "C29"
+                or "C143" or "C213" or "C214" or "C10" or "C144" or "C171" or "C172"
+                or "C173" or "C174" or "C18" or "C19");
+        DateOnly startDate = default;
+        DateOnly endDate = default;
+        bool hasValidEndDate = TryParseDate(searchCondition.EndDate, out endDate);
+        bool hasValidStartDate = endDateOnly
+            || TryParseDate(searchCondition.StartDate, out startDate);
+        if (!supportedReport || !hasValidStartDate || !hasValidEndDate
+            || !endDateOnly && startDate > endDate)
         {
             return BadRequest("此報表不支援匯出，或日期區間不正確。");
         }

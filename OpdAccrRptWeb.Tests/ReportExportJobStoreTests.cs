@@ -31,6 +31,50 @@ public sealed class ReportExportJobStoreTests : IDisposable
     }
 
     [Fact]
+    public void Create_PreservesAllSearchFiltersForBackgroundExecution()
+    {
+        var store = CreateStore(TimeProvider.System);
+        var job = store.Create(new SearchReportCondition
+        {
+            ReportCode = "C23",
+            StartDate = "2026-08-01",
+            EndDate = "2026-08-31",
+            EncounterSource = C23EncounterSources.Inpatient,
+            CashierUserId = "cashier",
+            CashierCashSortType = "Cashier",
+            BillingCode = "01",
+            AccountingScope = 4,
+            ForceRebuild = true,
+            DateMode = C23DateModes.General,
+            InpatientType = C23InpatientTypes.Discharged,
+            ContractCode = "TT",
+            Source = C24Sources.Inpatient,
+            Mode = C24Modes.Accounting,
+            ReportType = C143ReportTypes.All,
+            DetailType = 1,
+            LogisticsType = 2,
+            DepartmentCode = "D01",
+            RoomCodes = "A,B",
+            ChargeCodes = "C,D",
+            RoomScope = C24RoomScopes.All,
+            MedicalRecordNo = "MR001",
+            NewSectionCode = "N01",
+            ReceivableBalanceType = ReceivableBalanceTypes.Insurance,
+            Chop1sec = "0294",
+            PageNumber = 2,
+            PageSize = 30
+        });
+
+        ReportExportJob actual = Assert.IsType<ReportExportJob>(store.Get(job.JobId));
+        Assert.Equal(job.SearchCondition.EncounterSource, actual.SearchCondition.EncounterSource);
+        Assert.Equal(job.SearchCondition.ForceRebuild, actual.SearchCondition.ForceRebuild);
+        Assert.Equal(job.SearchCondition.ContractCode, actual.SearchCondition.ContractCode);
+        Assert.Equal(job.SearchCondition.RoomCodes, actual.SearchCondition.RoomCodes);
+        Assert.Equal(job.SearchCondition.ReceivableBalanceType, actual.SearchCondition.ReceivableBalanceType);
+        Assert.Equal(job.SearchCondition.PageSize, actual.SearchCondition.PageSize);
+    }
+
+    [Fact]
     public void RecoverInterruptedJobs_MarksRunningFailedButKeepsReady()
     {
         var time = new MutableTimeProvider(DateTimeOffset.UtcNow);

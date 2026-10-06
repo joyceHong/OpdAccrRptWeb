@@ -1,0 +1,249 @@
+<template id="registration-query-template">
+    <section class="report-page q3-report">
+        <section class="page-title">
+            <div>
+                <span class="eyebrow">Q3</span>
+                <h1>掛號資料查詢作業</h1>
+                <p>依掛號日期、病患與掛號狀態查詢掛號資料，報診模式提供單一診間統計。</p>
+            </div>
+        </section>
+
+        <section class="panel query-panel">
+            <div class="panel-title">
+                <span>查詢條件</span>
+                <small>未指定日期時仍依掛號狀態查詢</small>
+            </div>
+            <form v-on:submit.prevent="search">
+                <fieldset class="q3-mode-fieldset">
+                    <legend>查詢方式</legend>
+                    <label v-for="option in modeOptions" :key="option.value" class="q3-mode-option">
+                        <input type="radio" name="registration-mode" v-model="form.mode"
+                               :value="option.value" v-on:change="changeMode" />
+                        <span>{{ option.label }}</span>
+                    </label>
+                </fieldset>
+
+                <div class="query-basic-row q3-basic-row">
+                    <label class="q3-date-field">
+                        <span>掛號日期 <i v-if="form.mode === 'summary'">*</i></span>
+                        <input v-model="form.regDate" type="date" :required="form.mode === 'summary'" />
+                    </label>
+                    <label class="q3-primary-field">
+                        <span>病歷號</span>
+                        <input v-model.trim="form.medicalRecordNo" type="text" maxlength="10" autocomplete="off" />
+                    </label>
+                    <label class="q3-primary-field">
+                        <span>身分證號</span>
+                        <input v-model.trim="form.patientId" type="text" maxlength="11" autocomplete="off" />
+                    </label>
+                    <button class="advanced-filter-toggle" type="button"
+                            :aria-expanded="advancedOpen ? 'true' : 'false'"
+                            aria-controls="registration-query-advanced-filters"
+                            v-on:click="advancedOpen = !advancedOpen">
+                        進階篩選
+                        <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span>
+                        <span class="chevron" :class="{ open: advancedOpen }">⌄</span>
+                    </button>
+                </div>
+
+                <transition name="advanced-filter">
+                    <div v-show="advancedOpen" id="registration-query-advanced-filters"
+                         class="advanced-grid advanced-filter-region open q3-advanced-grid">
+                        <label>
+                            <span>出生日期</span>
+                            <input v-model="form.birthDate" type="date" />
+                        </label>
+                        <label>
+                            <span>新科別</span>
+                            <report-autocomplete v-model="form.newSectionDisplay" id-prefix="q3-new-section"
+                                                 placeholder="輸入新科別代碼或名稱"
+                                                 :options="newSectionOptions" :open="newSectionOpen"
+                                                 :loading="lookupLoading.section"
+                                                 v-on:input="loadSections"
+                                                 v-on:select="selectSectionOption"
+                                                 v-on:update:open="newSectionOpen = $event" />
+                        </label>
+                        <label>
+                            <span>診間編號 <i v-if="form.mode === 'summary'">*</i></span>
+                            <input v-model.trim="form.room" type="text" maxlength="6"
+                                   autocomplete="off" :required="form.mode === 'summary'" />
+                        </label>
+                        <label>
+                            <span>時段 <i v-if="form.mode === 'summary'">*</i></span>
+                            <select v-model="form.time" :required="form.mode === 'summary'">
+                                <option value="">請選擇</option>
+                                <option value="1">1．早診</option>
+                                <option value="2">2．午診</option>
+                                <option value="3">3．晚診</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>掛號序號</span>
+                            <input v-model.trim="form.registrationNo" type="text" inputmode="numeric"
+                                   maxlength="3" autocomplete="off" />
+                        </label>
+                        <label>
+                            <span>醫師代號</span>
+                            <report-autocomplete v-model="form.doctorDisplay" id-prefix="q3-doctor"
+                                                 placeholder="輸入醫師代號或姓名"
+                                                 :options="doctorOptions" :open="doctorOpen"
+                                                 :loading="lookupLoading.doctor"
+                                                 v-on:input="loadDoctors"
+                                                 v-on:select="selectDoctor"
+                                                 v-on:update:open="doctorOpen = $event" />
+                        </label>
+                    </div>
+                </transition>
+
+                <div class="form-actions">
+                    <button class="ghost-button" type="button" :disabled="loading" v-on:click="resetForm">重設</button>
+                    <button class="primary-button" type="submit" :disabled="loading">
+                        {{ loading ? '查詢中…' : '⌕ 查詢' }}
+                    </button>
+                </div>
+                <p v-if="conditionError" class="validation-message" role="alert">{{ conditionError }}</p>
+            </form>
+        </section>
+
+        <template v-if="form.mode === 'summary'">
+            <section v-if="loading" class="panel result-panel q3-summary-result" :aria-busy="'true'">
+                <span class="visually-hidden" role="status">資料查詢中</span>
+                @await Html.PartialAsync("_TableSkeleton")
+            </section>
+            <section v-else-if="error && searched" class="panel result-panel q3-summary-result">
+                <div class="validation-summary" role="alert">{{ error }}</div>
+            </section>
+            <section v-else-if="searched && summary" class="panel result-panel q3-summary-result">
+                <div class="result-heading">
+                    <div><strong>報診統計</strong><span>{{ summary.registrationDate }}／時段 {{ summary.time }}／診間 {{ summary.room }}</span></div>
+                </div>
+                <div class="q3-summary-grid">
+                    <article><span>總掛號人數</span><strong>{{ summary.totalCount }}</strong></article>
+                    <article><span>看診人數</span><strong>{{ summary.seenCount }}</strong></article>
+                    <article><span>未看診人數</span><strong>{{ summary.unseenCount }}</strong></article>
+                    <article><span>退號人數</span><strong>{{ summary.cancelledCount }}</strong></article>
+                    <article><span>現場掛號（至幾號）</span><strong>{{ summary.currentNumber }}</strong></article>
+                    <article><span>預約掛號（至幾號）</span><strong>{{ summary.prebookNumber }}</strong></article>
+                </div>
+                <p v-if="summary.roomNumberDataMissing" class="q3-summary-note" role="status">
+                    目前／預約掛號號碼尚無診間資料，數值以 0 顯示。
+                </p>
+                <section class="q3-cancelled-numbers" aria-labelledby="q3-cancelled-numbers-title">
+                    <h2 id="q3-cancelled-numbers-title">退號號碼</h2>
+                    <div v-if="cancelledNumberRows.length" class="q3-number-rows">
+                        <div v-for="(numberRow, index) in cancelledNumberRows" :key="index">
+                            <span v-for="number in numberRow" :key="number" class="q3-number-chip">{{ number }}</span>
+                        </div>
+                    </div>
+                    <p v-else class="q3-summary-muted">本次條件沒有退號號碼。</p>
+                </section>
+            </section>
+            <section v-else class="panel result-panel empty-result q3-summary-result">
+                <div>▤</div>
+                <strong>尚無報診統計</strong>
+                <p>請輸入日期、時段與診間後按下「查詢」。</p>
+            </section>
+        </template>
+
+        <section v-else class="panel result-panel" :aria-busy="loading ? 'true' : 'false'">
+            <div class="result-heading">
+                <div>
+                    <strong>查詢結果</strong>
+                    <span v-if="searched && !loading">共 {{ totalCount }} 筆</span>
+                </div>
+                <label v-if="searched && hasResults && !loading">
+                    每頁顯示
+                    <select v-model.number="pageSize" v-on:change="changePageSize">
+                        <option :value="10">10 筆</option>
+                        <option :value="30">30 筆</option>
+                        <option :value="50">50 筆</option>
+                    </select>
+                </label>
+            </div>
+
+            <template v-if="loading">
+                <span class="visually-hidden" role="status">資料查詢中</span>
+                @await Html.PartialAsync("_TableSkeleton")
+            </template>
+            <div v-else-if="error && searched" class="validation-summary" role="alert">{{ error }}</div>
+            <div v-else-if="!hasResults" class="empty-result">
+                <div>▤</div>
+                <strong>{{ searched ? '查無任何掛號資料' : '尚無查詢結果' }}</strong>
+                <p>{{ searched ? '目前條件沒有符合的掛號資料，請重新設定查詢條件。' : '請設定查詢條件後按下「查詢」。' }}</p>
+            </div>
+            <template v-else>
+                <div class="table-wrap q3-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>類型</th>
+                                <th>日期</th>
+                                <th>時段</th>
+                                <th>序號</th>
+                                <th>診間</th>
+                                <th>病歷號</th>
+                                <th>姓名</th>
+                                <th>身分證</th>
+                                <th>生日</th>
+                                <th>性別</th>
+                                <th>科別</th>
+                                <th>醫師</th>
+                                <th>Fin1</th>
+                                <th>Fin2</th>
+                                <th>支付別</th>
+                                <th>序列</th>
+                                <th>診間地址</th>
+                                <th>建立者</th>
+                                <th>建立日期</th>
+                                <th>退號者</th>
+                                <th>退號日期</th>
+                                <th>狀態</th>
+                                <th>批價</th>
+                                <th>急診返診</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in rows" :key="row.registrationKey"
+                                :class="{ 'q3-cancelled-row': row.isCancelled }">
+                                <td>{{ row.registrationTypeLabel }}</td>
+                                <td>{{ row.registrationDate }}</td>
+                                <td>{{ row.time }}</td>
+                                <td>{{ row.registrationNo }}</td>
+                                <td>{{ row.room }}</td>
+                                <td>{{ row.medicalRecordNo }}</td>
+                                <td>{{ row.patientName }}</td>
+                                <td>{{ row.patientId }}</td>
+                                <td>{{ row.birthDate }}</td>
+                                <td>{{ row.sex }}</td>
+                                <td><span>{{ row.sectionName }}</span><small class="q3-code">{{ row.sectionCode }}</small></td>
+                                <td><span>{{ row.doctorName }}</span><small class="q3-code">{{ row.doctorCode }}</small></td>
+                                <td>{{ row.financial1 }}</td>
+                                <td>{{ row.financial2 }}</td>
+                                <td>{{ row.paymentType }}</td>
+                                <td>{{ row.sequence }}</td>
+                                <td>{{ row.roomAddress }}</td>
+                                <td>{{ row.createdBy }}</td>
+                                <td>{{ row.createdDate }}</td>
+                                <td>{{ row.cancelledBy }}</td>
+                                <td>{{ row.cancelledDate }}</td>
+                                <td><span :class="{ 'q3-status-dc': row.isCancelled }">{{ row.stateLabel || '—' }}</span></td>
+                                <td>{{ row.pricingLabel || '—' }}</td>
+                                <td>{{ row.emergencyReturnLabel || '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <span>第 {{ pageNumber }} / {{ totalPages }} 頁</span>
+                    <div>
+                        <button type="button" aria-label="第一頁" :disabled="loading || pageNumber === 1" v-on:click="goToPage(1)">‹‹</button>
+                        <button type="button" aria-label="上一頁" :disabled="loading || pageNumber === 1" v-on:click="goToPage(pageNumber - 1)">‹</button>
+                        <button class="active" type="button" :aria-label="'第 ' + pageNumber + ' 頁'" aria-current="page">{{ pageNumber }}</button>
+                        <button type="button" aria-label="下一頁" :disabled="loading || pageNumber >= totalPages" v-on:click="goToPage(pageNumber + 1)">›</button>
+                        <button type="button" aria-label="最後一頁" :disabled="loading || pageNumber >= totalPages" v-on:click="goToPage(totalPages)">››</button>
+                    </div>
+                </div>
+            </template>
+        </section>
+    </section>
+</template>

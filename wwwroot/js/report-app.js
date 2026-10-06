@@ -193,7 +193,8 @@
         M2: window.ReportComponents.M2DoctorMonthlyReport,
         M3: window.ReportComponents.M3OpdEmergencyDailyReport,
         Q1: window.ReportComponents.OpdPriceQuery,
-        Q2: window.ReportComponents.MedicalRecordQuery
+        Q2: window.ReportComponents.MedicalRecordQuery,
+        Q3: window.ReportComponents.RegistrationQuery
     });
     const unavailableReportComponent = {
         props: ["selectedReport"],
@@ -204,7 +205,9 @@
             ? "/data-query/opd-price"
             : reportCode === "Q2"
                 ? "/data-query/medical-record"
-                : `/Report/${reportCode}`,
+                : reportCode === "Q3"
+                    ? "/data-query/registration"
+                    : `/Report/${reportCode}`,
         component,
         meta: { reportCode }
     }));
@@ -289,6 +292,7 @@
             reportPath(report) {
                 if (report.code === "Q1") return "/data-query/opd-price";
                 if (report.code === "Q2") return "/data-query/medical-record";
+                if (report.code === "Q3") return "/data-query/registration";
                 if (report.code === "M1") return "/medical-statistics/doctor-daily";
                 if (report.code === "M2") return "/medical-statistics/doctor-monthly";
                 if (report.code === "M3") return "/medical-statistics/opd-emergency-daily";

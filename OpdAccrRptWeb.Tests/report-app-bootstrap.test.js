@@ -24,7 +24,9 @@ const window = {
         M1DoctorDailyReport: reportTemplate,
         M2DoctorMonthlyReport: reportTemplate,
         M3OpdEmergencyDailyReport: reportTemplate,
-        OpdPriceQuery: reportTemplate
+        OpdPriceQuery: reportTemplate,
+        MedicalRecordQuery: reportTemplate,
+        RegistrationQuery: reportTemplate
     },
     clearTimeout() {},
     setTimeout() {}

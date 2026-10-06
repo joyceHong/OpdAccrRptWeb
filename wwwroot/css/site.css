@@ -285,3 +285,40 @@ body{background:var(--bg)}
 .medical-record-detail-grid dd{margin:0;overflow-wrap:anywhere;color:#20344b}
 @media(max-width:1050px){.medical-record-report .medical-record-basic-row{flex-wrap:wrap}.medical-record-report .medical-record-basic-row .advanced-filter-toggle{margin-right:auto}}
 @media(max-width:760px){.medical-record-report .medical-record-basic-row .query-primary-field{flex-basis:100%;min-width:0}.medical-record-report .medical-record-basic-row .advanced-filter-toggle{width:100%;margin-right:0}.medical-record-detail-grid{grid-template-columns:minmax(120px,auto) minmax(0,1fr);padding:0 2px}.medical-record-detail-grid dt,.medical-record-detail-grid dd{padding:8px 0}.medical-record-modal-backdrop{padding:8px}.medical-record-modal{width:100%;max-height:calc(100vh - 16px)}.medical-record-modal-body{padding-right:14px;padding-left:14px}}
+
+/* Q3 registration query follows the Q2 workspace and keeps the legacy-width result readable. */
+.q3-report .q3-mode-fieldset{display:flex;flex:1 0 100%;align-items:center;gap:18px;margin:0;padding:0 0 2px;border:0;color:#43556b}
+.q3-report .q3-mode-fieldset legend{float:left;margin-right:4px;color:#304b64;font-size:13px;font-weight:700}
+.q3-report .q3-mode-option{display:inline-flex;flex:0 0 auto;align-items:center;gap:7px;color:#43556b;font-size:13px;font-weight:600;cursor:pointer}
+.q3-report .q3-mode-option input{width:16px;height:16px;margin:0;accent-color:var(--blue)}
+.q3-report .q3-basic-row{flex:1 0 100%;width:100%;align-items:end;gap:12px}
+.q3-report .q3-date-field,.q3-report .q3-primary-field{display:grid;min-width:0;gap:7px;color:#43556b;font-size:13px;font-weight:700}
+.q3-report .q3-date-field{flex:0 1 190px}
+.q3-report .q3-primary-field{flex:1 1 210px}
+.q3-report .q3-basic-row input,.q3-report .q3-advanced-grid input,.q3-report .q3-advanced-grid select{width:100%;min-height:38px;padding:7px 10px;border:1px solid #c9d7e4;border-radius:7px;color:#293b50;background:#fff;outline:0}
+.q3-report .q3-basic-row .advanced-filter-toggle{align-self:end;margin-left:auto}
+.q3-report .q3-advanced-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:end}
+.q3-report .q3-advanced-grid label{min-width:0}
+.q3-report .q3-advanced-grid label>span{color:#43556b;font-size:13px;font-weight:700}
+.q3-report .q3-advanced-grid .report-autocomplete input{min-height:38px}
+.q3-report .q3-summary-result{overflow:hidden}
+.q3-summary-grid{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;padding:16px 20px 8px}
+.q3-summary-grid article{display:grid;min-height:78px;align-content:center;gap:6px;padding:12px;border:1px solid #dce8f1;border-radius:9px;background:#f7fbfe}
+.q3-summary-grid article span{color:#61758a;font-size:12px}
+.q3-summary-grid article strong{color:#173f63;font-size:24px;line-height:1}
+.q3-summary-note,.q3-summary-muted{margin:8px 20px 16px;color:#6f8191;font-size:12px}
+.q3-summary-note{padding:9px 12px;border:1px solid #f0d6ad;border-radius:7px;color:#8a5a20;background:#fff9ef}
+.q3-cancelled-numbers{margin:8px 20px 20px;padding-top:14px;border-top:1px solid #e5edf3}
+.q3-cancelled-numbers h2{margin:0 0 10px;color:#324e67;font-size:14px}
+.q3-number-rows{display:grid;gap:7px}
+.q3-number-rows>div{display:flex;flex-wrap:wrap;gap:7px}
+.q3-number-chip{display:inline-flex;min-width:34px;justify-content:center;padding:5px 8px;border:1px solid #efc7c7;border-radius:6px;color:#a33a3a;background:#fff5f5;font-size:12px;font-weight:700}
+.q3-table-wrap table{min-width:2320px}
+.q3-table-wrap th,.q3-table-wrap td{vertical-align:middle}
+.q3-code{display:block;margin-top:3px;color:#8a9bab;font-size:11px}
+.q3-cancelled-row td{color:#8d5555;background:#fffafb}
+.q3-cancelled-row:hover td{background:#fff1f1!important}
+.q3-cancelled-row .q3-status-dc{color:#b42318;font-weight:800}
+@media(max-width:1150px){.q3-report .q3-mode-fieldset{flex-wrap:wrap;gap:8px 14px}.q3-report .q3-advanced-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.q3-summary-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}}
+@media(max-width:760px){.q3-report .q3-mode-fieldset{align-items:flex-start;flex-direction:column;gap:8px}.q3-report .q3-basic-row{flex-direction:column;align-items:stretch}.q3-report .q3-date-field,.q3-report .q3-primary-field{flex-basis:auto;width:100%}.q3-report .q3-basic-row .advanced-filter-toggle{width:100%;margin-left:0}.q3-report .q3-advanced-grid{grid-template-columns:1fr}.q3-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding-inline:14px}.q3-cancelled-numbers{margin-inline:14px}}
+@media print{.q3-table-wrap{overflow:visible}.q3-table-wrap table{min-width:0;font-size:9px}.q3-summary-grid{grid-template-columns:repeat(3,1fr);padding-inline:0}.q3-cancelled-numbers{margin-inline:0}}

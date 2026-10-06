@@ -1,4 +1,5 @@
 using OpdAccrRptWeb.Infrastructure;
+using OpdAccrRptWeb.Models;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
 using Microsoft.AspNetCore.Authentication.Negotiate;
@@ -30,6 +31,9 @@ builder.Services
     .Bind(builder.Configuration.GetSection(DatabaseConnectionOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<DatabaseConnectionOptions>, DatabaseConnectionOptionsValidator>();
+builder.Services
+    .AddOptions<RegistrationQueryOptions>()
+    .Bind(builder.Configuration.GetSection(RegistrationQueryOptions.SectionName));
 builder.Services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
 builder.Services.AddSingleton<IHealthCenterRepository, HealthCenterRepository>();
 builder.Services.AddSingleton<IReferralMemberRepository, ReferralMemberRepository>();
@@ -58,6 +62,8 @@ builder.Services.AddScoped<IMedicalRecordQueryService, MedicalRecordQueryService
 builder.Services.AddScoped<IOpdPriceReceiptRenderer, OpdPriceReceiptRenderer>();
 builder.Services.AddSingleton<IOpdPricePatientAccessAuditWriter, OpdPriceSerilogAuditWriter>();
 builder.Services.AddC3ReportServices();
+builder.Services.AddScoped<IRegistrationQueryRepository, RegistrationQueryRepository>();
+builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
 builder.Services.AddScoped<IC4MaterialReportRepository, C4MaterialReportRepository>();
 builder.Services.AddScoped<IC4MaterialReportService, C4MaterialReportService>();
 builder.Services.AddScoped<IC5ReportRepository, C5ReportRepository>();

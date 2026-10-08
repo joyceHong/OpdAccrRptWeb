@@ -58,6 +58,98 @@ public sealed class C211ContractBalanceReportServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_ReturnsRequestedPageAndKeepsSummaryAcrossAllRows()
+    {
+        var rows = Enumerable.Range(1, 28)
+            .Select(index => new C211Row(
+                index <= 14 ? "AA" : "TT",
+                index.ToString("D3"),
+                "1150831", "0800", "A001", index, 1m, 2m))
+            .ToList();
+        var service = new C211ContractBalanceReportService(
+            new StubRepository(rows),
+            new FixedTimeProvider(new DateTimeOffset(2026, 9, 11, 4, 5, 6, TimeSpan.Zero)));
+
+        var firstPage = await service.CreateAsync(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O", PageNumber = 1, PageSize = 10
+        }, "tester");
+        var secondPage = await service.CreateAsync(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O", PageNumber = 2, PageSize = 10
+        }, "tester");
+        var lastPage = await service.CreateAsync(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O", PageNumber = 3, PageSize = 10
+        }, "tester");
+
+        Assert.Equal(10, firstPage.Data!.Count);
+        Assert.Equal("001", firstPage.Data[0].MedicalRecordNo);
+        Assert.Equal("010", firstPage.Data[^1].MedicalRecordNo);
+        Assert.Equal(28, firstPage.TotalCount);
+        Assert.Equal(1, firstPage.PageNumber);
+        Assert.Equal(10, firstPage.PageSize);
+        Assert.Equal(3, firstPage.TotalPages);
+
+        Assert.Equal(10, secondPage.Data!.Count);
+        Assert.Equal("011", secondPage.Data[0].MedicalRecordNo);
+        Assert.Equal("020", secondPage.Data[^1].MedicalRecordNo);
+        Assert.Equal(8, lastPage.Data!.Count);
+        Assert.Equal("021", lastPage.Data[0].MedicalRecordNo);
+        Assert.Equal("028", lastPage.Data[^1].MedicalRecordNo);
+
+        var summary = Assert.IsType<C211ReportSummary>(lastPage.Summary);
+        Assert.Equal(28m, summary.SelfGrandTotal);
+        Assert.Equal(56m, summary.ClaimGrandTotal);
+        Assert.Collection(summary.Groups,
+            group => Assert.Equal(("AA", 14m, 28m), (group.ContractCode, group.SelfAmount, group.ClaimAmount)),
+            group => Assert.Equal(("TT", 14m, 28m), (group.ContractCode, group.SelfAmount, group.ClaimAmount)));
+    }
+
+    [Fact]
+    public async Task CreateAsync_EmptyResultHasZeroPages()
+    {
+        var service = new C211ContractBalanceReportService(
+            new StubRepository([]),
+            new FixedTimeProvider(new DateTimeOffset(2026, 9, 11, 4, 5, 6, TimeSpan.Zero)));
+
+        var result = await service.CreateAsync(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O", PageNumber = 1, PageSize = 10
+        }, "tester");
+
+        Assert.Empty(result.Data!);
+        Assert.Equal(0, result.TotalCount);
+        Assert.Equal(0, result.TotalPages);
+    }
+
+    [Fact]
+    public async Task CreatePreviewAsync_ReturnsAllRowsAndSummaryRegardlessOfQueryPage()
+    {
+        var rows = Enumerable.Range(1, 28)
+            .Select(index => new C211Row(
+                index <= 14 ? "AA" : "TT",
+                index.ToString("D3"),
+                "1150831", "0800", "A001", index, 1m, 2m))
+            .ToList();
+        var service = new C211ContractBalanceReportService(
+            new StubRepository(rows),
+            new FixedTimeProvider(new DateTimeOffset(2026, 9, 11, 4, 5, 6, TimeSpan.Zero)));
+
+        var preview = await service.CreatePreviewAsync(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O", PageNumber = 2, PageSize = 10
+        }, "tester");
+
+        Assert.Equal(28, preview.Rows.Count);
+        Assert.Equal("001", preview.Rows[0].MedicalRecordNo);
+        Assert.Equal("028", preview.Rows[^1].MedicalRecordNo);
+        Assert.Equal(28m, preview.Summary.SelfGrandTotal);
+        Assert.Equal(56m, preview.Summary.ClaimGrandTotal);
+        Assert.Equal(2, preview.Summary.Groups.Count);
+    }
+
+    [Fact]
     public void BuildGroups_ThrowsInsteadOfSilentlyOverflowing() =>
         Assert.Throws<OverflowException>(() => C211ContractBalanceReportService.BuildGroups(
         [
@@ -92,5 +184,10 @@ public sealed class C211ContractBalanceReportServiceTests
                 Columns = [], Data = []
             });
         }
+
+        public Task<C211ContractBalancePreviewViewModel> CreatePreviewAsync(
+            SearchReportCondition condition, string userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new C211ContractBalancePreviewViewModel(
+                [], new C211ReportSummary("", "", "", "", "", "", [], 0m, 0m)));
     }
 }

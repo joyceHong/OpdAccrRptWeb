@@ -8,4 +8,9 @@ public interface IC211ContractBalanceReportService
         SearchReportCondition condition,
         string userId,
         CancellationToken cancellationToken = default);
+
+    Task<C211ContractBalancePreviewViewModel> CreatePreviewAsync(
+        SearchReportCondition condition,
+        string userId,
+        CancellationToken cancellationToken = default);
 }

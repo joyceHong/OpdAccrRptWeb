@@ -141,7 +141,7 @@
         C27: Object.freeze({ serverPaged: true, endDateOnly: true }),
         C28: Object.freeze({ serverPaged: true, endDateOnly: true }),
         C211: Object.freeze({
-            serverPaged: false,
+            serverPaged: true,
             endDateOnly: true,
             advancedConditions: false,
             c211: true,
@@ -329,7 +329,7 @@
             isC10() { return this.reportConfiguration.c10 === true; },
             isC211() { return this.reportConfiguration.c211 === true; },
             isC212() { return this.reportConfiguration.c212 === true; },
-            isPrintableLegacyReport() { return this.isC211 || this.isC212; },
+            isPrintableLegacyReport() { return this.isC212; },
             c21ScopeOptions() {
                 return this.form.encounterSource === "Inpatient"
                     ? [{ value: 4, label: "全部" }, { value: 5, label: "住院總帳" }, { value: 8, label: "出院總帳" }]
@@ -840,6 +840,14 @@
                     reportType: this.form.reportType, dateMode: this.form.dateMode,
                     pageNumber: 1, pageSize: 10
                 }, "無法建立 C16 預覽。");
+            },
+            async previewC211() {
+                if (!this.isC211 || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C211/Preview", {
+                    endDate: this.form.endDate,
+                    encounterSource: this.form.encounterSource,
+                    contractCode: this.form.contractCode.trim() || undefined
+                }, "無法建立 C211 預覽。");
             },
             async openLegacyPreview(url, payload, fallbackMessage) {
                 this.legacyPreviewLoading = true;

@@ -1,6 +1,7 @@
 using Dapper;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
+using Oracle.ManagedDataAccess.Client;
 
 namespace OpdAccrRptWeb.Tests;
 
@@ -100,5 +101,28 @@ public sealed class C10ReceivableDetailRepositoryTests
         Assert.Equal(malicious, parameters.Get<string>("MedicalRecordNumber"));
         Assert.DoesNotContain(malicious, C10Sql.OutpatientDebt, StringComparison.Ordinal);
         Assert.Contains(":MedicalRecordNumber", C10Sql.OutpatientDebt, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("C36979")]
+    [InlineData("1234567890")]
+    public void InpatientMedicalRecordParameter_UsesUnpaddedVarchar2Value(string medicalRecordNo)
+    {
+        OracleParameter parameter =
+            C10ReceivableDetailRepository.CreateMedicalRecordParameter(medicalRecordNo);
+
+        Assert.Equal(OracleDbType.Varchar2, parameter.OracleDbType);
+        Assert.Equal(10, parameter.Size);
+        Assert.Equal(medicalRecordNo, parameter.Value);
+    }
+
+    [Fact]
+    public void MissingMedicalRecordParameter_RemainsInactive()
+    {
+        OracleParameter parameter = C10ReceivableDetailRepository.CreateMedicalRecordParameter(null);
+
+        Assert.Equal(OracleDbType.Varchar2, parameter.OracleDbType);
+        Assert.Equal(10, parameter.Size);
+        Assert.Equal(DBNull.Value, parameter.Value);
     }
 }

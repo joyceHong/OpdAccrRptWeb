@@ -1,0 +1,69 @@
+<template id="sap-interface-template">
+    <section class="report-page sap-interface-report">
+        <section class="page-title">
+            <div>
+                <span class="eyebrow">SAP</span>
+                <h1>SAP 中介表作業</h1>
+                <p>依指定日期重建櫃員現金、合約記帳、批價收入與轉撥收入資料。</p>
+            </div>
+        </section>
+
+        <section class="panel query-panel">
+            <div class="panel-title"><span>作業條件</span><small>依畫面順序逐項執行</small></div>
+            <form v-on:submit.prevent="run">
+                <div class="date-row">
+                    <label><span>資料日期 <i>*</i></span>
+                        <input v-model="businessDate" type="date" required v-on:change="loadStatus" :disabled="loading" />
+                    </label>
+                </div>
+                <fieldset class="sap-event-options">
+                    <legend>執行項目</legend>
+                    <label v-for="item in events" :key="item.event">
+                        <input type="checkbox" v-model="selected[item.event]" :disabled="loading" />
+                        <span>{{ item.name }}</span>
+                    </label>
+                </fieldset>
+                <div class="form-actions">
+                    <button class="primary-button" type="submit" :disabled="loading || !businessDate">執行作業</button>
+                </div>
+            </form>
+        </section>
+
+        <section v-if="confirmationRequired.length" class="panel sap-confirmation" role="group" aria-label="重跑確認">
+            <div class="panel-title">已有完成紀錄，請逐項確認</div>
+            <div class="sap-confirmation-body">
+                <p>勾選要重跑的項目；未勾選的已完成項目會略過，其餘項目繼續執行。</p>
+                <label v-for="item in confirmationRequired" :key="item.event">
+                    <input type="checkbox" v-model="confirmRerun[item.event]" />
+                    <span>確認重跑 {{ item.name }}</span>
+                </label>
+                <div class="form-actions">
+                    <button type="button" class="ghost-button" v-on:click="cancelConfirmation">取消</button>
+                    <button type="button" class="primary-button" v-on:click="runConfirmed" :disabled="loading">依確認內容執行</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel result-panel" :aria-busy="loading ? 'true' : 'false'">
+            <div class="result-heading"><strong>作業狀態</strong><span>資料日期 {{ businessDate || '未選擇' }}</span></div>
+            <template v-if="loading">
+                <span class="visually-hidden" role="status">作業進行中</span>
+                @await Html.PartialAsync("~/Views/Report/_TableSkeleton.cshtml")
+            </template>
+            <div v-else-if="error" class="empty-result" role="alert"><strong>{{ error }}</strong></div>
+            <div v-else-if="events.length" class="table-wrap">
+                <table>
+                    <thead><tr><th>順序</th><th>作業</th><th>完成紀錄</th><th>本次結果</th></tr></thead>
+                    <tbody>
+                        <tr v-for="(item, index) in events" :key="item.event">
+                            <td>{{ index + 1 }}</td><td>{{ item.name }}</td>
+                            <td>{{ item.completed ? '已完成' : '未完成' }}</td>
+                            <td>{{ resultLabel(item.event) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div v-else class="empty-result"><strong>請選擇資料日期</strong></div>
+        </section>
+    </section>
+</template>

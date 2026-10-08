@@ -29,6 +29,7 @@ public sealed class ReportController : Controller
     private readonly IC13HighRiskEmergencyReportService? _c13ReportService;
     private readonly IC16ReportService? _c16ReportService;
     private readonly IC3ReportService? _c3ReportService;
+    private readonly IC211ContractBalanceReportService? _c211ReportService;
 
     public ReportController(
         IReportCatalogService reportCatalogService,
@@ -44,7 +45,8 @@ public sealed class ReportController : Controller
         IC13HighRiskEmergencyReportService? c13ReportService = null,
         IC12ReportRepository? c12Repository = null,
         IC16ReportService? c16ReportService = null,
-        IC3ReportService? c3ReportService = null)
+        IC3ReportService? c3ReportService = null,
+        IC211ContractBalanceReportService? c211ReportService = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -60,6 +62,7 @@ public sealed class ReportController : Controller
         _c13ReportService = c13ReportService;
         _c16ReportService = c16ReportService;
         _c3ReportService = c3ReportService;
+        _c211ReportService = c211ReportService;
     }
 
     [HttpGet("/")]
@@ -260,7 +263,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode is "C1" or "C3" or "C10" or "C11" or "C12" or "C13" or "C15" or "C16" or "C143" or "C144" or "C21" or "C22" or "C23" or "C24" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
+        if (searchCondition.ReportCode is "C1" or "C3" or "C10" or "C11" or "C12" or "C13" or "C15" or "C16" or "C143" or "C144" or "C21" or "C22" or "C23" or "C24" or "C211" or "C213" or "C214" or "C25" or "C27" or "C28" or "C29" or "C171" or "C174" or "C18" or "C19")
         {
             searchCondition.PageNumber ??= 1;
             searchCondition.PageSize ??= 10;
@@ -683,6 +686,66 @@ public sealed class ReportController : Controller
         if (_c211Repository is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
         Response.Headers.CacheControl = "private, no-store";
         return Ok(await _c211Repository.GetContractChoicesAsync(cancellationToken));
+    }
+
+    [HttpPost("Report/C211/Preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> PreviewC211([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C211";
+        IActionResult? validation = ValidateC211Condition(condition);
+        if (validation is not null) return validation;
+
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.Pragma = "no-cache";
+        try
+        {
+            string userId = User.Identity?.IsAuthenticated == true
+                ? User.Identity.Name ?? string.Empty
+                : string.Empty;
+            C211ContractBalancePreviewViewModel preview = await (_c211ReportService
+                ?? throw new InvalidOperationException("C211 report service 尚未設定。"))
+                .CreatePreviewAsync(condition, userId, HttpContext.RequestAborted);
+            if (preview.Rows.Count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+            return PartialView("_C211ContractBalancePreview", preview);
+        }
+        catch (OperationCanceledException)
+        {
+            return StatusCode(499);
+        }
+        catch (OracleException exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            bool unavailable = IsOracleConnectionFailure(exception.Number);
+            _logger.LogWarning(
+                "C211 preview failed. TraceId={TraceId} ErrorNumber={ErrorNumber} Category={Category}",
+                traceId, exception.Number, unavailable ? "Unavailable" : "TimeoutOrQueryFailure");
+            int status = unavailable
+                ? StatusCodes.Status503ServiceUnavailable
+                : StatusCodes.Status504GatewayTimeout;
+            var details = new ProblemDetails
+            {
+                Status = status,
+                Title = "無法建立報表預覽，請稍後再試。"
+            };
+            details.Extensions["traceId"] = traceId;
+            return StatusCode(status, details);
+        }
+        catch (Exception exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            _logger.LogError(
+                "C211 preview failed. TraceId={TraceId} ExceptionType={ExceptionType}",
+                traceId, exception.GetType().FullName);
+            var details = new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "無法建立報表預覽，請提供追蹤碼給系統管理人員。"
+            };
+            details.Extensions["traceId"] = traceId;
+            return StatusCode(StatusCodes.Status500InternalServerError, details);
+        }
     }
 
     private BadRequestObjectResult? ValidateC211Condition(SearchReportCondition condition)

@@ -32,7 +32,7 @@ public sealed class C12ReportRepository(IConnectionStringProvider connectionStri
         Add(command,"StartDate",OracleDbType.Char,request.StartDate); Add(command,"EndDate",OracleDbType.Char,request.EndDate);
         Add(command,"ApplySection",OracleDbType.Int32,string.IsNullOrWhiteSpace(request.NewSectionCode)?0:1);
         Add(command,"NewSectionCode",OracleDbType.Varchar2,string.IsNullOrWhiteSpace(request.NewSectionCode)?DBNull.Value:request.NewSectionCode.Trim());
-        command.Parameters.Add(CreateMedicalRecordParameter(mrNo));
+        command.Parameters.Add(CreateVisitMedicalRecordParameter(mrNo));
         if (request.Source == C12Source.OutpatientAndEmergency) Add(command,"RoomType",OracleDbType.Int32,request.RoomType);
         await using OracleDataReader reader = await command.ExecuteReaderAsync(ct);
         var rows = new List<C12VisitRow>();
@@ -70,7 +70,7 @@ public sealed class C12ReportRepository(IConnectionStringProvider connectionStri
     public async Task<C12PatientRow?> QueryPatientAsync(string mrNo, CancellationToken ct)
     {
         await using OracleConnection connection=CreateConnection(); await connection.OpenAsync(ct);
-        await using OracleCommand command=CreateCommand(connection,C12Sql.Patient); Add(command,"MrNo",OracleDbType.Varchar2,mrNo);
+        await using OracleCommand command=CreateCommand(connection,C12Sql.Patient); command.Parameters.Add(CreatePatientMedicalRecordParameter(mrNo));
         await using OracleDataReader reader=await command.ExecuteReaderAsync(ct);
         return await reader.ReadAsync(ct) ? new(Text(reader,0),Text(reader,1),Text(reader,2)) : null;
     }
@@ -78,7 +78,10 @@ public sealed class C12ReportRepository(IConnectionStringProvider connectionStri
     private OracleConnection CreateConnection()=>new(connectionStringProvider.GetConnectionString());
     private static OracleCommand CreateCommand(OracleConnection c,string sql)=>new(sql,c){BindByName=true};
     private static void Add(OracleCommand c,string n,OracleDbType t,object value)=>c.Parameters.Add(n,t,value,ParameterDirection.Input);
-    internal static OracleParameter CreateMedicalRecordParameter(string medicalRecordNo) => new("MrNo",OracleDbType.Char,10,medicalRecordNo,ParameterDirection.Input);
+    internal static OracleParameter CreatePatientMedicalRecordParameter(string medicalRecordNo) =>
+        new("MrNo", OracleDbType.Varchar2, 10, medicalRecordNo, ParameterDirection.Input);
+    internal static OracleParameter CreateVisitMedicalRecordParameter(string medicalRecordNo) =>
+        new("MrNo", OracleDbType.Char, 10, medicalRecordNo.PadRight(10, ' '), ParameterDirection.Input);
     private static string Text(OracleDataReader r,int i)=>r.IsDBNull(i)?string.Empty:Convert.ToString(r.GetValue(i))?.Trim()??string.Empty;
     private static string? Trim(object? value)=>value is null or DBNull?null:Convert.ToString(value)?.Trim();
     private static decimal? Decimal(OracleDataReader r,int i)=>r.IsDBNull(i)?null:Convert.ToDecimal(r.GetValue(i));

@@ -50,4 +50,26 @@ public sealed class MedicalRecordQueryRepositoryTests
         Assert.Contains("B.ROWID", MedicalRecordQuerySql.PageBase, StringComparison.Ordinal);
         Assert.Contains("RTRIM(D.chBackFlg) IS NULL", MedicalRecordQuerySql.DebtTotal, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("C36979")]
+    [InlineData("1234567890")]
+    public void ExactLookupParameter_UsesUnpaddedVarchar2Value(string medicalRecordNo)
+    {
+        OracleParameter parameter =
+            MedicalRecordQueryRepository.CreateExactMedicalRecordParameter(medicalRecordNo);
+
+        Assert.Equal(OracleDbType.Varchar2, parameter.OracleDbType);
+        Assert.Equal(10, parameter.Size);
+        Assert.Equal(medicalRecordNo, parameter.Value);
+    }
+
+    [Fact]
+    public void ExactLookupSql_UsesTheSharedMedicalRecordParameterInBothPaths()
+    {
+        Assert.Contains("B.chMrNo = :MedicalRecordNo", MedicalRecordQuerySql.Detail,
+            StringComparison.Ordinal);
+        Assert.Contains("A.chMrNo = :MedicalRecordNo", MedicalRecordQuerySql.MergedMedicalRecordNumbers,
+            StringComparison.Ordinal);
+    }
 }

@@ -570,6 +570,37 @@ The shared report result UI SHALL enable the existing Excel export flow for C171
 - **WHEN** the user changes reports or the component is unmounted while an export job is being polled
 - **THEN** the UI SHALL stop the existing polling timer and clear stale export state
 
+---
+### Requirement: Q2 shared result table and pagination
+
+The Q2 result area SHALL reuse the shared result heading, horizontal table wrapper, total count, page-size selector, and first, previous, current, next, and last pagination controls. It SHALL display the 13 Q2 main columns in the specified order and SHALL keep the normal table result visible when the optional detail panel is opened.
+
+#### Scenario: Display Q2 results
+
+- **WHEN** a valid query returns rows
+- **THEN** the result heading displays the total matching count
+- **AND** the table displays all 13 configured columns in order
+- **AND** the page-size selector offers 10, 30, and 50
+
+#### Scenario: Navigate a Q2 result page
+
+- **WHEN** a user selects the next page
+- **THEN** the current page changes to the next server page
+- **AND** the active query conditions remain unchanged
+- **AND** the first, previous, next, and last controls have the same disabled and accessible-label behavior as other reports
+
+##### Example: next page
+
+- **GIVEN** the current Q2 page is 1 of 3 with page size 10
+- **WHEN** the user activates the next-page control
+- **THEN** the component requests page 2 with the same filters and page size 10
+
+#### Scenario: Open detail without replacing the table
+
+- **WHEN** a user selects a result row
+- **THEN** the read-only detail panel loads below the result table
+- **AND** the Q2 result table and pagination remain available
+
 ## Planned Requirements
 
 下列能力屬下一階段工作。
@@ -1267,6 +1298,32 @@ tests:
   - OpdAccrRptWeb.Tests/opd-price-query.test.js
   - OpdAccrRptWeb.Tests/report-template.test.js
   - OpdAccrRptWeb.Tests/report-autocomplete.test.js
+-->
+
+
+<!-- @trace
+source: add-medical-record-query
+updated: 2026-10-07
+code:
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - Views/Report/_RegistrationQuery.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - wwwroot/js/reports/registration-query.js
+  - .agents/skills/spectra-apply/SKILL.md
+  - Services/RegistrationQueryService.cs
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-analyze/SKILL.md
+  - AGENTS.md
+  - .agents/skills/spectra-ask/SKILL.md
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - .agents/skills/spectra-commit/SKILL.md
+  - .agents/skills/spectra-review/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - Repositories/RegistrationQueryRepository.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-verify/SKILL.md
 -->
 
 ### Requirement: Excel export

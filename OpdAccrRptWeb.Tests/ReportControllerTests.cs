@@ -1384,8 +1384,56 @@ public sealed class ReportControllerTests
         Assert.Equal("OUTSIDE", condition.ContractCode);
         Assert.Null(condition.StartDate);
         Assert.Equal("private, no-store", controller.Response.Headers.CacheControl);
-        Assert.Null(condition.PageNumber);
-        Assert.Null(condition.PageSize);
+        Assert.Equal(1, condition.PageNumber);
+        Assert.Equal(10, condition.PageSize);
+    }
+
+    [Theory]
+    [InlineData(null, null, 1, 10)]
+    [InlineData(3, 10, 3, 10)]
+    [InlineData(2, 30, 2, 30)]
+    [InlineData(2, 50, 2, 50)]
+    public void GetReportData_ValidC211Pagination_AppliesValues(
+        int? pageNumber,
+        int? pageSize,
+        int expectedPageNumber,
+        int expectedPageSize)
+    {
+        var service = new CountingReportService();
+        var controller = CreateController(service, new CapturingLogger<ReportController>());
+        var condition = new SearchReportCondition
+        {
+            ReportCode = "C211", EndDate = "2026-08-31", EncounterSource = "O",
+            PageNumber = pageNumber, PageSize = pageSize
+        };
+
+        var result = controller.GetReportData(condition);
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(1, service.C211Calls);
+        Assert.Equal(expectedPageNumber, condition.PageNumber);
+        Assert.Equal(expectedPageSize, condition.PageSize);
+    }
+
+    [Theory]
+    [InlineData(0, 10)]
+    [InlineData(-1, 10)]
+    [InlineData(1, 20)]
+    public void GetReportData_InvalidC211Pagination_ReturnsBadRequestWithoutCallingService(
+        int pageNumber,
+        int pageSize)
+    {
+        var service = new CountingReportService();
+        var controller = CreateController(service, new CapturingLogger<ReportController>());
+
+        var result = controller.GetReportData(new SearchReportCondition
+        {
+            ReportCode = "C211", EndDate = "2026-08-31", EncounterSource = "O",
+            PageNumber = pageNumber, PageSize = pageSize
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(0, service.C211Calls);
     }
 
     [Theory]
@@ -1406,19 +1454,170 @@ public sealed class ReportControllerTests
         Assert.Equal(0, service.C211Calls);
     }
 
+    [Fact]
+    public async Task PreviewC211_ReturnsNoStorePartialAndUsesValidatedFiltersAndCancellation()
+    {
+        var previewService = new StubC211PreviewReportService
+        {
+            Result = new C211ContractBalancePreviewViewModel(
+                [new C211ContractBalanceReportViewModel { ContractCode = "TT", MedicalRecordNo = "001" }],
+                new C211ReportSummary("C211", "115/08/31", "OpdAccRpt", "PFin2Balance",
+                    "115/09/11 12:00:00", "", [], 10m, 20m))
+        };
+        var controller = CreateController(
+            new CountingReportService(), new CapturingLogger<ReportController>(),
+            c211ReportService: previewService);
+        using var cancellation = new CancellationTokenSource();
+        controller.HttpContext.RequestAborted = cancellation.Token;
+        var condition = new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O", ContractCode = "  TT  ",
+            PageNumber = 2, PageSize = 30
+        };
+
+        var action = Assert.IsType<PartialViewResult>(await controller.PreviewC211(condition));
+
+        Assert.Equal("_C211ContractBalancePreview", action.ViewName);
+        Assert.Same(previewService.Result, action.Model);
+        Assert.Equal("C211", condition.ReportCode);
+        Assert.Null(condition.StartDate);
+        Assert.Equal("TT", condition.ContractCode);
+        Assert.Same(condition, previewService.Condition);
+        Assert.Equal(cancellation.Token, previewService.CancellationToken);
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl);
+        Assert.Equal("no-cache", controller.Response.Headers.Pragma);
+    }
+
+    [Fact]
+    public async Task PreviewC211_EmptyResultReturnsNotFound()
+    {
+        var previewService = new StubC211PreviewReportService();
+        var controller = CreateController(
+            new CountingReportService(), new CapturingLogger<ReportController>(),
+            c211ReportService: previewService);
+
+        var result = await controller.PreviewC211(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O"
+        });
+
+        var notFound = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Equal(404, Assert.IsType<ProblemDetails>(notFound.Value).Status);
+        Assert.Equal(1, previewService.Calls);
+    }
+
+    [Theory]
+    [InlineData("X", "2026-08-31", null)]
+    [InlineData("O", "invalid", null)]
+    [InlineData("I", "2026-08-31", "2026-08-01")]
+    public async Task PreviewC211_InvalidConditionsReturnBadRequestWithoutDispatch(
+        string source, string endDate, string? startDate)
+    {
+        var previewService = new StubC211PreviewReportService();
+        var controller = CreateController(
+            new CountingReportService(), new CapturingLogger<ReportController>(),
+            c211ReportService: previewService);
+
+        var result = await controller.PreviewC211(new SearchReportCondition
+        {
+            StartDate = startDate, EndDate = endDate, EncounterSource = source
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(0, previewService.Calls);
+    }
+
+    [Fact]
+    public async Task PreviewC211_CanceledRequestReturns499()
+    {
+        var previewService = new StubC211PreviewReportService
+        {
+            Failure = new OperationCanceledException()
+        };
+        var controller = CreateController(
+            new CountingReportService(), new CapturingLogger<ReportController>(),
+            c211ReportService: previewService);
+
+        var result = await controller.PreviewC211(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O"
+        });
+
+        Assert.Equal(499, Assert.IsType<StatusCodeResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task PreviewC211_UnexpectedFailureDoesNotLeakSensitiveDetails()
+    {
+        const string sentinel = "MRN-SECRET SELECT password connection-string amount=999";
+        var logger = new CapturingLogger<ReportController>();
+        var previewService = new StubC211PreviewReportService
+        {
+            Failure = new InvalidOperationException(sentinel)
+        };
+        var controller = CreateController(new CountingReportService(), logger,
+            c211ReportService: previewService);
+
+        var result = await controller.PreviewC211(new SearchReportCondition
+        {
+            EndDate = "2026-08-31", EncounterSource = "O"
+        });
+
+        var failure = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(500, failure.StatusCode);
+        var problem = Assert.IsType<ProblemDetails>(failure.Value);
+        Assert.DoesNotContain(sentinel, problem.Title, StringComparison.Ordinal);
+        Assert.All(logger.Entries, entry =>
+        {
+            Assert.Null(entry.Exception);
+            Assert.DoesNotContain(sentinel, entry.Message, StringComparison.Ordinal);
+        });
+    }
+
     private static ReportController CreateController(
         IReportService service,
         CapturingLogger<ReportController> logger,
         string traceId = "test-trace",
-        IReportExportService? exportService = null)
+        IReportExportService? exportService = null,
+        IC211ContractBalanceReportService? c211ReportService = null)
     {
-        return new ReportController(new FakeReportCatalogService(), service, exportService ?? new FakeReportExportService(), logger)
+        return new ReportController(new FakeReportCatalogService(), service,
+            exportService ?? new FakeReportExportService(), logger,
+            c211ReportService: c211ReportService)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { TraceIdentifier = traceId }
             }
         };
+    }
+
+    private sealed class StubC211PreviewReportService : IC211ContractBalanceReportService
+    {
+        public C211ContractBalancePreviewViewModel Result { get; init; } = new([], new(
+            "", "", "", "", "", "", [], 0m, 0m));
+        public Exception? Failure { get; init; }
+        public int Calls { get; private set; }
+        public SearchReportCondition? Condition { get; private set; }
+        public CancellationToken CancellationToken { get; private set; }
+
+        public Task<ReportDataAndColumns<C211ContractBalanceReportViewModel>> CreateAsync(
+            SearchReportCondition condition, string userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ReportDataAndColumns<C211ContractBalanceReportViewModel>
+            {
+                Columns = [], Data = []
+            });
+
+        public Task<C211ContractBalancePreviewViewModel> CreatePreviewAsync(
+            SearchReportCondition condition, string userId, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            Condition = condition;
+            CancellationToken = cancellationToken;
+            return Failure is null
+                ? Task.FromResult(Result)
+                : Task.FromException<C211ContractBalancePreviewViewModel>(Failure);
+        }
     }
 
     private static SearchReportCondition ValidExportCondition() => new()

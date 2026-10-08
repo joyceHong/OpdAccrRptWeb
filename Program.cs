@@ -64,6 +64,8 @@ builder.Services.AddSingleton<IOpdPricePatientAccessAuditWriter, OpdPriceSerilog
 builder.Services.AddC3ReportServices();
 builder.Services.AddScoped<IRegistrationQueryRepository, RegistrationQueryRepository>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
+builder.Services.AddScoped<ISapInterfaceRepository, SapInterfaceRepository>();
+builder.Services.AddScoped<ISapInterfaceService, SapInterfaceService>();
 builder.Services.AddScoped<IC4MaterialReportRepository, C4MaterialReportRepository>();
 builder.Services.AddScoped<IC4MaterialReportService, C4MaterialReportService>();
 builder.Services.AddScoped<IC5ReportRepository, C5ReportRepository>();

@@ -15,6 +15,7 @@ const storage = new Map();
 let options;
 let queryCollapseDirective;
 let createdButton;
+let routerOptions;
 const mutationObservers = [];
 const context = {
     MutationObserver: class {
@@ -39,9 +40,9 @@ const context = {
             return node;
         }
     },
-    window: { localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key,value) => storage.set(key,value) }, ReportComponents: { OpdPriceQuery:{}, M1DoctorDailyReport:{}, M2DoctorMonthlyReport:{}, M3OpdEmergencyDailyReport:{}, ReportTemplate:{}, C5Report:{}, C7Report:{}, C8Report:{}, C9Report:{}, C11Report:{}, C12Report:{} }, setTimeout, clearTimeout },
+    window: { localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key,value) => storage.set(key,value) }, ReportComponents: { OpdPriceQuery:{}, M1DoctorDailyReport:{}, M2DoctorMonthlyReport:{}, M3OpdEmergencyDailyReport:{}, SapInterface:{}, ReportTemplate:{}, C5Report:{}, C7Report:{}, C8Report:{}, C9Report:{}, C11Report:{}, C12Report:{} }, setTimeout, clearTimeout },
     Vue: { createApp: value => { options=value; return { directive(name, value){ if (name === "report-query-collapse") queryCollapseDirective=value; return this; }, use(){ return this; }, mount(){} }; } },
-    VueRouter: { createWebHistory(){}, createRouter(){ return {}; } },
+    VueRouter: { createWebHistory(){}, createRouter(value){ routerOptions=value; return {}; } },
     setTimeout, clearTimeout
 };
 vm.runInNewContext(source, context);
@@ -51,6 +52,41 @@ assert.equal(context.window.ReportLayout.readSidebarPreference(), "collapsed");
 context.window.localStorage.getItem = () => { throw new Error("blocked"); };
 assert.equal(context.window.ReportLayout.readSidebarPreference(), "expanded");
 assert.equal(options.data().sidebarPinned, true);
+const sapReport = { code:"SAP", name:"SAP 中介表作業" };
+const sapCategory = { key:"sap", name:"SAP介接作業", groups:[{ name:"介接作業", reports:[sapReport] }] };
+const pushedPaths = [];
+const navigationState = {
+    activeCategory:null,
+    selectedReport:null,
+    openGroups:[],
+    reportKeyword:"SAP",
+    closeMobileDrawer(){},
+    reportPath:options.methods.reportPath,
+    $route:{ path:"/Report/C1" },
+    $router:{ push:path => pushedPaths.push(path) }
+};
+options.methods.selectCategory.call(navigationState, sapCategory);
+assert.equal(navigationState.activeCategory, sapCategory);
+assert.equal(navigationState.selectedReport, sapReport);
+assert.deepEqual(Array.from(navigationState.openGroups), [0]);
+assert.equal(navigationState.reportKeyword, "");
+assert.deepEqual(pushedPaths, ["/sap-interface"]);
+assert.ok(routerOptions.routes.some(route => route.path === "/sap-interface" && route.meta.reportCode === "SAP"));
+const directRouteState = {
+    state:{ categories:[sapCategory] },
+    activeCategory:null,
+    selectedReport:null,
+    findReport:options.methods.findReport,
+    $route:{ meta:{ reportCode:"SAP" }, params:{} }
+};
+options.watch["$route.path"].handler.call(directRouteState);
+assert.equal(directRouteState.activeCategory, sapCategory);
+assert.equal(directRouteState.selectedReport, sapReport);
+assert.match(view, /activeCategory\.key === category\.key/);
+assert.match(view, /activeCategory\.name[\s\S]*selectedReport \? selectedReport\.name/);
+assert.match(css, /\.app-header \{ display:grid; grid-template-columns:34px minmax\(0,1fr\); gap:8px; \}/);
+assert.match(css, /\.top-nav \{ width:100%; min-width:0; overflow:visible; \}/);
+assert.match(css, /\.top-nav button \{ flex:1 1 0; min-width:0; padding:0 4px; font-size:11px; line-height:1\.25; white-space:normal; \}/);
 assert.doesNotMatch(view, /sidebar-rail/);
 assert.match(view, /sidebar-slide-trigger/);
 assert.match(view, /&gt;&gt;/);

@@ -1304,7 +1304,7 @@ async function verifiesC23SameMonthValidationOnlyAppliesToEncounterDateMode() {
 async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
     const configuration = window.ReportConfigurations.C211;
     assert.equal(configuration.endDateOnly, true);
-    assert.equal(configuration.serverPaged, false);
+    assert.equal(configuration.serverPaged, true);
     assert.equal(configuration.advancedConditions, false);
     assert.equal(configuration.encounterSource.defaultValue, "O");
     const initial = component.data.call({
@@ -1319,6 +1319,7 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
         request = JSON.parse(options.body);
         return { ok: true, json: async () => ({
             columns: [], data: [{ contractCode: "TT", medicalRecordNo: "123" }],
+            totalCount: 28, totalPages: 3, pageNumber: 1, pageSize: 10,
             summary: { groups: [{ contractCode: "TT", selfAmount: 100, claimAmount: -100 }] }
         }) };
     };
@@ -1327,7 +1328,7 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
         isC23: false, isC24: false, isC21: false, isEndDateOnly: true,
         hasEncounterSource: true, hasStationOrBedPrefix: false, hasCashierUserId: false,
         hasCashierCashSort: false, hasBillingCode: false, hasReceivableBalanceType: false,
-        hasAdvancedConditions: false, isServerPaged: false, serverTotalCount: 0,
+        hasAdvancedConditions: false, isServerPaged: true, serverTotalCount: 0,
         serverTotalPages: 0, summaries: [], c211Summary: null, $emit: () => {}
     };
     context.form.contractCode = "  OUTSIDE  ";
@@ -1336,13 +1337,55 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
     assert.equal(request.endDate, "2026-09-10");
     assert.equal(request.encounterSource, "O");
     assert.equal(request.contractCode, "OUTSIDE");
-    assert.equal(Object.hasOwn(request, "pageNumber"), false);
+    assert.equal(request.pageNumber, 1);
+    assert.equal(request.pageSize, 10);
     assert.equal(context.rows.length, 1);
     assert.equal(context.c211Summary.groups[0].claimAmount, -100);
+    assert.equal(context.serverTotalCount, 28);
+    assert.equal(context.serverTotalPages, 3);
+
+    const pageRequests = [];
+    global.fetch = async (_url, options) => {
+        const pageRequest = JSON.parse(options.body);
+        pageRequests.push(pageRequest);
+        return { ok: true, json: async () => ({
+            columns: [], data: [{ contractCode: "TT", medicalRecordNo: `page-${pageRequest.pageNumber}` }],
+            totalCount: 28, totalPages: 3, pageNumber: pageRequest.pageNumber, pageSize: pageRequest.pageSize,
+            summary: { groups: [{ contractCode: "TT", selfAmount: 100, claimAmount: -100 }] }
+        }) };
+    };
+    const pagingContext = {
+        selectedReport: { code: "C211" }, form: { endDate: "2026-09-10", encounterSource: "O", contractCode: " TT " },
+        currentPage: 1, pageSize: 10, isLoading: false, hasSearched: true, isServerPaged: true,
+        isEndDateOnly: true, hasEncounterSource: true, isC211: true, isC23: false, isC24: false,
+        isC21: false, hasStationOrBedPrefix: false, hasCashierUserId: false, hasCashierCashSort: false,
+        hasBillingCode: false, hasReceivableBalanceType: false, hasAdvancedConditions: false,
+        columns: [], rows: [], summaries: [], c211Summary: null, c212Summary: null,
+        serverTotalCount: 28, serverTotalPages: 3, validationMessage: "", $emit: () => {},
+        fetchResults: component.methods.fetchResults
+    };
+    await component.methods.goToPage.call(pagingContext, 2);
+    assert.deepEqual(pagingContext.rows, [{ contractCode: "TT", medicalRecordNo: "page-2" }]);
+    pagingContext.pageSize = 30;
+    await component.methods.changePageSize.call(pagingContext);
+    assert.equal(pagingContext.currentPage, 1);
+    assert.deepEqual(pageRequests.map(item => [item.pageNumber, item.pageSize]), [[2, 10], [1, 30]]);
+    for (const pageRequest of pageRequests) {
+        assert.equal(pageRequest.endDate, "2026-09-10");
+        assert.equal(pageRequest.encounterSource, "O");
+        assert.equal(pageRequest.contractCode, "TT");
+    }
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const styles = fs.readFileSync("wwwroot/css/site.css", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
+    assert.equal(component.computed.isPrintableLegacyReport.call({ isC211: true, isC212: false }), false);
+    assert.match(markup, /v-else-if="isC211"[^>]*v-on:click="previewC211">/);
+    assert.match(markup, /v-else-if="isC211"[^>]*:disabled="!hasResults/);
+    assert.match(markup, /v-else-if="!isPrintableLegacyReport"[^>]*exportResults/);
+    assert.match(markup, /isPrintableLegacyReport \|\| isC211 \? '查無資料！'/);
+    assert.doesNotMatch(markup, /class="c211-report"|c211Summary\.selfGrandTotal|c211Groups/);
+    assert.match(markup, /v-for="column in columns"[\s\S]*v-for="row in pagedRows"/);
     assert.match(markup, /v-if="isC211"[^>]*c211-contract-input/);
     assert.doesNotMatch(markup, /<datalist id="c211-contract-list"/);
     assert.match(markup, /ref="c211Autocomplete" class="report-autocomplete"/);
@@ -1361,11 +1404,46 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
     autocompleteContext.c211ContractOpen=true;
     component.methods.onC211ContractKeydown.call(autocompleteContext,{key:"Escape",preventDefault(){}});
     assert.equal(autocompleteContext.c211ContractOpen,false);
-    assert.match(markup, /c211Summary\.selfGrandTotal/);
-    assert.match(markup, /group\.rows/);
     assert.match(styles, /@media print/);
     assert.match(styles, /size:portrait/);
+    const preview = fs.readFileSync("Views/Report/_C211ContractBalancePreview.cshtml", "utf8");
+    assert.match(preview, /class="c211-print-document"/);
+    assert.match(preview, /Model\.Summary\.SelfGrandTotal/);
+    assert.match(preview, /Model\.Summary\.ClaimGrandTotal/);
+    assert.match(preview, /group\.SelfAmount/);
+    assert.match(preview, /row\.MedicalRecordNo/);
+    assert.match(styles, /\.c211-print-document\{[^}]*page:c211-portrait/);
+    assert.match(styles, /@page c211-portrait\{size:A4 portrait/);
+    assert.match(styles, /\.c211-print-group\{[^}]*break-inside:avoid/);
+    assert.match(styles, /\.c211-print-table thead\{display:table-header-group/);
     assert.match(appSource, /C211:\s*window\.ReportComponents\.ReportTemplate/);
+
+    let previewRequest;
+    global.fetch = async (url, options) => {
+        assert.equal(url, "/Report/C211/Preview");
+        previewRequest = JSON.parse(options.body);
+        return { ok: true, text: async () => "<section class='c211-print-document'>complete report</section>" };
+    };
+    const previewContext = {
+        isC211: true, hasResults: true, legacyPreviewLoading: false,
+        legacyPreviewOpen: false, legacyPreviewHtml: "stale html", validationMessage: "",
+        form: { endDate: "2026-09-10", encounterSource: "O", contractCode: " TT " },
+        currentPage: 2, pageSize: 30, rows: [{ contractCode: "TT", medicalRecordNo: "current row" }],
+        openLegacyPreview: component.methods.openLegacyPreview
+    };
+    await component.methods.previewC211.call(previewContext);
+    assert.deepEqual(previewRequest, { endDate: "2026-09-10", encounterSource: "O", contractCode: "TT" });
+    assert.equal(previewContext.legacyPreviewOpen, true);
+    assert.match(previewContext.legacyPreviewHtml, /complete report/);
+    assert.equal(previewContext.currentPage, 2);
+    assert.equal(previewContext.pageSize, 30);
+    assert.deepEqual(previewContext.rows, [{ contractCode: "TT", medicalRecordNo: "current row" }]);
+    component.methods.closeLegacyPreview.call(previewContext);
+    assert.equal(previewContext.legacyPreviewOpen, false);
+    assert.equal(previewContext.legacyPreviewHtml, "");
+    assert.equal(previewContext.currentPage, 2);
+    assert.equal(previewContext.pageSize, 30);
+    assert.deepEqual(previewContext.rows, [{ contractCode: "TT", medicalRecordNo: "current row" }]);
 }
 
 async function verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavior() {
@@ -1408,8 +1486,62 @@ async function verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavio
     assert.match(markup, /v-else-if="isC212"/);
     assert.match(markup, /c212Summary\.dataStatusMessage/);
     assert.match(markup, /c212Summary\.totalAmount/);
-    assert.match(markup, /isPrintableLegacyReport \? '查無資料！'/);
+    assert.match(markup, /isPrintableLegacyReport \|\| isC211 \? '查無資料！'/);
     assert.match(appSource, /C212:\s*window\.ReportComponents\.ReportTemplate/);
+}
+
+async function verifiesC211PreviewFailureEmptyAndPrintGuards() {
+    const context = {
+        isC211: true, hasResults: true, legacyPreviewLoading: false,
+        legacyPreviewOpen: true, legacyPreviewHtml: "stale report", validationMessage: "",
+        form: { endDate: "2026-09-10", encounterSource: "I", contractCode: "" },
+        currentPage: 3, pageSize: 50, rows: [{ contractCode: "AA" }],
+        openLegacyPreview: component.methods.openLegacyPreview
+    };
+    let requests = 0;
+    global.fetch = async () => {
+        requests++;
+        assert.equal(context.legacyPreviewOpen, false);
+        assert.equal(context.legacyPreviewHtml, "");
+        return { ok: false, status: 404, json: async () => ({ title: "查無符合條件的資料。" }) };
+    };
+    await component.methods.previewC211.call(context);
+    assert.equal(requests, 1);
+    assert.equal(context.legacyPreviewLoading, false);
+    assert.equal(context.legacyPreviewOpen, false);
+    assert.equal(context.legacyPreviewHtml, "");
+    assert.equal(context.validationMessage, "查無符合條件的資料。");
+    assert.equal(context.currentPage, 3);
+    assert.equal(context.pageSize, 50);
+    assert.deepEqual(context.rows, [{ contractCode: "AA" }]);
+
+    global.fetch = async () => ({ ok: true, text: async () => "  \n" });
+    await component.methods.previewC211.call(context);
+    assert.equal(context.legacyPreviewOpen, false);
+    assert.equal(context.legacyPreviewHtml, "");
+    assert.equal(context.validationMessage, "查無此筆資料");
+
+    context.hasResults = false;
+    global.fetch = async () => { requests++; throw new Error("Should not request an empty result"); };
+    await component.methods.previewC211.call(context);
+    assert.equal(requests, 1);
+    assert.equal(context.legacyPreviewOpen, false);
+
+    let printCalls = 0;
+    global.window.print = () => { printCalls++; };
+    component.methods.printLegacyPreview.call({ legacyPreviewOpen: false });
+    assert.equal(printCalls, 0);
+    component.methods.printLegacyPreview.call({ legacyPreviewOpen: true });
+    assert.equal(printCalls, 1);
+}
+
+function verifiesC7PreviewRemainsInCurrentPage() {
+    const view = fs.readFileSync("Views/Report/_C7DailyChargeDetailReport.cshtml", "utf8");
+    const script = fs.readFileSync("wwwroot/js/reports/c7-report.js", "utf8");
+    assert.match(view, /v-if="previewOpen && previewHtml" class="report-preview-overlay" role="dialog"/);
+    assert.match(view, /closePreview/);
+    assert.match(view, /printPreview/);
+    assert.doesNotMatch(script, /window\.open|target.?=.?["']_blank/);
 }
 
 async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
@@ -1802,6 +1934,8 @@ verifiesC171RequestsServerPages()
     .then(verifiesC24FormPayloadAndInpatientRoomReset)
     .then(verifiesC10UsesSharedQueryAndExportContracts)
     .then(verifiesC211CutoffSourceContractAndCompletePrintMarkup)
+    .then(verifiesC211PreviewFailureEmptyAndPrintGuards)
+    .then(verifiesC7PreviewRemainsInCurrentPage)
     .then(verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavior)
     .then(verifiesC13SharedPaginationSkeletonAndPreviewContract)
     .then(verifiesC143SharedQueryPagingAndResetContract)

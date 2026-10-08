@@ -340,3 +340,264 @@ tests:
   - OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js
   - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
 -->
+
+---
+### Requirement: Adaptive sliding report sidebar
+
+The report shell SHALL provide an expanded sidebar and a fully off-canvas collapsed state. The collapsed state MUST retain no category icon rail and MUST release the complete sidebar width to report content. A visible `>>` control SHALL open the menu with a horizontal slide-in transition, and a visible `<<` control SHALL close it with a horizontal slide-out transition. The application MUST persist only `expanded` or `collapsed` using a versioned browser-storage key and MUST fall back to expanded when storage is unavailable or invalid.
+
+#### Scenario: Collapse and restore the sidebar
+
+- **WHEN** a desktop user collapses the pinned sidebar
+- **THEN** the sidebar slides fully off canvas, no icon rail remains, and report content expands into the complete released width
+- **AND** refreshing or navigating to another report preserves the collapsed preference
+- **WHEN** the user activates the visible `>>` control
+- **THEN** the full sidebar slides in and exposes a `<<` close control
+
+#### Scenario: Explicitly open and close the menu
+
+- **WHEN** the user activates `>>` by pointer, keyboard, or touch
+- **THEN** the menu opens without reconstructing or clearing the active report
+- **WHEN** the user activates `<<`, the backdrop, or Escape
+- **THEN** the menu slides fully out and focus returns to the opening control
+
+#### Scenario: Browser storage is unavailable
+
+- **WHEN** reading or writing the sidebar preference throws an error or returns a value other than `expanded` or `collapsed`
+- **THEN** the report shell remains operable and uses the expanded desktop default
+
+
+<!-- @trace
+source: unify-report-query-layout
+updated: 2026-10-07
+code:
+  - wwwroot/js/reports/c5-report.js
+  - .agents/skills/spectra-review/SKILL.md
+  - Views/Report/Index.cshtml
+  - wwwroot/js/reports/registration-query.js
+  - Services/RegistrationQueryService.cs
+  - OpdAccrRptWeb.Tests/RegistrationQueryRepositoryTests.cs
+  - Services/C143AccountingBalanceDebtReportService.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - appsettings.json
+  - Views/Report/_MedicalRecordQuery.cshtml
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+  - wwwroot/js/reports/opd-price-query.js
+  - Repositories/RegistrationQueryRepository.cs
+  - Services/IMedicalRecordQueryService.cs
+  - Services/MedicalRecordQueryService.cs
+  - Repositories/IMedicalRecordQueryRepository.cs
+  - Views/Report/_RegistrationQuery.cshtml
+  - OpdAccrRptWeb.Tests/RegistrationQueryServiceTests.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryControllerTests.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Models/RegistrationQueryModels.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - wwwroot/js/report-app.js
+  - Controllers/RegistrationQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryRepositoryTests.cs
+  - Repositories/RegistrationQuerySql.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Views/Report/_OpdPriceQuery.cshtml
+  - Services/IOpdPriceQueryService.cs
+  - Repositories/IOpdPriceQueryRepository.cs
+  - Views/Report/_TemplateReport.cshtml
+  - wwwroot/js/reports/report-template.js
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - Controllers/OpdPriceQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryServiceTests.cs
+  - Repositories/IRegistrationQueryRepository.cs
+  - Services/ReportExportService.cs
+  - Repositories/MedicalRecordQueryRepository.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - Repositories/OpdPriceQueryRepository.cs
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - Controllers/MedicalRecordQueryController.cs
+  - Program.cs
+  - wwwroot/js/reports/medical-record-query.js
+  - Services/OpdPriceReceiptRenderer.cs
+  - OpdAccrRptWeb.Tests/ReportExportJobStoreTests.cs
+  - package.json
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - .agents/skills/spectra-apply/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - OpdAccrRptWeb.Tests/RegistrationQueryControllerTests.cs
+  - Models/MedicalRecordQueryModels.cs
+  - Services/ReportExportJobStore.cs
+  - Models/OpdPriceQueryModels.cs
+  - wwwroot/css/site.css
+  - wwwroot/js/reports/m2-doctor-monthly-report.js
+  - .agents/skills/spectra-ask/SKILL.md
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryClientContractTests.cs
+  - Services/IRegistrationQueryService.cs
+  - .agents/skills/spectra-commit/SKILL.md
+  - Services/OpdPriceQueryService.cs
+  - Views/OpdPriceQuery/BatchReceipt.cshtml
+  - .agents/skills/spectra-analyze/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - OpdAccrRptWeb.Tests/C143AccountingBalanceDebtReportServiceTests.cs
+  - Repositories/MedicalRecordQuerySql.cs
+  - Services/ReportExportDefinitions.cs
+  - AGENTS.md
+  - .agents/skills/spectra-verify/SKILL.md
+tests:
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/c5-report.test.js
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/m2-doctor-monthly-report.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+  - OpdAccrRptWeb.Tests/registration-query.test.js
+-->
+
+---
+### Requirement: Accessible sliding drawer controls
+
+The collapsed report navigation SHALL use text controls `>>` and `<<` with accessible names and correct expanded semantics. Keyboard and touch users MUST be able to open, traverse, and close the menu. The menu SHALL provide a backdrop on narrow screens and MUST NOT depend on hover.
+
+#### Scenario: Navigate with keyboard
+
+- **WHEN** a keyboard user focuses and activates the `>>` control
+- **THEN** the full menu becomes available with its existing category, search, group, and report controls
+- **AND** the selected report exposes active semantics and Escape returns focus to the triggering control
+
+#### Scenario: Navigate on a touch screen
+
+- **WHEN** a user activates the menu control on a device without hover
+- **THEN** the report menu opens as a drawer with correct expanded semantics
+- **AND** selecting a report, activating the backdrop, or pressing Escape closes the drawer without changing the desktop pinned preference
+
+<!-- @trace
+source: unify-report-query-layout
+updated: 2026-10-07
+code:
+  - wwwroot/js/reports/c5-report.js
+  - .agents/skills/spectra-review/SKILL.md
+  - Views/Report/Index.cshtml
+  - wwwroot/js/reports/registration-query.js
+  - Services/RegistrationQueryService.cs
+  - OpdAccrRptWeb.Tests/RegistrationQueryRepositoryTests.cs
+  - Services/C143AccountingBalanceDebtReportService.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - appsettings.json
+  - Views/Report/_MedicalRecordQuery.cshtml
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+  - wwwroot/js/reports/opd-price-query.js
+  - Repositories/RegistrationQueryRepository.cs
+  - Services/IMedicalRecordQueryService.cs
+  - Services/MedicalRecordQueryService.cs
+  - Repositories/IMedicalRecordQueryRepository.cs
+  - Views/Report/_RegistrationQuery.cshtml
+  - OpdAccrRptWeb.Tests/RegistrationQueryServiceTests.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryControllerTests.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Models/RegistrationQueryModels.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - wwwroot/js/report-app.js
+  - Controllers/RegistrationQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryRepositoryTests.cs
+  - Repositories/RegistrationQuerySql.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Views/Report/_OpdPriceQuery.cshtml
+  - Services/IOpdPriceQueryService.cs
+  - Repositories/IOpdPriceQueryRepository.cs
+  - Views/Report/_TemplateReport.cshtml
+  - wwwroot/js/reports/report-template.js
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - Controllers/OpdPriceQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryServiceTests.cs
+  - Repositories/IRegistrationQueryRepository.cs
+  - Services/ReportExportService.cs
+  - Repositories/MedicalRecordQueryRepository.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - Repositories/OpdPriceQueryRepository.cs
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - Controllers/MedicalRecordQueryController.cs
+  - Program.cs
+  - wwwroot/js/reports/medical-record-query.js
+  - Services/OpdPriceReceiptRenderer.cs
+  - OpdAccrRptWeb.Tests/ReportExportJobStoreTests.cs
+  - package.json
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - .agents/skills/spectra-apply/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - OpdAccrRptWeb.Tests/RegistrationQueryControllerTests.cs
+  - Models/MedicalRecordQueryModels.cs
+  - Services/ReportExportJobStore.cs
+  - Models/OpdPriceQueryModels.cs
+  - wwwroot/css/site.css
+  - wwwroot/js/reports/m2-doctor-monthly-report.js
+  - .agents/skills/spectra-ask/SKILL.md
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryClientContractTests.cs
+  - Services/IRegistrationQueryService.cs
+  - .agents/skills/spectra-commit/SKILL.md
+  - Services/OpdPriceQueryService.cs
+  - Views/OpdPriceQuery/BatchReceipt.cshtml
+  - .agents/skills/spectra-analyze/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - OpdAccrRptWeb.Tests/C143AccountingBalanceDebtReportServiceTests.cs
+  - Repositories/MedicalRecordQuerySql.cs
+  - Services/ReportExportDefinitions.cs
+  - AGENTS.md
+  - .agents/skills/spectra-verify/SKILL.md
+tests:
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/c5-report.test.js
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/m2-doctor-monthly-report.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+  - OpdAccrRptWeb.Tests/registration-query.test.js
+-->
+
+---
+### Requirement: Route Q2 medical record query
+
+The report workspace SHALL route the catalog entry with code Q2 and name 「病歷查詢」 to /data-query/medical-record.
+
+#### Scenario: Select Q2 from the data query category
+
+- **WHEN** an authenticated user selects Q2「病歷查詢」from the data query category
+- **THEN** the browser route becomes /data-query/medical-record
+- **AND** the report workspace keeps the selected Q2 entry active in the sidebar and breadcrumb
+
+#### Scenario: Open the Q2 route directly
+
+- **WHEN** an authenticated user opens /data-query/medical-record directly
+- **THEN** the existing report workspace loads
+- **AND** the Q2 query component is rendered without an unavailable-feature placeholder
+
+<!-- @trace
+source: add-medical-record-query
+updated: 2026-10-07
+code:
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - Views/Report/_RegistrationQuery.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - wwwroot/js/reports/registration-query.js
+  - .agents/skills/spectra-apply/SKILL.md
+  - Services/RegistrationQueryService.cs
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-analyze/SKILL.md
+  - AGENTS.md
+  - .agents/skills/spectra-ask/SKILL.md
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - .agents/skills/spectra-commit/SKILL.md
+  - .agents/skills/spectra-review/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - Repositories/RegistrationQueryRepository.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-verify/SKILL.md
+-->

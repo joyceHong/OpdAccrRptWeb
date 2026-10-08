@@ -194,7 +194,8 @@
         M3: window.ReportComponents.M3OpdEmergencyDailyReport,
         Q1: window.ReportComponents.OpdPriceQuery,
         Q2: window.ReportComponents.MedicalRecordQuery,
-        Q3: window.ReportComponents.RegistrationQuery
+        Q3: window.ReportComponents.RegistrationQuery,
+        SAP: window.ReportComponents.SapInterface
     });
     const unavailableReportComponent = {
         props: ["selectedReport"],
@@ -214,6 +215,7 @@
     reportRoutes.unshift({ path: "/medical-statistics/doctor-daily", component: window.ReportComponents.M1DoctorDailyReport, meta: { reportCode: "M1" } });
     reportRoutes.unshift({ path: "/medical-statistics/doctor-monthly", component: window.ReportComponents.M2DoctorMonthlyReport, meta: { reportCode: "M2" } });
     reportRoutes.unshift({ path: "/medical-statistics/opd-emergency-daily", component: window.ReportComponents.M3OpdEmergencyDailyReport, meta: { reportCode: "M3" } });
+    reportRoutes.unshift({ path: "/sap-interface", component: window.ReportComponents.SapInterface, meta: { reportCode: "SAP" } });
     reportRoutes.push(
         { path: "/Report", redirect: "/Report/C1" },
         { path: "/Report/:reportCode", component: unavailableReportComponent }
@@ -293,6 +295,7 @@
                 if (report.code === "Q1") return "/data-query/opd-price";
                 if (report.code === "Q2") return "/data-query/medical-record";
                 if (report.code === "Q3") return "/data-query/registration";
+                if (report.code === "SAP") return "/sap-interface";
                 if (report.code === "M1") return "/medical-statistics/doctor-daily";
                 if (report.code === "M2") return "/medical-statistics/doctor-monthly";
                 if (report.code === "M3") return "/medical-statistics/opd-emergency-daily";

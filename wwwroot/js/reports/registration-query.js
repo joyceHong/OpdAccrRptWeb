@@ -1,5 +1,6 @@
 (() => {
     const csrf = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+    const registrationNoError = "掛號序號只能輸入 1 至 3 位數字。";
     const emptyForm = defaultDate => ({
         mode: "registered",
         regDate: defaultDate || "",
@@ -8,6 +9,7 @@
         birthDate: "",
         newSectionDisplay: "",
         newSectionCode: "",
+        newSectionLegacyCode: "",
         room: "",
         time: "",
         registrationNo: "",
@@ -86,6 +88,14 @@
             }
         },
         methods: {
+            validateRegistrationNo(event) {
+                const registrationNo = String(event.target.value || "").trim();
+                if (registrationNo && !/^\d{1,3}$/.test(registrationNo)) {
+                    this.conditionError = registrationNoError;
+                } else if (this.conditionError === registrationNoError) {
+                    this.conditionError = "";
+                }
+            },
             conditions() {
                 return {
                     mode: this.form.mode,
@@ -93,7 +103,7 @@
                     medicalRecordNo: this.form.medicalRecordNo.trim(),
                     patientId: this.form.patientId.trim(),
                     birthDate: this.form.birthDate || "",
-                    sectionNo: "",
+                    sectionNo: this.form.newSectionLegacyCode || "",
                     newSectionNo: (this.form.newSectionCode || inputCode(this.form.newSectionDisplay)).trim(),
                     room: this.form.room.trim(),
                     time: this.form.time,
@@ -136,6 +146,14 @@
                 this.resetResults();
             },
             async search() {
+                const registrationNo = String(this.form.registrationNo || "").trim();
+                if (this.conditionError === registrationNoError ||
+                    (registrationNo && !/^\d{1,3}$/.test(registrationNo))) {
+                    this.resetResults();
+                    this.conditionError = registrationNoError;
+                    return;
+                }
+
                 this.pageNumber = 1;
                 this.snapshot = this.conditions();
                 this.error = "";
@@ -206,6 +224,7 @@
                 return {
                     value: legacyCode + ":" + newCode,
                     code,
+                    legacyCode,
                     label: String(raw?.name || "").trim(),
                     suffix,
                     raw
@@ -213,6 +232,7 @@
             },
             async loadSections(value) {
                 this.form.newSectionCode = "";
+                this.form.newSectionLegacyCode = "";
                 const query = String(value || this.form.newSectionDisplay || "").trim();
                 const current = ++this.lookupGeneration.section;
                 if (!query) {
@@ -242,6 +262,7 @@
             },
             selectSectionOption(option) {
                 this.form.newSectionCode = option.code;
+                this.form.newSectionLegacyCode = option.legacyCode;
                 this.form.newSectionDisplay = option.code + (option.label ? "｜" + option.label : "");
                 this.newSectionOpen = false;
             },

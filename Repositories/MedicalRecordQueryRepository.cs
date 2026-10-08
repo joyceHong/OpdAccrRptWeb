@@ -46,7 +46,7 @@ public sealed class MedicalRecordQueryRepository(IConnectionStringProvider conne
         await using OracleConnection connection = CreateConnection();
         await connection.OpenAsync(token);
         await using OracleCommand command = CreateCommand(connection, MedicalRecordQuerySql.Detail);
-        Add(command, "MedicalRecordNo", OracleDbType.Varchar2, medicalRecordNo);
+        command.Parameters.Add(CreateExactMedicalRecordParameter(medicalRecordNo));
         await using OracleDataReader reader = await command.ExecuteReaderAsync(token);
         return await reader.ReadAsync(token) ? ReadDetail(reader) : null;
     }
@@ -58,7 +58,7 @@ public sealed class MedicalRecordQueryRepository(IConnectionStringProvider conne
         await using OracleConnection connection = CreateConnection();
         await connection.OpenAsync(token);
         await using OracleCommand command = CreateCommand(connection, MedicalRecordQuerySql.MergedMedicalRecordNumbers);
-        Add(command, "MedicalRecordNo", OracleDbType.Varchar2, medicalRecordNo);
+        command.Parameters.Add(CreateExactMedicalRecordParameter(medicalRecordNo));
         await using OracleDataReader reader = await command.ExecuteReaderAsync(token);
         var numbers = new List<string>();
         while (await reader.ReadAsync(token))
@@ -105,6 +105,10 @@ public sealed class MedicalRecordQueryRepository(IConnectionStringProvider conne
 
     private static OracleCommand CreateCommand(OracleConnection connection, string sql) =>
         new(sql, connection) { BindByName = true };
+
+    internal static OracleParameter CreateExactMedicalRecordParameter(string medicalRecordNo) =>
+        new("MedicalRecordNo", OracleDbType.Varchar2, 10, medicalRecordNo,
+            System.Data.ParameterDirection.Input);
 
     private static OracleCommand CreateFilterCommand(
         OracleConnection connection,

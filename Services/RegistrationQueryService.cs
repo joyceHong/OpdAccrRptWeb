@@ -23,7 +23,18 @@ public sealed class RegistrationQueryService(
         ArgumentNullException.ThrowIfNull(request);
         ValidatePage(request.PageNumber, request.PageSize);
 
-        RegistrationQueryFilters filters = await NormalizeFiltersAsync(request, token);
+        RegistrationQueryFilters filters;
+        try
+        {
+            filters = await NormalizeFiltersAsync(request, token);
+        }
+        catch (OrganizationUnitMappingAmbiguousException)
+        {
+            // There is no safe legacy-code filter; show a normal no-results response instead of 400.
+            RegistrationQueryMode mode = ParseMode(request.Mode);
+            return new(ModeValue(mode), [], 0, 1, request.PageSize, 0, null);
+        }
+
         if (filters.IsSummary)
         {
             RegistrationSummarySource summary = await repository.QuerySummaryAsync(
@@ -117,7 +128,9 @@ public sealed class RegistrationQueryService(
         string birthDate = NormalizeDate(request.BirthDate, "出生日期");
         string legacySection = ExtractCode(request.SectionNo, 10);
         string newSection = ExtractCode(request.NewSectionNo, 10);
-        string sectionNo = await ResolveSectionCodeAsync(legacySection, newSection, token);
+        string sectionNo = mode == RegistrationQueryMode.Summary
+            ? string.Empty
+            : await ResolveSectionCodeAsync(legacySection, newSection, token);
         string room = Normalize(request.Room, 6);
         string time = NormalizeTime(request.Time);
         int? registrationNo = NormalizeRegistrationNo(request.RegistrationNo);
@@ -176,22 +189,41 @@ public sealed class RegistrationQueryService(
             return legacySection;
         }
 
+        if (legacySection.Length > 0)
+        {
+            OrganizationUnitMapping? selectedMapping;
+            try
+            {
+                selectedMapping = await organizationUnits.ResolveNewCodeAsync(
+                    legacySection,
+                    roomType: string.Empty,
+                    scope: OrganizationUnitMappingScope.SectionOnly,
+                    cancellationToken: token);
+            }
+            catch (OrganizationUnitLegacyMappingAmbiguousException)
+            {
+                // The selected legacy code is still an exact query filter even when its new-code
+                // mapping is not unique.
+                return legacySection;
+            }
+
+            string selectedNewCode = selectedMapping?.NewCode.Trim() ?? string.Empty;
+            if (selectedNewCode.Length > 0 &&
+                !string.Equals(newSection, selectedNewCode, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("舊科別與新科別代碼不一致。");
+            }
+
+            return legacySection;
+        }
+
         OrganizationUnitMapping? mapping = await organizationUnits.ResolveLegacyCodeAsync(
             newSection,
             activePlaceOnly: false,
             cancellationToken: token);
         string resolvedLegacy = mapping?.LegacyCode.Trim() ?? string.Empty;
-        if (legacySection.Length > 0 && resolvedLegacy.Length > 0 &&
-            !string.Equals(legacySection, resolvedLegacy, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException("舊科別與新科別代碼不一致。");
-        }
 
-        return legacySection.Length > 0
-            ? legacySection
-            : resolvedLegacy.Length > 0
-                ? resolvedLegacy
-                : newSection;
+        return resolvedLegacy.Length > 0 ? resolvedLegacy : newSection;
     }
 
     private static IReadOnlyDictionary<string, string?> CacheFilters(RegistrationQueryFilters filters) =>

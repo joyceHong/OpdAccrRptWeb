@@ -14,6 +14,7 @@
             </template>
             <button v-else-if="isC16" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC16">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC211" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC211">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <button v-else-if="!isPrintableLegacyReport" class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
@@ -184,7 +185,7 @@
             </template>
             <div v-else-if="!hasResults" class="empty-result">
                 <div>▤</div>
-                <strong>{{ hasSearched ? (isPrintableLegacyReport ? '查無資料！' : '查無資料') : '尚無查詢結果' }}</strong>
+                <strong>{{ hasSearched ? (isPrintableLegacyReport || isC211 ? '查無資料！' : '查無資料') : '尚無查詢結果' }}</strong>
                 <p>{{ hasSearched ? '目前條件沒有符合的資料。' : '請設定上方查詢條件後按下「查詢」。' }}</p>
             </div>
             <div v-else-if="isC15" class="c15-report">
@@ -197,22 +198,6 @@
                         </table>
                     </div>
                 </section>
-            </div>
-            <div v-else-if="isC211" class="c211-report">
-                <header class="c211-report-header">
-                    <h2>{{ c211Summary.title }}</h2>
-                    <p>{{ c211Summary.reportDate }}</p>
-                    <small>{{ c211Summary.programNo }}／{{ c211Summary.reportNo }}　{{ c211Summary.processDateTime }}　{{ c211Summary.editUser }}</small>
-                </header>
-                <section v-for="group in c211Groups" :key="group.contractCode" class="c211-group">
-                    <h3>合約身分：{{ group.contractCode }}</h3>
-                    <table>
-                        <thead><tr><th>病歷號</th><th>就診日期</th><th class="amount">一般身分合約金額</th><th class="amount">健保身分合約金額</th></tr></thead>
-                        <tbody><tr v-for="(row, index) in group.rows" :key="`${group.contractCode}-${index}`"><td>{{ row.medicalRecordNo }}</td><td>{{ row.visitDate }}</td><td class="amount">{{ row.selfAmount }}</td><td class="amount">{{ row.claimAmount }}</td></tr></tbody>
-                        <tfoot><tr><th colspan="2">合約小計</th><th class="amount">{{ group.selfAmount }}</th><th class="amount">{{ group.claimAmount }}</th></tr></tfoot>
-                    </table>
-                </section>
-                <footer class="c211-grand-total"><strong>報表總計</strong><span>一般：{{ c211Summary.selfGrandTotal }}</span><span>健保：{{ c211Summary.claimGrandTotal }}</span></footer>
             </div>
             <div v-else-if="isC212" class="c212-report">
                 <header class="c211-report-header">

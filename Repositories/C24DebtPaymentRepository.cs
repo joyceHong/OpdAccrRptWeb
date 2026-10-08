@@ -292,7 +292,7 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
         command.Parameters.Add(Parameter("end_date", OracleDbType.Varchar2, ToRocDate(end), 7));
         if (query.Code == "B01")
             command.Parameters.Add(Parameter("room_scope", OracleDbType.Int32, RoomScopeValue(roomScope), 0));
-        command.Parameters.Add(Parameter("mr_no", OracleDbType.Varchar2, mrn, 10));
+        command.Parameters.Add(CreateBillingMedicalRecordParameter(mrn));
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
@@ -343,6 +343,12 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
 
     private static OracleCommand Command(OracleConnection connection, OracleTransaction transaction, string sql) =>
         new(sql, connection) { BindByName = true, Transaction = transaction };
+    internal static OracleParameter CreateBillingMedicalRecordParameter(string? medicalRecordNo) =>
+        Parameter("mr_no", OracleDbType.Char,
+            string.IsNullOrWhiteSpace(medicalRecordNo)
+                ? DBNull.Value
+                : medicalRecordNo.PadRight(10, ' '),
+            10);
     private static string ToRocDate(DateOnly date) => $"{date.Year - 1911:000}{date:MMdd}";
     private static int RoomScopeValue(string roomScope) => roomScope switch
     {

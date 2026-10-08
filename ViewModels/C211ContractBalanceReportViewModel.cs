@@ -23,3 +23,7 @@ public sealed record C211ReportSummary(
     IReadOnlyList<C211ContractSubtotal> Groups,
     decimal SelfGrandTotal,
     decimal ClaimGrandTotal);
+
+public sealed record C211ContractBalancePreviewViewModel(
+    IReadOnlyList<C211ContractBalanceReportViewModel> Rows,
+    C211ReportSummary Summary);

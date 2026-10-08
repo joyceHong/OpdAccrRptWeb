@@ -52,7 +52,7 @@ public sealed class RegistrationQueryRepository(IConnectionStringProvider connec
         await using OracleConnection connection = CreateConnection();
         await connection.OpenAsync(token);
         await using OracleCommand command = CreateCommand(connection, RegistrationQuerySql.MergedMedicalRecordNumbers);
-        Add(command, "MedicalRecordNo", OracleDbType.Varchar2, medicalRecordNo);
+        AddMedicalRecordNumber(command, "MedicalRecordNo", medicalRecordNo);
 
         await using OracleDataReader reader = await command.ExecuteReaderAsync(token);
         var numbers = new List<string>();
@@ -215,6 +215,17 @@ public sealed class RegistrationQueryRepository(IConnectionStringProvider connec
     private static void Add(OracleCommand command, string name, OracleDbType type, object value) =>
         command.Parameters.Add(name, type, value, ParameterDirection.Input);
 
+    internal static void AddMedicalRecordNumber(
+        OracleCommand command,
+        string parameterName,
+        string medicalRecordNo) =>
+        command.Parameters.Add(
+            parameterName,
+            OracleDbType.Char,
+            10,
+            medicalRecordNo.PadRight(10, ' '),
+            ParameterDirection.Input);
+
     private static RegistrationSource ReadRegistration(OracleDataReader reader) => new(
         RequiredText(reader, "chOp0Type"),
         RequiredText(reader, "chOp0Date"),
@@ -307,7 +318,7 @@ public static class RegistrationQueryPredicates
             if (filters.PatientId.Length > 0)
             {
                 conditions.Add("R.chOp0PMrNo = :MrNo");
-                Add(command, "MrNo", OracleDbType.Varchar2, filters.MedicalRecordNo);
+                RegistrationQueryRepository.AddMedicalRecordNumber(command, "MrNo", filters.MedicalRecordNo);
             }
             else
             {
@@ -319,7 +330,7 @@ public static class RegistrationQueryPredicates
                 {
                     string parameterName = $"MrNo{index}";
                     placeholders.Add($":{parameterName}");
-                    Add(command, parameterName, OracleDbType.Varchar2, numbers[index]);
+                    RegistrationQueryRepository.AddMedicalRecordNumber(command, parameterName, numbers[index]);
                 }
 
                 conditions.Add($"R.chOp0PMrNo IN ({string.Join(", ", placeholders)})");

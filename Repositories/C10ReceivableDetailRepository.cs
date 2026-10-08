@@ -84,8 +84,7 @@ public sealed class C10ReceivableDetailRepository : IC10ReceivableDetailReposito
             ParameterDirection.Input);
         command.Parameters.Add("EndDate", OracleDbType.Char, values.Get<string>("EndDate"),
             ParameterDirection.Input);
-        command.Parameters.Add("MedicalRecordNumber", OracleDbType.Varchar2,
-            (object?)condition.MedicalRecordNo ?? DBNull.Value, ParameterDirection.Input);
+        command.Parameters.Add(CreateMedicalRecordParameter(condition.MedicalRecordNo));
         if (condition.Source == C10Sources.OpdEr)
             command.Parameters.Add("RoomScope", OracleDbType.Int32, values.Get<int>("RoomScope"),
                 ParameterDirection.Input);
@@ -106,6 +105,10 @@ public sealed class C10ReceivableDetailRepository : IC10ReceivableDetailReposito
                 ParameterDirection.Input);
         }
     }
+
+    internal static OracleParameter CreateMedicalRecordParameter(string? medicalRecordNo) =>
+        new("MedicalRecordNumber", OracleDbType.Varchar2, 10,
+            (object?)medicalRecordNo ?? DBNull.Value, ParameterDirection.Input);
 
     private static List<C10DebtVisit> ReadVisits(
         OracleCommand command,

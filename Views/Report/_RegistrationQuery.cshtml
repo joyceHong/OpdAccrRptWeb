@@ -80,7 +80,7 @@
                         <label>
                             <span>掛號序號</span>
                             <input v-model.trim="form.registrationNo" type="text" inputmode="numeric"
-                                   maxlength="3" autocomplete="off" />
+                                   maxlength="3" autocomplete="off" v-on:input="validateRegistrationNo" />
                         </label>
                         <label>
                             <span>醫師代號</span>

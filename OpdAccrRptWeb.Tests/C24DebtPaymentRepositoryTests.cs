@@ -71,6 +71,38 @@ public sealed class C24DebtPaymentRepositoryTests
     }
 
     [Theory]
+    [InlineData("C36979", "C36979    ")]
+    [InlineData("1234567890", "1234567890")]
+    public void BillingMedicalRecordParameter_UsesPaddedChar10ForBothSources(
+        string medicalRecordNo,
+        string expected)
+    {
+        OracleParameter parameter =
+            C24DebtPaymentRepository.CreateBillingMedicalRecordParameter(medicalRecordNo);
+
+        Assert.Equal("mr_no", parameter.ParameterName);
+        Assert.Equal(OracleDbType.Char, parameter.OracleDbType);
+        Assert.Equal(10, parameter.Size);
+        Assert.Equal(expected, parameter.Value);
+        Assert.Contains(":mr_no", C24Sql.B01, StringComparison.Ordinal);
+        Assert.Contains(":mr_no", C24Sql.B02, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void MissingBillingMedicalRecordParameter_RemainsInactive(string? medicalRecordNo)
+    {
+        OracleParameter parameter =
+            C24DebtPaymentRepository.CreateBillingMedicalRecordParameter(medicalRecordNo);
+
+        Assert.Equal(OracleDbType.Char, parameter.OracleDbType);
+        Assert.Equal(10, parameter.Size);
+        Assert.Equal(DBNull.Value, parameter.Value);
+    }
+
+    [Theory]
     [InlineData(C24Sources.OpdEr, "OpdRecRpt_PDebtDM", "OpdRecRpt_PDebtDM_S", true)]
     [InlineData(C24Sources.Inpatient, "IpdRecRpt_PDebtDM", "IpdRecRpt_PDebtDM_S", false)]
     public void LegacyPublication_UsesFixedSourceSpecificAtomicSql(

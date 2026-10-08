@@ -8,12 +8,13 @@
 
 ### Requirement: Shared simple report component
 
-All standard report query pages SHALL reuse the established page title, query panel, panel title, date row, source fieldset, advanced-condition grid, required-field marker, form actions, shared table skeleton, result heading, and empty-state structures and their shared CSS behavior. Report-specific query controls SHALL express differences through configuration and field composition rather than divergent visual behavior. Print-preview documents SHALL be permitted to use report-specific layout and print styles.
+All standard report query pages SHALL reuse the established page title, query panel, panel title, date row, source fieldset, advanced-condition grid, required-field marker, form actions, shared table skeleton, result heading, and empty-state structures and their shared CSS behavior. Report-specific query controls SHALL express differences through configuration and field composition rather than divergent visual behavior. The Q2 medical record query SHALL apply the established Q1 medical record field class composition to each of its three primary fields: medical record number, identity number, and name. Those labels and text inputs SHALL use the same visual structure and shared dimensions as the Q1 medical record number field. Print-preview documents SHALL be permitted to use report-specific layout and print styles.
 
 #### Scenario: Open reports with the same interaction pattern
 
 - **WHEN** users open two standard report query pages with different query fields
 - **THEN** both pages use the same shared query structure, spacing, input styling, action placement, pending skeleton, result heading, and empty-state behavior
+- **AND** the Q2 medical record number, identity number, and name fields use the same label and text-input visual structure as the Q1 medical record number field
 - **AND** each page displays its own report code, name, conditions, and result content
 
 #### Scenario: Open a report-specific print preview
@@ -24,31 +25,28 @@ All standard report query pages SHALL reuse the established page title, query pa
 
 
 <!-- @trace
-source: add-c12-medical-receipt-summary
-updated: 2026-09-15
+source: align-q2-medical-record-query-fields
+updated: 2026-10-07
 code:
-  - wwwroot/css/site.css
-  - OpdAccrRptWeb.Tests/C12ReportControllerTests.cs
-  - Controllers/ReportController.cs
-  - OpdAccrRptWeb.Tests/C12LegacyAmountConverterTests.cs
-  - OpdAccrRptWeb.Tests/C12ReportServiceTests.cs
-  - Services/C12ReportService.cs
-  - Services/IC12PatientAccessAuditWriter.cs
-  - Services/IC12PatientAccessAuthorizer.cs
-  - Services/IC12ReportService.cs
-  - wwwroot/js/report-app.js
-  - Program.cs
-  - Repositories/C12Sql.cs
-  - Services/IC12LegacyAmountConverter.cs
-  - OpdAccrRptWeb.Tests/C12ReportRepositoryTests.cs
-  - ViewModels/SearchReportCondition.cs
-  - Repositories/C12ReportRepository.cs
-  - Repositories/IC12ReportRepository.cs
-  - ViewModels/C12MedicalReceiptSummaryViewModel.cs
-  - Views/Report/_C12MedicalReceiptSummary.cshtml
-  - Views/Report/Index.cshtml
-tests:
-  - OpdAccrRptWeb.Tests/c12-report.test.js
+  - Repositories/RegistrationQueryRepository.cs
+  - wwwroot/js/reports/registration-query.js
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+  - .agents/skills/spectra-commit/SKILL.md
+  - Services/RegistrationQueryService.cs
+  - Views/Report/_RegistrationQuery.cshtml
+  - .agents/skills/spectra-analyze/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-review/SKILL.md
+  - .agents/skills/spectra-verify/SKILL.md
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - AGENTS.md
+  - REPORT_ACCESS_CONTROL_PLAN.md
 -->
 
 ---
@@ -1287,4 +1285,305 @@ tests:
   - OpdAccrRptWeb.Tests/report-autocomplete.test.js
   - OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js
   - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+-->
+
+---
+### Requirement: Compact query row with progressive advanced filters
+
+Every standard report query page SHALL present required and highest-frequency controls in a low-height compact basic row with the standard query, reset, and advanced-filter actions aligned on the same row when viewport width permits. Query-panel padding, input height, and button sizing SHALL match the compact Q1 reference hierarchy. The query action SHALL use the primary dark-blue treatment, reset SHALL remain visually secondary, and the advanced-filter control SHALL use a lightweight text/chevron treatment. Optional or lower-frequency controls SHALL appear in an in-flow advanced region that is collapsed by default. Collapsing the region MUST preserve entered values and MUST NOT submit a query or clear results. When advanced controls differ from their defaults, the toggle SHALL display the exact number of active advanced filters.
+
+#### Scenario: Open and use a standard query page
+
+- **WHEN** a user opens a standard report query page
+- **THEN** the basic row displays the report's required or highest-frequency controls and the standard actions
+- **AND** query, reset, and advanced-filter actions share the compact basic row and the optional advanced region is collapsed
+- **WHEN** the user expands the advanced region
+- **THEN** the region opens downward in the normal document flow and exposes report-specific optional controls
+
+#### Scenario: Preserve active advanced filters
+
+- **WHEN** a user enters two non-default advanced conditions and collapses the region
+- **THEN** both values remain in the form and the toggle displays `已套用 2 項`
+- **AND** existing query results and pagination remain unchanged
+- **WHEN** the user resets the form
+- **THEN** the advanced conditions return to defaults, the count clears, and the region returns to its default collapsed state
+
+
+<!-- @trace
+source: unify-report-query-layout
+updated: 2026-10-07
+code:
+  - wwwroot/js/reports/c5-report.js
+  - .agents/skills/spectra-review/SKILL.md
+  - Views/Report/Index.cshtml
+  - wwwroot/js/reports/registration-query.js
+  - Services/RegistrationQueryService.cs
+  - OpdAccrRptWeb.Tests/RegistrationQueryRepositoryTests.cs
+  - Services/C143AccountingBalanceDebtReportService.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - appsettings.json
+  - Views/Report/_MedicalRecordQuery.cshtml
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+  - wwwroot/js/reports/opd-price-query.js
+  - Repositories/RegistrationQueryRepository.cs
+  - Services/IMedicalRecordQueryService.cs
+  - Services/MedicalRecordQueryService.cs
+  - Repositories/IMedicalRecordQueryRepository.cs
+  - Views/Report/_RegistrationQuery.cshtml
+  - OpdAccrRptWeb.Tests/RegistrationQueryServiceTests.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryControllerTests.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Models/RegistrationQueryModels.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - wwwroot/js/report-app.js
+  - Controllers/RegistrationQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryRepositoryTests.cs
+  - Repositories/RegistrationQuerySql.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Views/Report/_OpdPriceQuery.cshtml
+  - Services/IOpdPriceQueryService.cs
+  - Repositories/IOpdPriceQueryRepository.cs
+  - Views/Report/_TemplateReport.cshtml
+  - wwwroot/js/reports/report-template.js
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - Controllers/OpdPriceQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryServiceTests.cs
+  - Repositories/IRegistrationQueryRepository.cs
+  - Services/ReportExportService.cs
+  - Repositories/MedicalRecordQueryRepository.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - Repositories/OpdPriceQueryRepository.cs
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - Controllers/MedicalRecordQueryController.cs
+  - Program.cs
+  - wwwroot/js/reports/medical-record-query.js
+  - Services/OpdPriceReceiptRenderer.cs
+  - OpdAccrRptWeb.Tests/ReportExportJobStoreTests.cs
+  - package.json
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - .agents/skills/spectra-apply/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - OpdAccrRptWeb.Tests/RegistrationQueryControllerTests.cs
+  - Models/MedicalRecordQueryModels.cs
+  - Services/ReportExportJobStore.cs
+  - Models/OpdPriceQueryModels.cs
+  - wwwroot/css/site.css
+  - wwwroot/js/reports/m2-doctor-monthly-report.js
+  - .agents/skills/spectra-ask/SKILL.md
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryClientContractTests.cs
+  - Services/IRegistrationQueryService.cs
+  - .agents/skills/spectra-commit/SKILL.md
+  - Services/OpdPriceQueryService.cs
+  - Views/OpdPriceQuery/BatchReceipt.cshtml
+  - .agents/skills/spectra-analyze/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - OpdAccrRptWeb.Tests/C143AccountingBalanceDebtReportServiceTests.cs
+  - Repositories/MedicalRecordQuerySql.cs
+  - Services/ReportExportDefinitions.cs
+  - AGENTS.md
+  - .agents/skills/spectra-verify/SKILL.md
+tests:
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/c5-report.test.js
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/m2-doctor-monthly-report.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+  - OpdAccrRptWeb.Tests/registration-query.test.js
+-->
+
+---
+### Requirement: Expanded result workspace for wide tables
+
+Standard report result panels SHALL retain the shared skeleton, empty state, total count, and pagination while adapting to the available content width. Result tables that exceed the available width SHALL scroll horizontally inside the shared table container, and their header SHALL remain visible within the result scrolling context. Sidebar and advanced-filter transitions MUST NOT reconstruct the report component or clear its result state.
+
+#### Scenario: Browse a wide result table with the sidebar collapsed
+
+- **WHEN** a result table contains more columns than fit while the sidebar is pinned collapsed
+- **THEN** the report content uses the released sidebar width and the table scrolls horizontally only when still necessary
+- **AND** the current rows, page, selection, and total count remain unchanged
+
+#### Scenario: Use reduced motion
+
+- **WHEN** the user enables reduced-motion preferences
+- **THEN** sidebar, drawer, and advanced-filter state changes occur without transition animation
+- **AND** all controls, table scrolling, and state changes remain available
+
+<!-- @trace
+source: unify-report-query-layout
+updated: 2026-10-07
+code:
+  - wwwroot/js/reports/c5-report.js
+  - .agents/skills/spectra-review/SKILL.md
+  - Views/Report/Index.cshtml
+  - wwwroot/js/reports/registration-query.js
+  - Services/RegistrationQueryService.cs
+  - OpdAccrRptWeb.Tests/RegistrationQueryRepositoryTests.cs
+  - Services/C143AccountingBalanceDebtReportService.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - appsettings.json
+  - Views/Report/_MedicalRecordQuery.cshtml
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/OpdPriceQueryTests.cs
+  - wwwroot/js/reports/opd-price-query.js
+  - Repositories/RegistrationQueryRepository.cs
+  - Services/IMedicalRecordQueryService.cs
+  - Services/MedicalRecordQueryService.cs
+  - Repositories/IMedicalRecordQueryRepository.cs
+  - Views/Report/_RegistrationQuery.cshtml
+  - OpdAccrRptWeb.Tests/RegistrationQueryServiceTests.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryControllerTests.cs
+  - Repositories/OpdPriceQuerySql.cs
+  - Models/RegistrationQueryModels.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - wwwroot/js/report-app.js
+  - Controllers/RegistrationQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryRepositoryTests.cs
+  - Repositories/RegistrationQuerySql.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+  - Views/Report/_OpdPriceQuery.cshtml
+  - Services/IOpdPriceQueryService.cs
+  - Repositories/IOpdPriceQueryRepository.cs
+  - Views/Report/_TemplateReport.cshtml
+  - wwwroot/js/reports/report-template.js
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - Controllers/OpdPriceQueryController.cs
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryServiceTests.cs
+  - Repositories/IRegistrationQueryRepository.cs
+  - Services/ReportExportService.cs
+  - Repositories/MedicalRecordQueryRepository.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - Repositories/OpdPriceQueryRepository.cs
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - Controllers/MedicalRecordQueryController.cs
+  - Program.cs
+  - wwwroot/js/reports/medical-record-query.js
+  - Services/OpdPriceReceiptRenderer.cs
+  - OpdAccrRptWeb.Tests/ReportExportJobStoreTests.cs
+  - package.json
+  - OpdAccrRptWeb.Tests/OpdPriceQueryControllerTests.cs
+  - .agents/skills/spectra-apply/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - OpdAccrRptWeb.Tests/RegistrationQueryControllerTests.cs
+  - Models/MedicalRecordQueryModels.cs
+  - Services/ReportExportJobStore.cs
+  - Models/OpdPriceQueryModels.cs
+  - wwwroot/css/site.css
+  - wwwroot/js/reports/m2-doctor-monthly-report.js
+  - .agents/skills/spectra-ask/SKILL.md
+  - OpdAccrRptWeb.Tests/MedicalRecordQueryClientContractTests.cs
+  - Services/IRegistrationQueryService.cs
+  - .agents/skills/spectra-commit/SKILL.md
+  - Services/OpdPriceQueryService.cs
+  - Views/OpdPriceQuery/BatchReceipt.cshtml
+  - .agents/skills/spectra-analyze/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - OpdAccrRptWeb.Tests/C143AccountingBalanceDebtReportServiceTests.cs
+  - Repositories/MedicalRecordQuerySql.cs
+  - Services/ReportExportDefinitions.cs
+  - AGENTS.md
+  - .agents/skills/spectra-verify/SKILL.md
+tests:
+  - OpdAccrRptWeb.Tests/opd-price-query.test.js
+  - OpdAccrRptWeb.Tests/c5-report.test.js
+  - OpdAccrRptWeb.Tests/report-layout.test.js
+  - OpdAccrRptWeb.Tests/m2-doctor-monthly-report.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+  - OpdAccrRptWeb.Tests/registration-query.test.js
+-->
+
+---
+### Requirement: Collapsible Q2 conditions with tags
+
+The Q2 query panel SHALL reuse the shared report query panel and collapse directive. When the conditions are collapsed, the panel title SHALL display a tag for every enabled non-empty condition, and expanding the panel SHALL restore the entered values. The panel SHALL keep the shared input styling, action placement, skeleton, empty state, focus behavior, and reduced-motion behavior.
+
+#### Scenario: Collapse populated conditions
+
+- **WHEN** a user enters medical record number 'AB123' and name '王' and activates 收合
+- **THEN** the form is hidden from the layout
+- **AND** the title displays tags 「病歷號：AB123」 and 「姓名：王」
+- **AND** the entered values remain available after 展開
+
+#### Scenario: Collapse with no condition
+
+- **WHEN** a user collapses Q2 before entering a condition
+- **THEN** the title displays the shared 「尚未設定條件」 tag
+- **AND** the user can expand the panel and submit a condition
+
+
+<!-- @trace
+source: add-medical-record-query
+updated: 2026-10-07
+code:
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - Views/Report/_RegistrationQuery.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - wwwroot/js/reports/registration-query.js
+  - .agents/skills/spectra-apply/SKILL.md
+  - Services/RegistrationQueryService.cs
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-analyze/SKILL.md
+  - AGENTS.md
+  - .agents/skills/spectra-ask/SKILL.md
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - .agents/skills/spectra-commit/SKILL.md
+  - .agents/skills/spectra-review/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - Repositories/RegistrationQueryRepository.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-verify/SKILL.md
+-->
+
+---
+### Requirement: Use the shared query loading and empty states
+
+The Q2 panel SHALL display the existing shared table skeleton while a records request is pending. It SHALL display a shared empty state before the first query, after an unrestricted-query validation error, and when a valid query returns no rows; an error state SHALL preserve the current condition values.
+
+#### Scenario: Show pending state
+
+- **WHEN** a valid Q2 query is submitted
+- **THEN** the result panel displays the shared table skeleton
+- **AND** the result table is not displayed until the request completes
+
+#### Scenario: Preserve conditions after no result
+
+- **WHEN** a valid Q2 query returns no records
+- **THEN** the panel displays 「查無此筆資料, 請重新輸入」
+- **AND** the condition values and condition tags remain unchanged
+
+<!-- @trace
+source: add-medical-record-query
+updated: 2026-10-07
+code:
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - Views/Report/_RegistrationQuery.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - wwwroot/js/reports/registration-query.js
+  - .agents/skills/spectra-apply/SKILL.md
+  - Services/RegistrationQueryService.cs
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-analyze/SKILL.md
+  - AGENTS.md
+  - .agents/skills/spectra-ask/SKILL.md
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - .agents/skills/spectra-commit/SKILL.md
+  - .agents/skills/spectra-review/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - Repositories/RegistrationQueryRepository.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-verify/SKILL.md
 -->

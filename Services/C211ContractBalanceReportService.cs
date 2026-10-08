@@ -13,6 +13,40 @@ public sealed class C211ContractBalanceReportService(
         string userId,
         CancellationToken cancellationToken = default)
     {
+        var report = await CreateCompleteResultAsync(condition, userId, cancellationToken);
+        var pageNumber = condition.PageNumber ?? 1;
+        var pageSize = condition.PageSize ?? 10;
+        var pageOffset = Math.Min((long)(pageNumber - 1) * pageSize, report.Rows.Count);
+
+        return new ReportDataAndColumns<C211ContractBalanceReportViewModel>
+        {
+            Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C211ContractBalanceReportViewModel>(),
+            Data = report.Rows.Skip((int)pageOffset).Take(pageSize).ToList(),
+            TotalCount = report.Rows.Count,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = report.Rows.Count == 0
+                ? 0
+                : (report.Rows.Count / pageSize) + (report.Rows.Count % pageSize == 0 ? 0 : 1),
+            Summary = report.Summary
+        };
+    }
+
+    public async Task<C211ContractBalancePreviewViewModel> CreatePreviewAsync(
+        SearchReportCondition condition,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await CreateCompleteResultAsync(condition, userId, cancellationToken);
+        return new C211ContractBalancePreviewViewModel(report.Rows, report.Summary);
+    }
+
+    private async Task<(List<C211ContractBalanceReportViewModel> Rows, C211ReportSummary Summary)>
+        CreateCompleteResultAsync(
+            SearchReportCondition condition,
+            string userId,
+            CancellationToken cancellationToken)
+    {
         var asOfDate = DateOnly.ParseExact(condition.EndDate!, "yyyy-MM-dd");
         var source = condition.EncounterSource!;
         var rows = await repository.GetRowsAsync(
@@ -39,12 +73,7 @@ public sealed class C211ContractBalanceReportService(
             }
         }
 
-        return new ReportDataAndColumns<C211ContractBalanceReportViewModel>
-        {
-            Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C211ContractBalanceReportViewModel>(),
-            Data = data,
-            TotalCount = data.Count,
-            Summary = new C211ReportSummary(
+        return (data, new C211ReportSummary(
                 source == C211Sources.Inpatient ? "合約單位餘額明細表(住院)" : "合約單位餘額明細表(門急)",
                 $"資料日期： ~ {FormatRocDate(C211ContractBalanceRepository.ToRocDate(asOfDate))}",
                 "OpdAccRpt", "PFin2Balance",
@@ -52,8 +81,7 @@ public sealed class C211ContractBalanceReportService(
                 userId,
                 groups,
                 selfGrandTotal,
-                claimGrandTotal)
-        };
+                claimGrandTotal));
     }
 
     internal static IReadOnlyList<C211ContractSubtotal> BuildGroups(IEnumerable<C211Row> rows)

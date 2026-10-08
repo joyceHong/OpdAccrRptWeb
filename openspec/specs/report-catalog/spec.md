@@ -720,3 +720,39 @@ tests:
   - OpdAccrRptWeb.Tests/m3-opd-emergency-daily-report.test.js
   - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
 -->
+
+---
+### Requirement: Available Q2 medical record catalog entry
+
+The data query category SHALL expose Q2 as an available 「病歷查詢」 entry and SHALL associate it with the Q2 medical record query component.
+
+#### Scenario: Browse the data query catalog
+
+- **WHEN** a user opens the 「資料查詢」 category
+- **THEN** the sidebar displays Q1「批價查詢」、Q2「病歷查詢」及 Q3「掛號查詢」
+- **AND** selecting Q2 displays its dedicated query controls rather than an unavailable-feature message
+
+<!-- @trace
+source: add-medical-record-query
+updated: 2026-10-07
+code:
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - Views/Report/_RegistrationQuery.cshtml
+  - .agents/skills/spectra-propose/SKILL.md
+  - wwwroot/js/reports/registration-query.js
+  - .agents/skills/spectra-apply/SKILL.md
+  - Services/RegistrationQueryService.cs
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-drift/SKILL.md
+  - .agents/skills/spectra-analyze/SKILL.md
+  - AGENTS.md
+  - .agents/skills/spectra-ask/SKILL.md
+  - REPORT_ACCESS_CONTROL_PLAN.md
+  - .agents/skills/spectra-commit/SKILL.md
+  - .agents/skills/spectra-review/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - Repositories/RegistrationQueryRepository.cs
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-verify/SKILL.md
+-->

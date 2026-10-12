@@ -1379,13 +1379,12 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const styles = fs.readFileSync("wwwroot/css/site.css", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
-    assert.equal(component.computed.isPrintableLegacyReport.call({ isC211: true, isC212: false }), false);
     assert.match(markup, /v-else-if="isC211"[^>]*v-on:click="previewC211">/);
     assert.match(markup, /v-else-if="isC211"[^>]*:disabled="!hasResults/);
-    assert.match(markup, /v-else-if="!isPrintableLegacyReport"[^>]*exportResults/);
-    assert.match(markup, /isPrintableLegacyReport \|\| isC211 \? '查無資料！'/);
+    assert.match(markup, /v-else class="outline-button"[^>]*exportResults/);
+    assert.match(markup, /isC212 \|\| isC211 \? '查無資料！'/);
     assert.doesNotMatch(markup, /class="c211-report"|c211Summary\.selfGrandTotal|c211Groups/);
-    assert.match(markup, /v-for="column in columns"[\s\S]*v-for="row in pagedRows"/);
+    assert.match(markup, /v-for="column in columns"[\s\S]*v-for="\(row, index\) in pagedRows"/);
     assert.match(markup, /v-if="isC211"[^>]*c211-contract-input/);
     assert.doesNotMatch(markup, /<datalist id="c211-contract-list"/);
     assert.match(markup, /ref="c211Autocomplete" class="report-autocomplete"/);
@@ -1446,7 +1445,7 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
     assert.deepEqual(previewContext.rows, [{ contractCode: "TT", medicalRecordNo: "current row" }]);
 }
 
-async function verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavior() {
+async function verifiesC212UsesSharedDatesAndPaginatedResults() {
     const configuration = window.ReportConfigurations.C212;
     assert.equal(configuration.serverPaged, false);
     assert.equal(configuration.advancedConditions, false);
@@ -1458,21 +1457,42 @@ async function verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavio
     assert.equal(initial.form.startDate, "2026-09-11");
     assert.equal(initial.form.endDate, "2026-09-10");
 
-    let request;
-    global.fetch = async (_url, options) => {
-        request = JSON.parse(options.body);
-        return { ok: true, json: async () => ({
-            columns: [], data: [{ accountingDate: "115/09/10", medicalRecordNo: "A1", patientName: "王小明", amount: 10 }],
-            summary: { totalAmount: 10, dataStatusMessage: "目前無法確認資料完整性" }
-        }) };
+    const columns = [
+        { key: "accountingDate", label: "日期" },
+        { key: "medicalRecordNo", label: "病歷號" },
+        { key: "patientName", label: "姓名" },
+        { key: "amount", label: "金額" }
+    ];
+    const resultRows = Array.from({ length: 28 }, (_, index) => ({
+        accountingDate: "115/09/10", medicalRecordNo: `A${index + 1}`,
+        patientName: `病患${index + 1}`, amount: index + 1
+    }));
+    const resultSummary = {
+        title: "骨庫餘額明細表", reportDate: "資料日期：115/09/10",
+        programNo: "OpdAccRpt", reportNo: "PFin2Balance42",
+        processDateTime: "115/09/10 12:00:00", editUser: "tester",
+        totalAmount: 406, dataStatusMessage: "目前無法確認資料完整性"
     };
+    let responseData = { columns, data: resultRows, summary: resultSummary };
+    let request;
+    const c212Fetch = async (_url, options) => {
+        request = JSON.parse(options.body);
+        return { ok: true, json: async () => responseData };
+    };
+    global.fetch = c212Fetch;
     const context = {
-        ...initial, selectedReport: { code: "C212" }, isC212: true, isC211: false,
+        ...initial, selectedReport: { code: "C212" }, defaultStartDate: "2026-09-11", defaultEndDate: "2026-09-11",
+        isC212: true, isC211: false,
         isC23: false, isC24: false, isC21: false, isEndDateOnly: true,
         hasEncounterSource: false, hasStationOrBedPrefix: false, hasCashierUserId: false,
         hasCashierCashSort: false, hasBillingCode: false, hasReceivableBalanceType: false,
         hasAdvancedConditions: false, isServerPaged: false, serverTotalCount: 0,
-        serverTotalPages: 0, summaries: [], c211Summary: null, c212Summary: null, $emit: () => {}
+        serverTotalPages: 0, summaries: [], c211Summary: null, c212Summary: null,
+        isLoading: false, currentPage: 1, pageSize: 10,
+        get filteredRows() { return this.rows; },
+        get hasResults() { return this.rows.length > 0; },
+        get totalPages() { return component.computed.totalPages.call(this); },
+        $emit: () => {}
     };
     await component.methods.fetchResults.call(context);
     assert.equal(Object.hasOwn(request, "startDate"), false);
@@ -1480,13 +1500,115 @@ async function verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavio
     assert.equal(Object.hasOwn(request, "encounterSource"), false);
     assert.equal(Object.hasOwn(request, "pageNumber"), false);
     assert.equal(context.c212Summary.dataStatusMessage, "目前無法確認資料完整性");
+    assert.equal(component.computed.totalCount.call(context), 28);
+    assert.equal(context.totalPages, 3);
+    assert.deepEqual(component.computed.pagedRows.call(context).map(row => row.medicalRecordNo),
+        Array.from({ length: 10 }, (_, index) => `A${index + 1}`));
+    await component.methods.goToPage.call(context, context.totalPages);
+    assert.equal(context.currentPage, 3);
+    assert.deepEqual(component.computed.pagedRows.call(context).map(row => row.medicalRecordNo),
+        Array.from({ length: 8 }, (_, index) => `A${index + 21}`));
+    context.pageSize = 30;
+    await component.methods.changePageSize.call(context);
+    assert.equal(context.currentPage, 1);
+    assert.equal(context.totalPages, 1);
+    assert.equal(component.computed.pagedRows.call(context).length, 28);
+
+    context.pageSize = 10;
+    context.currentPage = 2;
+    let printCalls = 0;
+    global.window.print = () => { printCalls++; };
+    component.methods.openC212Preview.call(context);
+    assert.equal(context.c212PreviewOpen, true);
+    assert.equal(context.c212PreviewRows.length, 28);
+    assert.equal(context.c212PreviewRows[27].medicalRecordNo, "A28");
+    assert.equal(context.c212PreviewSummary.totalAmount, 406);
+    assert.equal(context.currentPage, 2);
+    assert.equal(context.pageSize, 10);
+    assert.equal(printCalls, 0);
+    component.methods.closeC212Preview.call(context);
+    assert.equal(context.c212PreviewOpen, false);
+    assert.equal(context.currentPage, 2);
+    assert.equal(context.c212PreviewRows.length, 28);
+    component.methods.printC212Preview.call(context);
+    assert.equal(printCalls, 0);
+    component.methods.openC212Preview.call(context);
+    assert.equal(printCalls, 0);
+    component.methods.printC212Preview.call(context);
+    assert.equal(printCalls, 1);
+    component.methods.closeC212Preview.call(context);
+
+    context.c212PreviewOpen = true;
+    context.c212PreviewRows = resultRows.map(row => ({ ...row }));
+    context.c212PreviewSummary = { ...resultSummary };
+    responseData = { columns, data: [], summary: { ...resultSummary, totalAmount: 0 } };
+    global.fetch = async (_url, options) => {
+        request = JSON.parse(options.body);
+        assert.equal(context.c212PreviewOpen, false);
+        assert.deepEqual(context.c212PreviewRows, []);
+        assert.equal(context.c212PreviewSummary, null);
+        return { ok: true, json: async () => responseData };
+    };
+    await component.methods.fetchResults.call(context);
+    assert.equal(context.hasResults, false);
+    assert.equal(context.c212PreviewOpen, false);
+    assert.deepEqual(context.c212PreviewRows, []);
+    assert.equal(context.c212PreviewSummary, null);
+    component.methods.openC212Preview.call(context);
+    assert.equal(context.c212PreviewOpen, false);
+
+    responseData = { columns, data: resultRows, summary: resultSummary };
+    global.fetch = c212Fetch;
+    await component.methods.fetchResults.call(context);
+    component.methods.openC212Preview.call(context);
+    assert.equal(context.c212PreviewOpen, true);
+    global.fetch = async () => {
+        assert.equal(context.c212PreviewOpen, false);
+        assert.deepEqual(context.c212PreviewRows, []);
+        assert.equal(context.c212PreviewSummary, null);
+        throw new Error("C212 unavailable");
+    };
+    await component.methods.fetchResults.call(context);
+    assert.equal(context.c212PreviewOpen, false);
+    assert.deepEqual(context.c212PreviewRows, []);
+    assert.equal(context.c212PreviewSummary, null);
+    assert.deepEqual(context.rows, []);
+
+    context.rows = resultRows;
+    context.c212Summary = resultSummary;
+    component.methods.openC212Preview.call(context);
+    assert.equal(context.c212PreviewOpen, true);
+    component.methods.resetForm.call(context);
+    assert.equal(context.c212PreviewOpen, false);
+    assert.deepEqual(context.c212PreviewRows, []);
+    assert.equal(context.c212PreviewSummary, null);
+
+    const emptyPreviewContext = {
+        isC212: true, hasResults: false, c212Summary: { totalAmount: 0 }, rows: [],
+        c212PreviewOpen: false, c212PreviewRows: [], c212PreviewSummary: null
+    };
+    component.methods.openC212Preview.call(emptyPreviewContext);
+    assert.equal(emptyPreviewContext.c212PreviewOpen, false);
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
-    assert.match(markup, /v-else-if="isC212"/);
-    assert.match(markup, /c212Summary\.dataStatusMessage/);
-    assert.match(markup, /c212Summary\.totalAmount/);
-    assert.match(markup, /isPrintableLegacyReport \|\| isC211 \? '查無資料！'/);
+    const styles = fs.readFileSync("wwwroot/css/site.css", "utf8");
+    assert.match(markup, /v-if="!isLoading && hasResults" class="pagination"/);
+    assert.match(markup, /每頁顯示[\s\S]*<option :value="10">10 筆<\/option>[\s\S]*<option :value="30">30 筆<\/option>[\s\S]*<option :value="50">50 筆<\/option>/);
+    assert.match(markup, /:class="\{ 'c212-results-table': isC212 \}"/);
+    assert.match(markup, /amount: isC212 && column\.key === 'amount'/);
+    assert.match(markup, /v-else-if="isC212"[^>]*v-on:click="openC212Preview">預覽／列印/);
+    assert.match(markup, /c212PreviewOpen && c212PreviewSummary[^>]*role="dialog" aria-modal="true"/);
+    assert.match(markup, /c212PreviewSummary\.programNo[\s\S]*c212PreviewSummary\.reportNo[\s\S]*c212PreviewSummary\.processDateTime[\s\S]*c212PreviewSummary\.editUser/);
+    assert.match(markup, /v-for="\(row, index\) in c212PreviewRows"/);
+    assert.match(markup, /c212PreviewSummary\.totalAmount/);
+    assert.match(markup, /c212PreviewSummary\.dataStatusMessage/);
+    assert.match(markup, /isC212 \|\| isC211 \? '查無資料！'/);
+    assert.match(markup, /v-on:click="printC212Preview">確認列印/);
+    assert.doesNotMatch(markup, /printC211|v-on:click="printC212Preview"[^>]*>列印/);
+    assert.match(styles, /body:has\(\.c212-preview-overlay \.c212-print-document\) \*\{visibility:hidden!important\}/);
+    assert.match(styles, /body:has\(\.c212-preview-overlay \.c212-print-document\) \.c212-print-document,body:has\(\.c212-preview-overlay \.c212-print-document\) \.c212-print-document \*\{visibility:visible!important\}/);
+    assert.match(styles, /\.c212-preview-actions\{display:none!important\}/);
     assert.match(appSource, /C212:\s*window\.ReportComponents\.ReportTemplate/);
 }
 
@@ -1936,7 +2058,7 @@ verifiesC171RequestsServerPages()
     .then(verifiesC211CutoffSourceContractAndCompletePrintMarkup)
     .then(verifiesC211PreviewFailureEmptyAndPrintGuards)
     .then(verifiesC7PreviewRemainsInCurrentPage)
-    .then(verifiesC212UsesSharedDatesUnknownWarningAndPrintableEmptyBehavior)
+    .then(verifiesC212UsesSharedDatesAndPaginatedResults)
     .then(verifiesC13SharedPaginationSkeletonAndPreviewContract)
     .then(verifiesC143SharedQueryPagingAndResetContract)
     .then(verifiesC144SharedQueryPagingAndExportContract)

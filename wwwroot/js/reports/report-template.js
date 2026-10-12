@@ -200,6 +200,11 @@
     });
     const getReportConfiguration = reportCode => reportConfigurations[reportCode]
         ?? Object.freeze({ serverPaged: false });
+    const clearC212PreviewState = reportState => {
+        reportState.c212PreviewOpen = false;
+        reportState.c212PreviewRows = [];
+        reportState.c212PreviewSummary = null;
+    };
     const advancedConditionKeys = Object.freeze([
         "stationOrBedPrefix",
         "cashierUserId",
@@ -287,6 +292,9 @@
                 summaries: [],
                 c211Summary: null,
                 c212Summary: null,
+                c212PreviewOpen: false,
+                c212PreviewRows: [],
+                c212PreviewSummary: null,
                 c15Summary: null,
                 c15PreviewOpen: false,
                 c15PreviewLoading: false,
@@ -329,7 +337,6 @@
             isC10() { return this.reportConfiguration.c10 === true; },
             isC211() { return this.reportConfiguration.c211 === true; },
             isC212() { return this.reportConfiguration.c212 === true; },
-            isPrintableLegacyReport() { return this.isC212; },
             c21ScopeOptions() {
                 return this.form.encounterSource === "Inpatient"
                     ? [{ value: 4, label: "全部" }, { value: 5, label: "住院總帳" }, { value: 8, label: "出院總帳" }]
@@ -388,7 +395,6 @@
                     : Math.max(1, Math.ceil(this.filteredRows.length / this.pageSize));
             },
             pagedRows() {
-                if (this.isPrintableLegacyReport) return this.rows;
                 if (this.isServerPaged) {
                     return this.rows;
                 }
@@ -491,6 +497,7 @@
                 this.summaries = [];
                 this.c211Summary = null;
                 this.c212Summary = null;
+                clearC212PreviewState(this);
                 this.c15Summary = null;
                 this.c15PreviewOpen = false;
                 this.c15PreviewLoading = false;
@@ -579,6 +586,7 @@
                 }
             },
             async search() {
+                if (this.isC212) clearC212PreviewState(this);
                 if (!this.form.endDate || (!this.isEndDateOnly && !this.form.startDate)) {
                     this.validationMessage = this.isEndDateOnly
                         ? "請輸入截止日期。"
@@ -621,6 +629,7 @@
                 await this.fetchResults();
             },
             async fetchResults() {
+                if (this.isC212) clearC212PreviewState(this);
                 this.isLoading = true;
 
                 try {
@@ -698,6 +707,7 @@
                         ? result.summary : null;
                     this.c212Summary = this.isC212 && result.summary && !Array.isArray(result.summary)
                         ? result.summary : null;
+                    if (this.isC212 && this.rows.length === 0) clearC212PreviewState(this);
                     this.c15Summary = this.isC15 && result.summary && !Array.isArray(result.summary)
                         ? result.summary : null;
                     if (this.isServerPaged) {
@@ -715,6 +725,7 @@
                     this.summaries = [];
                     this.c211Summary = null;
                     this.c212Summary = null;
+                    if (this.isC212) clearC212PreviewState(this);
                     this.c15Summary = null;
                     this.serverTotalCount = 0;
                     this.serverTotalPages = 0;
@@ -849,6 +860,19 @@
                     contractCode: this.form.contractCode.trim() || undefined
                 }, "無法建立 C211 預覽。");
             },
+            openC212Preview() {
+                if (!this.isC212 || !this.hasResults || !this.c212Summary) return;
+                this.c212PreviewRows = this.rows.map(row => ({ ...row }));
+                this.c212PreviewSummary = { ...this.c212Summary };
+                this.c212PreviewOpen = true;
+            },
+            closeC212Preview() {
+                this.c212PreviewOpen = false;
+            },
+            printC212Preview() {
+                if (!this.c212PreviewOpen || this.c212PreviewRows.length === 0 || !this.c212PreviewSummary) return;
+                window.print();
+            },
             async openLegacyPreview(url, payload, fallbackMessage) {
                 this.legacyPreviewLoading = true;
                 this.legacyPreviewOpen = false;
@@ -970,9 +994,6 @@
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
                 this.validationMessage = "";
-            },
-            printC211() {
-                if (this.isPrintableLegacyReport && this.hasResults) window.print();
             },
             async openC15Preview() {
                 if (!this.isC15 || !this.hasResults || this.c15PreviewLoading) return;

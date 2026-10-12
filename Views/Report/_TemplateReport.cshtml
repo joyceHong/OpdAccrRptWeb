@@ -15,10 +15,10 @@
             <button v-else-if="isC16" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC16">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC211" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC211">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
-            <button v-else-if="!isPrintableLegacyReport" class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
+            <button v-else-if="isC212" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="openC212Preview">預覽／列印</button>
+            <button v-else class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
-            <button v-else class="outline-button no-print" type="button" :disabled="!hasResults" v-on:click="printC211">列印</button>
         </section>
         <section v-if="exportJob" class="export-status" role="status" aria-live="polite">
             <strong>Excel 匯出：{{ exportJob.status }}</strong>
@@ -170,7 +170,7 @@
                     <strong>查詢結果</strong>
                     <span v-if="!isLoading && hasResults">共 {{ totalCount }} 筆</span>
                 </div>
-                <label v-if="!isLoading && hasResults && !isPrintableLegacyReport">
+                <label v-if="!isLoading && hasResults">
                     每頁顯示
                     <select v-model.number="pageSize" :disabled="isLoading" v-on:change="changePageSize">
                         <option :value="10">10 筆</option>
@@ -185,7 +185,7 @@
             </template>
             <div v-else-if="!hasResults" class="empty-result">
                 <div>▤</div>
-                <strong>{{ hasSearched ? (isPrintableLegacyReport || isC211 ? '查無資料！' : '查無資料') : '尚無查詢結果' }}</strong>
+                <strong>{{ hasSearched ? (isC212 || isC211 ? '查無資料！' : '查無資料') : '尚無查詢結果' }}</strong>
                 <p>{{ hasSearched ? '目前條件沒有符合的資料。' : '請設定上方查詢條件後按下「查詢」。' }}</p>
             </div>
             <div v-else-if="isC15" class="c15-report">
@@ -199,38 +199,47 @@
                     </div>
                 </section>
             </div>
-            <div v-else-if="isC212" class="c212-report">
-                <header class="c211-report-header">
-                    <h2>{{ c212Summary.title }}</h2>
-                    <p>{{ c212Summary.reportDate }}</p>
-                    <small>{{ c212Summary.programNo }}／{{ c212Summary.reportNo }}　{{ c212Summary.processDateTime }}　{{ c212Summary.editUser }}</small>
-                    <p class="c212-freshness-warning" role="alert">{{ c212Summary.dataStatusMessage }}</p>
-                </header>
-                <table>
-                    <thead><tr><th>日期</th><th>病歷號</th><th>姓名</th><th class="amount">金額</th></tr></thead>
-                    <tbody><tr v-for="(row, index) in rows" :key="index"><td>{{ row.accountingDate }}</td><td>{{ row.medicalRecordNo }}</td><td>{{ row.patientName }}</td><td class="amount">{{ row.amount }}</td></tr></tbody>
-                    <tfoot><tr><th colspan="3">合計</th><th class="amount">{{ c212Summary.totalAmount }}</th></tr></tfoot>
-                </table>
-            </div>
             <div v-else class="table-wrap">
-                <table>
-                    <thead><tr><th v-for="column in columns" :key="column.key">{{ column.label }}</th></tr></thead>
-                    <tbody><tr v-for="row in pagedRows" :key="row.id"><td v-for="column in columns" :key="column.key">{{ row[column.key] }}</td></tr></tbody>
+                <table :class="{ 'c212-results-table': isC212 }">
+                    <thead><tr><th v-for="column in columns" :key="column.key" :class="{ amount: isC212 && column.key === 'amount' }">{{ column.label }}</th></tr></thead>
+                    <tbody><tr v-for="(row, index) in pagedRows" :key="row.id ?? index"><td v-for="column in columns" :key="column.key" :class="{ amount: isC212 && column.key === 'amount' }">{{ row[column.key] }}</td></tr></tbody>
                 </table>
             </div>
-            <template v-if="!isPrintableLegacyReport">
-                <div v-if="!isLoading && hasResults" class="pagination">
-                    <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
-                    <div>
-                        <button type="button" aria-label="第一頁" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(1)">‹‹</button>
-                        <button type="button" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(currentPage - 1)">‹</button>
-                        <button class="active" type="button">{{ currentPage }}</button>
-                        <button type="button" :disabled="isLoading || currentPage === totalPages" v-on:click="goToPage(currentPage + 1)">›</button>
-                        <button type="button" aria-label="最後一頁" :disabled="isLoading || currentPage === totalPages" v-on:click="goToPage(totalPages)">››</button>
-                    </div>
+            <div v-if="!isLoading && hasResults" class="pagination">
+                <span>第 {{ currentPage }} / {{ totalPages }} 頁</span>
+                <div>
+                    <button type="button" aria-label="第一頁" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(1)">‹‹</button>
+                    <button type="button" :disabled="isLoading || currentPage === 1" v-on:click="goToPage(currentPage - 1)">‹</button>
+                    <button class="active" type="button">{{ currentPage }}</button>
+                    <button type="button" :disabled="isLoading || currentPage === totalPages" v-on:click="goToPage(currentPage + 1)">›</button>
+                    <button type="button" aria-label="最後一頁" :disabled="isLoading || currentPage === totalPages" v-on:click="goToPage(totalPages)">››</button>
                 </div>
-            </template>
+            </div>
         </section>
+        <div v-if="c212PreviewOpen && c212PreviewSummary" class="report-preview-overlay c212-preview-overlay" role="dialog" aria-modal="true" aria-label="C212 列印預覽">
+            <div class="report-preview-actions c212-preview-actions no-print">
+                <button class="ghost-button" type="button" v-on:click="closeC212Preview">關閉預覽</button>
+                <button class="primary-button" type="button" v-on:click="printC212Preview">確認列印</button>
+            </div>
+            <article class="report-preview-paper c212-print-document">
+                <header class="c212-print-header">
+                    <h1>{{ c212PreviewSummary.title }}</h1>
+                    <p>{{ c212PreviewSummary.reportDate }}</p>
+                    <div class="c212-print-meta">
+                        <span>程式：{{ c212PreviewSummary.programNo }}</span>
+                        <span>報表編號：{{ c212PreviewSummary.reportNo }}</span>
+                        <span>處理時間：{{ c212PreviewSummary.processDateTime }}</span>
+                        <span>使用者：{{ c212PreviewSummary.editUser }}</span>
+                    </div>
+                    <p class="c212-freshness-warning" role="alert">{{ c212PreviewSummary.dataStatusMessage }}</p>
+                </header>
+                <table class="c212-print-table">
+                    <thead><tr><th>日期</th><th>病歷號</th><th>姓名</th><th class="amount">金額</th></tr></thead>
+                    <tbody><tr v-for="(row, index) in c212PreviewRows" :key="`c212-print-${index}`"><td>{{ row.accountingDate }}</td><td>{{ row.medicalRecordNo }}</td><td>{{ row.patientName }}</td><td class="amount">{{ row.amount }}</td></tr></tbody>
+                    <tfoot><tr><th colspan="3">合計</th><th class="amount">{{ c212PreviewSummary.totalAmount }}</th></tr></tfoot>
+                </table>
+            </article>
+        </div>
         <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">關閉預覽</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">列印</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
         <div v-if="c4PreviewOpen && c4Preview" class="c4-preview-overlay" role="dialog" aria-modal="true" aria-label="C4 列印預覽">
             <div class="c4-preview-actions no-print">

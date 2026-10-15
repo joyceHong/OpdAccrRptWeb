@@ -24,6 +24,7 @@ const window = {
         M1DoctorDailyReport: reportTemplate,
         M2DoctorMonthlyReport: reportTemplate,
         M3OpdEmergencyDailyReport: reportTemplate,
+        SapInterface: reportTemplate,
         OpdPriceQuery: reportTemplate,
         MedicalRecordQuery: reportTemplate,
         RegistrationQuery: reportTemplate
@@ -50,6 +51,7 @@ vm.runInNewContext(source, { window, document, Vue, VueRouter });
 
 assert.equal(mounted, true);
 assert.ok(routesSeen.some(route => route.path === "/Report/C1"));
+assert.ok(routesSeen.some(route => route.path === "/Report/C141" && route.meta.reportCode === "C141"));
 assert.ok(routesSeen.some(route => route.path === "/Report" && route.redirect === "/Report/C1"));
 assert.ok(routesSeen.some(route => route.path === "/medical-statistics/doctor-daily"));
 assert.ok(routesSeen.some(route => route.path === "/data-query/opd-price"));

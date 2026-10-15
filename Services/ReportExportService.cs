@@ -206,11 +206,20 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
                     static (repository, query) => repository.GetCount(query)),
                 (condition, offset, batchSize) => WithC144Repository(scopeFactory, condition,
                     (repository, query) => repository.GetBatch(query, offset, batchSize))));
+
+            definitions.Add(new ReportExportDefinition<C141RankingRow>(
+                "C141",
+                _ => C141RankingColumns.Visible.Select(column =>
+                    new ModelDescriptionsHelper.PropertyMetadata { Key = column.Key, Label = column.Label }).ToArray(),
+                condition => WithC141RankingService(scopeFactory, service =>
+                    service.GetCount(CreateC141Search(condition))),
+                (condition, offset, batchSize) => WithC141RankingService(scopeFactory, service =>
+                    service.GetPage(CreateC141Search(condition), offset, batchSize))));
         }
         _definitions = definitions.ToDictionary(definition => definition.ReportCode, StringComparer.Ordinal);
     }
 
-    public ReportExportDispatchResult Dispatch(SearchReportCondition searchCondition)
+    public ReportExportDispatchResult Dispatch(SearchReportCondition searchCondition, string? ownerIdentity = null)
     {
         if (searchCondition.ReportCode == "C10")
         {
@@ -220,13 +229,24 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
                 stream.ToArray(), CreateFileName("C10", _timeProvider.GetUtcNow()), null);
         }
 
-        SearchReportCondition normalized = searchCondition.ReportCode == "C144"
+        if (searchCondition.ReportCode == "C141" && string.IsNullOrWhiteSpace(ownerIdentity))
+        {
+            throw new ArgumentException("C141 背景匯出需要已驗證的使用者身分。", nameof(ownerIdentity));
+        }
+
+        SearchReportCondition normalized = searchCondition.ReportCode == "C141"
+            ? NormalizeC141(searchCondition)
+            : searchCondition.ReportCode == "C144"
             ? NormalizeC144(searchCondition)
             : HealthReportCodes.Contains(searchCondition.ReportCode ?? string.Empty)
                 ? NormalizeHealthReport(searchCondition)
                 : NormalizeOutpatientReport(searchCondition);
         IReportExportDefinition definition = ResolveDefinition(normalized.ReportCode);
         int totalCount = definition.GetCount(normalized);
+        if (normalized.ReportCode == "C141" && totalCount == 0)
+        {
+            return new ReportExportDispatchResult(null, null, null, NoData: true);
+        }
         if (totalCount <= _options.SynchronousRowLimit)
         {
             using var stream = new MemoryStream();
@@ -235,7 +255,9 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
                 stream.ToArray(), CreateFileName(normalized.ReportCode!, _timeProvider.GetUtcNow()), null);
         }
 
-        ReportExportJob job = _jobStore.Create(normalized);
+        ReportExportJob job = _jobStore.Create(
+            normalized,
+            normalized.ReportCode == "C141" ? ownerIdentity : null);
         if (!_queue.TryEnqueue(job))
         {
             _jobStore.Remove(job.JobId);
@@ -244,11 +266,19 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
         return new ReportExportDispatchResult(null, null, job);
     }
 
-    public ReportExportJob? GetJob(Guid jobId) => _jobStore.Get(jobId);
-
-    public ReportExportDownloadResult GetDownload(Guid jobId)
+    public ReportExportJob? GetJob(Guid jobId, string? requesterIdentity = null)
     {
         ReportExportJob? job = _jobStore.Get(jobId);
+        return IsOwnedC141Job(job, requesterIdentity) ? null : job;
+    }
+
+    public ReportExportDownloadResult GetDownload(Guid jobId, string? requesterIdentity = null)
+    {
+        ReportExportJob? job = _jobStore.Get(jobId);
+        if (IsOwnedC141Job(job, requesterIdentity))
+        {
+            return new ReportExportDownloadResult(null, null);
+        }
         if (job?.Status != ReportExportJobStatus.Ready)
         {
             return new ReportExportDownloadResult(job, null);
@@ -258,6 +288,11 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             ? new ReportExportDownloadResult(job, new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             : new ReportExportDownloadResult(job, null);
     }
+
+    private static bool IsOwnedC141Job(ReportExportJob? job, string? requesterIdentity) =>
+        job?.SearchCondition.ReportCode == "C141"
+        && (string.IsNullOrWhiteSpace(requesterIdentity)
+            || !string.Equals(job.CreatedBy, requesterIdentity, StringComparison.OrdinalIgnoreCase));
 
     public void GenerateWorkbook(SearchReportCondition searchCondition, Stream destination)
     {
@@ -296,6 +331,39 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
         }
         return definition;
     }
+
+    private SearchReportCondition NormalizeC141(SearchReportCondition condition)
+    {
+        if (!DateOnly.TryParseExact(condition.EndDate, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateOnly accountingDate)
+            || accountingDate < new DateOnly(1912, 1, 1))
+        {
+            throw new ArgumentException("請輸入有效的 C141 帳務日。", nameof(condition));
+        }
+        IServiceScopeFactory scopeFactory = _scopeFactory
+            ?? throw new ArgumentException("C141 匯出服務尚未設定。", nameof(condition));
+        DateOnly oracleToday = WithC141RankingService(scopeFactory, service => service.GetOracleToday());
+        if (accountingDate > oracleToday)
+        {
+            throw new ArgumentException("C141 帳務日不可晚於 Oracle 今日。", nameof(condition));
+        }
+
+        return new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = accountingDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            C141MedicalRecordNumber = string.IsNullOrWhiteSpace(condition.C141MedicalRecordNumber)
+                ? null : condition.C141MedicalRecordNumber.Trim(),
+            C141BedNumber = string.IsNullOrWhiteSpace(condition.C141BedNumber)
+                ? null : condition.C141BedNumber.Trim(),
+            C141MinimumNetAmount = condition.C141MinimumNetAmount,
+            PageNumber = 1,
+            PageSize = 10
+        };
+    }
+
+    private static C141RankingSearch CreateC141Search(SearchReportCondition condition) =>
+        new(condition.C141MedicalRecordNumber, condition.C141BedNumber, condition.C141MinimumNetAmount);
 
     internal static SearchReportCondition NormalizeHealthReport(SearchReportCondition condition)
     {
@@ -376,6 +444,14 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
     {
         using IServiceScope scope = scopeFactory.CreateScope();
         return action(scope.ServiceProvider.GetRequiredService<IReportService>());
+    }
+
+    private static TResult WithC141RankingService<TResult>(
+        IServiceScopeFactory scopeFactory,
+        Func<IC141RankingService, TResult> action)
+    {
+        using IServiceScope scope = scopeFactory.CreateScope();
+        return action(scope.ServiceProvider.GetRequiredService<IC141RankingService>());
     }
 
     private static IReadOnlyList<ModelDescriptionsHelper.PropertyMetadata> GetC24ExportColumns() =>
@@ -503,6 +579,9 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             ChargeCodes = source.ChargeCodes,
             RoomScope = source.RoomScope,
             MedicalRecordNo = source.MedicalRecordNo,
+            C141MedicalRecordNumber = source.C141MedicalRecordNumber,
+            C141BedNumber = source.C141BedNumber,
+            C141MinimumNetAmount = source.C141MinimumNetAmount,
             NewSectionCode = source.NewSectionCode,
             ReceivableBalanceType = source.ReceivableBalanceType,
             Chop1sec = source.Chop1sec,

@@ -1,0 +1,48 @@
+@using System.Globalization
+@model OpdAccrRptWeb.ViewModels.C141PaymentNoticeDocument
+
+<article class="c141-payment-notice">
+    <header class="c141-notice-header">
+        <span>住院費用通知單</span>
+        <span>病歷號：@Model.Basic.MedicalRecordNumber</span>
+    </header>
+    <section class="c141-notice-patient">
+        <div><strong>姓名</strong><span>@Model.Basic.PatientName</span></div>
+        <div><strong>科別</strong><span>@Model.Basic.SectionName</span></div>
+        <div><strong>床號</strong><span>@Model.Basic.BedNumber</span></div>
+        <div><strong>入院日</strong><span>@Model.Basic.InpatientAdmissionDate</span></div>
+        <div><strong>醫師</strong><span>@Model.Basic.DoctorName</span></div>
+        <div><strong>住院序號</strong><span>@Model.Basic.InpatientSequence</span></div>
+        <div><strong>部分負擔類別</strong><span>@Model.Basic.PaymentType</span></div>
+        <div><strong>健保類別</strong><span>@Model.Basic.InsuranceCategory</span></div>
+    </section>
+    <table class="c141-notice-details">
+        <thead>
+            <tr><th>收費分類</th><th>名稱</th><th class="amount">健保費用</th><th class="amount">自付費用</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var category in Model.Categories)
+            {
+                <tr>
+                    <td>@category.DepartmentCode</td>
+                    <td>@category.DepartmentName</td>
+                    <td class="amount">@category.InsuranceAmount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    <td class="amount">@category.PatientAmount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <table class="c141-notice-totals">
+        <tbody>
+            <tr><th>A 總醫療費用</th><td>@Model.Totals.TotalAmountA.ToString("N0", CultureInfo.CurrentCulture)</td><th>B 健保費用</th><td>@Model.Totals.InsuranceAmountB.ToString("N0", CultureInfo.CurrentCulture)</td></tr>
+            <tr><th>C 醫療補助</th><td>@Model.Totals.SubsidyAmountC.ToString("N0", CultureInfo.CurrentCulture)</td><th>D 優待金額</th><td>@Model.Totals.PreferentialAmountD.ToString("N0", CultureInfo.CurrentCulture)</td></tr>
+            <tr><th>E 應繳金額</th><td>@Model.Totals.AmountDueE.ToString("N0", CultureInfo.CurrentCulture)</td><th>F 已預繳</th><td>@Model.Totals.PrepaidAmountF.ToString("N0.##", CultureInfo.CurrentCulture)</td></tr>
+            <tr class="c141-notice-balance"><th>G 尚需繳款</th><td colspan="3">@Model.Totals.RemainingAmountG.ToString("N0.##", CultureInfo.CurrentCulture)</td></tr>
+        </tbody>
+    </table>
+    <aside class="c141-notice-notes">
+        @if (Model.Note1 is not null) { <p>@Model.Note1</p> }
+        @if (Model.Note2 is not null) { <p>@Model.Note2</p> }
+        @if (Model.Note3 is not null) { <p>@Model.Note3</p> }
+    </aside>
+</article>

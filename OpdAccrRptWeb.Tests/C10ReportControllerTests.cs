@@ -160,14 +160,14 @@ public sealed class C10ReportControllerTests
     {
         public SearchReportCondition? Condition { get; private set; }
 
-        public ReportExportDispatchResult Dispatch(SearchReportCondition condition)
+        public ReportExportDispatchResult Dispatch(SearchReportCondition condition, string? ownerIdentity = null)
         {
             Condition = condition;
             return new ReportExportDispatchResult([1], "C10.xlsx", null);
         }
 
-        public ReportExportJob? GetJob(Guid jobId) => null;
+        public ReportExportJob? GetJob(Guid jobId, string? requesterIdentity = null) => null;
 
-        public ReportExportDownloadResult GetDownload(Guid jobId) => new(null, null);
+        public ReportExportDownloadResult GetDownload(Guid jobId, string? requesterIdentity = null) => new(null, null);
     }
 }

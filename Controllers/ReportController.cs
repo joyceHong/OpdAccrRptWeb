@@ -949,6 +949,11 @@ public sealed class ReportController : Controller
     [HttpPost("Report/Export")]
     public IActionResult Export([FromBody] SearchReportCondition searchCondition)
     {
+        if (searchCondition.ReportCode == "C141"
+            && (User.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(User.Identity.Name)))
+        {
+            return Unauthorized();
+        }
         IActionResult? c10Validation = searchCondition.ReportCode == "C10"
             ? ValidateC10Condition(searchCondition)
             : null;
@@ -984,10 +989,10 @@ public sealed class ReportController : Controller
         };
         if (outpatientValidation is not null) return outpatientValidation;
 
-        bool endDateOnly = searchCondition.ReportCode is "C27" or "C28" or "C214";
+        bool endDateOnly = searchCondition.ReportCode is "C27" or "C28" or "C214" or "C141";
         bool supportedReport = searchCondition.ReportCode is
             ("C1" or "C21" or "C22" or "C23" or "C24" or "C25" or "C27" or "C28" or "C29"
-                or "C143" or "C213" or "C214" or "C10" or "C144" or "C171" or "C172"
+                or "C143" or "C213" or "C214" or "C141" or "C10" or "C144" or "C171" or "C172"
                 or "C173" or "C174" or "C18" or "C19");
         DateOnly startDate = default;
         DateOnly endDate = default;
@@ -1002,18 +1007,28 @@ public sealed class ReportController : Controller
 
         try
         {
-            if (searchCondition.ReportCode == "C144")
+            if (searchCondition.ReportCode is "C144" or "C141")
             {
                 Response.Headers.CacheControl = "private, no-store";
                 Response.Headers.Pragma = "no-cache";
             }
-            var result = _reportExportService.Dispatch(searchCondition);
+            var result = _reportExportService.Dispatch(
+                searchCondition,
+                searchCondition.ReportCode == "C141" ? User.Identity?.Name : null);
             if (result.QueueFull)
             {
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
                 {
                     Status = StatusCodes.Status503ServiceUnavailable,
                     Title = "背景匯出工作繁忙，請稍後再試。"
+                });
+            }
+            if (result.NoData)
+            {
+                return NotFound(new ProblemDetails
+                {
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "查無符合條件的 C141 資料，未產生匯出檔。"
                 });
             }
             if (result.Workbook is not null)
@@ -1073,23 +1088,27 @@ public sealed class ReportController : Controller
     [HttpGet("Report/Export/{jobId}")]
     public IActionResult GetExportStatus(string jobId)
     {
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.Pragma = "no-cache";
         if (!Guid.TryParseExact(jobId, "D", out var parsedJobId))
         {
             return BadRequest("匯出工作識別碼格式不正確。");
         }
-        var job = _reportExportService.GetJob(parsedJobId);
+        var job = _reportExportService.GetJob(parsedJobId, User.Identity?.Name);
         return job is null ? NotFound() : Ok(ToResponse(job));
     }
 
     [HttpGet("Report/Export/{jobId}/download")]
     public IActionResult DownloadExport(string jobId)
     {
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.Pragma = "no-cache";
         if (!Guid.TryParseExact(jobId, "D", out var parsedJobId))
         {
             return BadRequest("匯出工作識別碼格式不正確。");
         }
 
-        var result = _reportExportService.GetDownload(parsedJobId);
+        var result = _reportExportService.GetDownload(parsedJobId, User.Identity?.Name);
         if (result.Job is null)
         {
             return NotFound();

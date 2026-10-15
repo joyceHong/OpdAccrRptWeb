@@ -488,9 +488,15 @@ internal sealed class FakeReportExportService : IReportExportService
 
     public int DispatchCalls { get; private set; }
 
-    public ReportExportDispatchResult Dispatch(SearchReportCondition searchCondition)
+    public string? LastOwnerIdentity { get; private set; }
+
+    public SearchReportCondition? LastCondition { get; private set; }
+
+    public ReportExportDispatchResult Dispatch(SearchReportCondition searchCondition, string? ownerIdentity = null)
     {
         DispatchCalls++;
+        LastOwnerIdentity = ownerIdentity;
+        LastCondition = searchCondition;
         if (DispatchException is not null)
         {
             throw DispatchException;
@@ -498,9 +504,9 @@ internal sealed class FakeReportExportService : IReportExportService
         return DispatchResult;
     }
 
-    public ReportExportJob? GetJob(Guid jobId) => Job;
+    public ReportExportJob? GetJob(Guid jobId, string? requesterIdentity = null) => Job;
 
-    public ReportExportDownloadResult GetDownload(Guid jobId) => DownloadResult;
+    public ReportExportDownloadResult GetDownload(Guid jobId, string? requesterIdentity = null) => DownloadResult;
 }
 
 internal sealed class FakeReportCatalogService : IReportCatalogService

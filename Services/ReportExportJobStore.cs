@@ -21,6 +21,8 @@ public sealed class ReportExportJob
 
     public required DateTimeOffset CreatedAt { get; init; }
 
+    public string? CreatedBy { get; init; }
+
     public ReportExportJobStatus Status { get; set; }
 
     public DateTimeOffset? StartedAt { get; set; }
@@ -36,7 +38,7 @@ public sealed class ReportExportJob
 
 public interface IReportExportJobStore
 {
-    ReportExportJob Create(SearchReportCondition condition);
+    ReportExportJob Create(SearchReportCondition condition, string? createdBy = null);
 
     ReportExportJob? Get(Guid jobId);
 
@@ -87,13 +89,14 @@ public sealed class ReportExportJobStore : IReportExportJobStore
         Directory.CreateDirectory(_rootDirectory);
     }
 
-    public ReportExportJob Create(SearchReportCondition condition)
+    public ReportExportJob Create(SearchReportCondition condition, string? createdBy = null)
     {
         var job = new ReportExportJob
         {
             JobId = Guid.NewGuid(),
             SearchCondition = CloneCondition(condition),
             CreatedAt = _timeProvider.GetUtcNow(),
+            CreatedBy = createdBy,
             Status = ReportExportJobStatus.Queued
         };
         lock (_gate)
@@ -290,6 +293,9 @@ public sealed class ReportExportJobStore : IReportExportJobStore
         ChargeCodes = condition.ChargeCodes,
         RoomScope = condition.RoomScope,
         MedicalRecordNo = condition.MedicalRecordNo,
+        C141MedicalRecordNumber = condition.C141MedicalRecordNumber,
+        C141BedNumber = condition.C141BedNumber,
+        C141MinimumNetAmount = condition.C141MinimumNetAmount,
         NewSectionCode = condition.NewSectionCode,
         ReceivableBalanceType = condition.ReceivableBalanceType,
         Chop1sec = condition.Chop1sec,

@@ -27,6 +27,7 @@ public sealed class OrganizationUnitMappingRepository(
         )
         WHERE new_code = :new_code
           AND (:active_place_only = 0 OR source_type <> 'Place' OR is_active = 1)
+          AND (:include_places = 1 OR source_type = 'Section')
         ORDER BY source_type, legacy_code
         """;
 
@@ -69,9 +70,13 @@ public sealed class OrganizationUnitMappingRepository(
         FETCH FIRST :result_limit ROWS ONLY
         """;
 
+    public Task<IReadOnlyList<OrganizationUnitMapping>> FindByNewCodeAsync(
+        string newCode, bool activePlaceOnly, CancellationToken cancellationToken = default) =>
+        FindByNewCodeAsync(newCode, OrganizationUnitMappingScope.SectionAndPlace,
+            activePlaceOnly, cancellationToken);
+
     public async Task<IReadOnlyList<OrganizationUnitMapping>> FindByNewCodeAsync(
-        string newCode,
-        bool activePlaceOnly,
+        string newCode, OrganizationUnitMappingScope scope, bool activePlaceOnly,
         CancellationToken cancellationToken = default)
     {
         await using var connection = new OracleConnection(connectionStringProvider.GetConnectionString());
@@ -83,6 +88,8 @@ public sealed class OrganizationUnitMappingRepository(
         };
         command.Parameters.Add("new_code", OracleDbType.Varchar2, 10).Value = newCode;
         command.Parameters.Add("active_place_only", OracleDbType.Int32).Value = activePlaceOnly ? 1 : 0;
+        command.Parameters.Add("include_places", OracleDbType.Int32).Value =
+            scope == OrganizationUnitMappingScope.SectionAndPlace ? 1 : 0;
 
         return await ReadAsync(command, cancellationToken);
     }

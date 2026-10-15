@@ -5,6 +5,8 @@ const vm = require("node:vm");
 const root = require("node:path").join(__dirname, "..");
 const source = fs.readFileSync(`${root}/wwwroot/js/report-app.js`, "utf8");
 const view = fs.readFileSync(`${root}/Views/Report/Index.cshtml`, "utf8");
+const templateView = fs.readFileSync(`${root}/Views/Report/_TemplateReport.cshtml`, "utf8");
+const reportTemplate = fs.readFileSync(`${root}/wwwroot/js/reports/report-template.js`, "utf8");
 const css = fs.readFileSync(`${root}/wwwroot/css/site.css`, "utf8");
 const q1 = fs.readFileSync(`${root}/Views/Report/_OpdPriceQuery.cshtml`, "utf8");
 const q2 = fs.readFileSync(`${root}/Views/Report/_MedicalRecordQuery.cshtml`, "utf8");
@@ -72,6 +74,11 @@ assert.deepEqual(Array.from(navigationState.openGroups), [0]);
 assert.equal(navigationState.reportKeyword, "");
 assert.deepEqual(pushedPaths, ["/sap-interface"]);
 assert.ok(routerOptions.routes.some(route => route.path === "/sap-interface" && route.meta.reportCode === "SAP"));
+const c141Route = routerOptions.routes.find(route => route.path === "/Report/C141");
+assert.ok(c141Route, "C141 must have a direct browser route");
+assert.equal(c141Route.meta.reportCode, "C141");
+assert.equal(c141Route.component, context.window.ReportComponents.ReportTemplate);
+assert.equal(options.methods.reportPath({ code: "C141" }), "/Report/C141");
 const directRouteState = {
     state:{ categories:[sapCategory] },
     activeCategory:null,
@@ -112,6 +119,15 @@ assert.match(css, /\.query-panel \.advanced-filter-toggle\{min-width:220px;[^}]*
 assert.match(css, /\.query-panel \.advanced-filter-region\.open:not\(\.q1-advanced-collapse\)/);
 assert.match(css, /\.advanced-filter-enter-active/);
 assert.match(view, /content-inner/);
+assert.match(templateView, /type="date"[^>]*:min="isC141 \? '1912-01-01' : undefined"/);
+assert.match(templateView, /isC141 \? '帳務日' : '截止日期'/);
+assert.match(templateView, /v-if="isC141" class="advanced-grid"/);
+assert.match(templateView, /form\.c141BedNumber/);
+assert.match(templateView, /isC141 && column\.isAmount/);
+assert.match(reportTemplate, /C141: Object\.freeze\(\{ serverPaged: true, endDateOnly: true, c141: true \}\)/);
+assert.match(reportTemplate, /fetch\("\/Report\/C141\/Today"/);
+assert.match(reportTemplate, /if \(this\.isC141\) this\.loadC141TodayAndSearch\(\)/);
+assert.match(reportTemplate, /this\.isC141 \? "\/Report\/C141\/Query"/);
 assert.match(css, /\.content-inner\{width:100%;max-width:none/);
 assert.match(css, /\.content\{min-width:0;padding:20px 24px 48px\}/);
 assert.match(css, /\.tree-children button \.report-name\{[^}]*text-overflow:ellipsis;white-space:nowrap/);
@@ -126,7 +142,7 @@ assert.match(css, /\.query-panel form\{gap:10px 14px;padding:16px 18px 28px\}/);
 assert.match(view, /v-report-query-collapse="selectedReport\.code"/);
 const catalog = fs.readFileSync(`${root}/Services/ReportCatalogService.cs`, "utf8");
 const implementedCodes = Array.from(catalog.matchAll(/Report\("([CMQ]\d+)",/g), match => match[1])
-    .filter(code => !["C141", "C142", "Q2", "Q3"].includes(code));
+    .filter(code => !["C142", "Q2", "Q3"].includes(code));
 for (const code of implementedCodes) assert.match(source, new RegExp(`\\b${code}: window\\.ReportComponents\\.`), `${code} must use the shared report route shell`);
 assert.ok(implementedCodes.includes("C10") && implementedCodes.includes("C11") && implementedCodes.includes("C12") && implementedCodes.includes("C13"));
 assert.ok(implementedCodes.includes("C171") && implementedCodes.includes("C172") && implementedCodes.includes("C173") && implementedCodes.includes("C174"));

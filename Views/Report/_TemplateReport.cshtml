@@ -16,9 +16,24 @@
             <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC211" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC211">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC212" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="openC212Preview">預覽／列印</button>
+            <template v-else-if="isC141">
+                <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
+                <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
+            </template>
             <button v-else class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
+        </section>
+        <section v-if="isC141" class="export-status no-print" aria-live="polite">
+            <p>通知單預覽也會更新通知日期並寫入交易紀錄。</p>
+            <div class="advanced-grid">
+                <label><span>LineBot 通知類型</span><select v-model.number="c141LineBotKind" :disabled="c141ActionLoading" aria-label="LineBot 通知類型"><option :value="0">繳款通知</option><option :value="1">讀卡通知</option></select></label>
+            </div>
+            <div v-if="c141ActionResults.length" class="c141-action-results">
+                <div v-for="(result, index) in c141ActionResults" :key="`${result.key?.admissionDate}-${result.key?.admissionTime}-${result.key?.admissionRoom}-${result.key?.admissionNumber}-${index}`">
+                    <strong>{{ result.key?.admissionDate }} / {{ result.key?.admissionRoom }} / {{ result.key?.admissionNumber }} — {{ result.status }}</strong> {{ result.message }}
+                </div>
+            </div>
         </section>
         <section v-if="exportJob" class="export-status" role="status" aria-live="polite">
             <strong>Excel 匯出：{{ exportJob.status }}</strong>
@@ -37,7 +52,7 @@
                     <div class="date-row" :class="'query-basic-row'">
                         <label v-if="!isEndDateOnly"><span>起始日期 <i>*</i></span><input v-model="form.startDate" type="date" required v-on:change="currentPage = 1" /></label>
                         <span v-if="!isEndDateOnly" class="date-arrow">→</span>
-                        <label><span>截止日期 <i>*</i></span><input v-model="form.endDate" type="date" required v-on:change="currentPage = 1" /></label>
+                        <label><span>{{ isC141 ? '帳務日' : '截止日期' }} <i>*</i></span><input v-model="form.endDate" type="date" required :min="isC141 ? '1912-01-01' : undefined" :max="isC141 && c141OracleToday ? c141OracleToday : undefined" v-on:change="currentPage = 1" /></label>
                         <button v-if="isC143" class="ghost-button" type="button" v-on:click="useYesterday">改成昨天</button>
                     </div>
                     <fieldset v-if="hasEncounterSource" class="source-fieldset">
@@ -53,6 +68,16 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
+                    <div v-if="isC142" class="advanced-grid">
+                        <label><span>科別</span>
+                            <report-autocomplete v-model="form.c142SectionCode" id-prefix="c142-section"
+                                                 :options="c142SectionOptions" v-model:open="c142SectionOpen"
+                                                 :loading="c142SectionLoading" placeholder="輸入新碼或科別名稱；空白代表全部"
+                                                 v-on:input="onC142SectionInput" v-on:select="selectC142SectionOption" />
+                        </label>
+                        <label><span>Excel 模式</span><select v-model="form.c142ExportMode"><option value="General">一般 Excel</option><option value="Transactions">含動態紀錄 Excel</option></select></label>
+                    </div>
+                    <p v-if="isC142 && c142SectionError" class="validation-message">{{ c142SectionError }}</p>
                     <fieldset v-if="hasReportType" class="source-fieldset">
                         <legend>報表類型 <i>*</i></legend>
                         <label v-for="option in reportTypeConfiguration.options" :key="option.value" class="source-option">
@@ -121,6 +146,11 @@
                             <span>重新計算</span>
                         </label>
                     </div>
+                    <div v-if="isC141" class="advanced-grid">
+                        <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" type="text" maxlength="10" autocomplete="off" v-on:input="currentPage = 1" /></label>
+                        <label><span>床號</span><input v-model.trim="form.c141BedNumber" type="text" maxlength="8" autocomplete="off" v-on:input="currentPage = 1" /></label>
+                        <label><span>淨額門檻</span><input v-model="form.c141MinimumNetAmount" type="number" step="any" inputmode="decimal" v-on:input="currentPage = 1" /></label>
+                    </div>
                     <div v-if="isC23" class="advanced-grid">
                         <label><span>日期模式 <i>*</i></span><select v-model="form.dateMode" v-on:change="changeC23DateMode"><option value="General">一般日期</option><option value="EncounterDate">就診日</option></select></label>
                         <label v-if="form.encounterSource === 'Inpatient' && form.dateMode === 'General'"><span>住院別 <i>*</i></span><select v-model="form.inpatientType" required><option value="" disabled>請選擇</option><option value="Inpatient">住院</option><option value="Discharged">出院</option></select></label>
@@ -162,6 +192,13 @@
             </div>
         </section>
         <section class="panel result-panel" :aria-busy="isLoading ? 'true' : 'false'">
+            <div v-if="isC142 && c142Summary" class="result-heading">
+                <span>尚欠合計：{{ c142Summary.totalAmount }}</span>
+                <span v-if="c142Summary.errors?.length">資料異常 {{ c142Summary.errors.length }} 筆（不計入合計與 Excel）</span>
+            </div>
+            <div v-if="isC142 && c142Summary?.errors?.length" class="validation-message" role="status">
+                <div v-for="error in c142Summary.errors" :key="error.encounterKey">{{ error.encounterKey }}：{{ error.message }}</div>
+            </div>
             <div v-if="isC24 && summaries.length" class="result-heading">
                 <span v-for="item in summaries" :key="item.roomCategory">{{ item.roomCategory }}：欠款 {{ item.debtAmount }}／補繳 {{ item.paymentAmount }}／未清 {{ item.outstandingAmount }}</span>
             </div>
@@ -201,8 +238,8 @@
             </div>
             <div v-else class="table-wrap">
                 <table :class="{ 'c212-results-table': isC212 }">
-                    <thead><tr><th v-for="column in columns" :key="column.key" :class="{ amount: isC212 && column.key === 'amount' }">{{ column.label }}</th></tr></thead>
-                    <tbody><tr v-for="(row, index) in pagedRows" :key="row.id ?? index"><td v-for="column in columns" :key="column.key" :class="{ amount: isC212 && column.key === 'amount' }">{{ row[column.key] }}</td></tr></tbody>
+                    <thead><tr><th v-if="isC141"><input type="checkbox" :checked="c141CurrentPageSelected" aria-label="選取本頁所有案件" v-on:change="setC141CurrentPageSelection($event)" /></th><th v-for="column in columns" :key="column.key" :class="{ amount: (isC212 && column.key === 'amount') || (isC141 && column.isAmount) }">{{ column.label }}</th></tr></thead>
+                    <tbody><tr v-for="(row, index) in pagedRows" :key="isC141 ? c141RowKey(row) : (row.id ?? index)"><td v-if="isC141"><input type="checkbox" :checked="isC141RowSelected(row)" :title="row.automaticSelectionReason || '手動選取'" :aria-label="`選取 ${row.medicalRecordNumber || '本案'}`" v-on:change="setC141RowSelected(row, $event)" /></td><td v-for="column in columns" :key="column.key" :class="{ amount: (isC212 && column.key === 'amount') || (isC141 && column.isAmount) }">{{ row[column.key] }}</td></tr></tbody>
                 </table>
             </div>
             <div v-if="!isLoading && hasResults" class="pagination">

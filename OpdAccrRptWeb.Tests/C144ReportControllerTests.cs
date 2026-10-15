@@ -120,12 +120,12 @@ public sealed class C144ReportControllerTests
     private sealed class FakeExportService : IReportExportService
     {
         public SearchReportCondition? Condition { get; private set; }
-        public ReportExportDispatchResult Dispatch(SearchReportCondition searchReportCondition)
+        public ReportExportDispatchResult Dispatch(SearchReportCondition searchReportCondition, string? ownerIdentity = null)
         {
             Condition = searchReportCondition;
             return new ReportExportDispatchResult([1, 2, 3], "C144.xlsx", null);
         }
-        public ReportExportJob? GetJob(Guid jobId) => null;
-        public ReportExportDownloadResult GetDownload(Guid jobId) => new(null, null);
+        public ReportExportJob? GetJob(Guid jobId, string? requesterIdentity = null) => null;
+        public ReportExportDownloadResult GetDownload(Guid jobId, string? requesterIdentity = null) => new(null, null);
     }
 }

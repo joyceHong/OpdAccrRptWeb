@@ -239,7 +239,7 @@ public sealed class BackgroundReportExportServiceTests
 
         public string? CompletedPath { get; private set; }
 
-        public ReportExportJob Create(SearchReportCondition condition) => throw new NotSupportedException();
+        public ReportExportJob Create(SearchReportCondition condition, string? createdBy = null) => throw new NotSupportedException();
         public ReportExportJob? Get(Guid jobId) => throw new NotSupportedException();
         public string GetTemporaryPath(Guid jobId) => Path.Combine(root, $"{jobId:N}.tmp");
         public string GetCompletedPath(ReportExportJob job) => CompletedPath = Path.Combine(root, job.FileName!);

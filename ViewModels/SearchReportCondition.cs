@@ -77,6 +77,15 @@
         /// <summary>C24、C10 選填病歷號；C12 為必填病歷號或身分證號。</summary>
         public string? MedicalRecordNo { get; set; }
 
+        /// <summary>C141 選填病歷號。</summary>
+        public string? C141MedicalRecordNumber { get; set; }
+
+        /// <summary>C141 選填床號或前綴。</summary>
+        public string? C141BedNumber { get; set; }
+
+        /// <summary>C141 選填淨額門檻。</summary>
+        public decimal? C141MinimumNetAmount { get; set; }
+
         /// <summary>C12 選填新科別碼。</summary>
         public string? NewSectionCode { get; set; }
 

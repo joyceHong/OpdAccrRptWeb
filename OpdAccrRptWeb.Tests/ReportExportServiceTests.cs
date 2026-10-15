@@ -114,6 +114,162 @@ public sealed class ReportExportServiceTests
         Assert.Equal("B061", rows[^1]["記帳代碼"]);
     }
 
+    [Fact]
+    public void GenerateWorkbook_C141ExportsTwelveVisibleColumnsAcrossBatches()
+    {
+        var c141 = new FakeC141RankingService
+        {
+            Rows = Enumerable.Range(1, 5).Select(CreateC141Row).ToArray()
+        };
+        var service = CreateService(
+            new FakeHealthCenterRepository(),
+            new FakeJobStore(),
+            new FakeExportQueue(),
+            new ReportExportOptions { BatchSize = 2 },
+            c141RankingService: c141);
+
+        using var output = new MemoryStream();
+        service.GenerateWorkbook(new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = "2026-10-13",
+            C141MedicalRecordNumber = "C36979",
+            C141BedNumber = "A12",
+            C141MinimumNetAmount = 100m
+        }, output);
+
+        output.Position = 0;
+        List<IDictionary<string, object?>> rows = output.Query(useHeaderRow: true)
+            .Cast<IDictionary<string, object?>>().ToList();
+        Assert.Equal(5, rows.Count);
+        Assert.Equal(12, rows[0].Count);
+        Assert.Equal("C36979", rows[0]["病歷號"]);
+        Assert.Equal(1d, rows[0]["累計淨額"]);
+        Assert.Equal([(0, 2), (2, 2), (4, 2)], c141.BatchCalls);
+        Assert.All(c141.SearchConditions, search =>
+        {
+            Assert.Equal("C36979", search.MedicalRecordNumber);
+            Assert.Equal("A12", search.BedNumber);
+            Assert.Equal(100m, search.MinimumNetAmount);
+        });
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    public void Dispatch_C141UsesConfiguredSynchronousLimit(int synchronousLimit, bool expectJob)
+    {
+        var c141 = new FakeC141RankingService
+        {
+            Rows = [CreateC141Row(1), CreateC141Row(2)]
+        };
+        var store = new FakeJobStore();
+        var queue = new FakeExportQueue();
+        var service = CreateService(
+            new FakeHealthCenterRepository(),
+            store,
+            queue,
+            new ReportExportOptions { SynchronousRowLimit = synchronousLimit, BatchSize = 1 },
+            c141RankingService: c141);
+
+        ReportExportDispatchResult result = service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = "2026-10-13",
+            C141MedicalRecordNumber = "C36979",
+            C141BedNumber = "A12",
+            C141MinimumNetAmount = 100m
+        }, "FEH\\alice");
+
+        Assert.Equal(expectJob, result.Job is not null);
+        Assert.Equal(expectJob, result.Workbook is null);
+        if (expectJob)
+        {
+            Assert.Equal("C141", store.Created!.SearchCondition.ReportCode);
+            Assert.Equal("C36979", store.Created.SearchCondition.C141MedicalRecordNumber);
+            Assert.Equal("A12", store.Created.SearchCondition.C141BedNumber);
+            Assert.Equal(100m, store.Created.SearchCondition.C141MinimumNetAmount);
+            Assert.Equal(1, queue.Calls);
+        }
+        else
+        {
+            Assert.NotNull(result.FileName);
+            Assert.Matches("^C141_\\d{8}_\\d{6}\\.xlsx$", result.FileName);
+            Assert.Equal(0, queue.Calls);
+        }
+    }
+
+    [Fact]
+    public void Dispatch_C141ZeroRowsReturnsNoDataWithoutCreatingWorkbookOrJob()
+    {
+        var c141 = new FakeC141RankingService { Rows = [] };
+        var queue = new FakeExportQueue();
+        var service = CreateService(
+            new FakeHealthCenterRepository(),
+            new FakeJobStore(),
+            queue,
+            c141RankingService: c141);
+
+        ReportExportDispatchResult result = service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = "2026-10-13"
+        }, "FEH\\alice");
+
+        Assert.True(result.NoData);
+        Assert.Null(result.Workbook);
+        Assert.Null(result.Job);
+        Assert.Equal(0, queue.Calls);
+    }
+
+    [Fact]
+    public void C141BackgroundJobStatusAndDownloadAreRestrictedToCreator()
+    {
+        var c141 = new FakeC141RankingService
+        {
+            Rows = [CreateC141Row(1), CreateC141Row(2)]
+        };
+        var store = new FakeJobStore();
+        var service = CreateService(
+            new FakeHealthCenterRepository(),
+            store,
+            new FakeExportQueue(),
+            new ReportExportOptions { SynchronousRowLimit = 1 },
+            c141RankingService: c141);
+
+        ReportExportDispatchResult result = service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = "2026-10-13"
+        }, "FEH\\alice");
+        Guid jobId = result.Job!.JobId;
+
+        Assert.Equal("FEH\\alice", result.Job.CreatedBy);
+        Assert.NotNull(service.GetJob(jobId, "feh\\ALICE"));
+        Assert.Null(service.GetJob(jobId, "FEH\\bob"));
+        Assert.Null(service.GetJob(jobId));
+        ReportExportDownloadResult denied = service.GetDownload(jobId, "FEH\\bob");
+        Assert.Null(denied.Job);
+        Assert.Null(denied.Content);
+    }
+
+    [Fact]
+    public void Dispatch_C141RequiresServerProvidedOwnerIdentity()
+    {
+        var c141 = new FakeC141RankingService { Rows = [CreateC141Row(1)] };
+        var service = CreateService(
+            new FakeHealthCenterRepository(),
+            new FakeJobStore(),
+            new FakeExportQueue(),
+            c141RankingService: c141);
+
+        Assert.Throws<ArgumentException>(() => service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = "2026-10-13"
+        }));
+    }
+
     [Theory]
     [InlineData(0, false)]
     [InlineData(30_000, false)]
@@ -398,9 +554,21 @@ public sealed class ReportExportServiceTests
         IReportExportQueue queue,
         ReportExportOptions? options = null,
         IReferralMemberRepository? referralMemberRepository = null,
-        ISafeNeedleRepository? safeNeedleRepository = null) =>
-        new(repository, store, queue, Options.Create(options ?? new ReportExportOptions()),
-            TimeProvider.System, null, referralMemberRepository, safeNeedleRepository);
+        ISafeNeedleRepository? safeNeedleRepository = null,
+        IC141RankingService? c141RankingService = null)
+    {
+        IServiceScopeFactory? scopeFactory = null;
+        if (c141RankingService is not null)
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(c141RankingService);
+            scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+        }
+
+        return new ReportExportService(
+            repository, store, queue, Options.Create(options ?? new ReportExportOptions()),
+            TimeProvider.System, scopeFactory, referralMemberRepository, safeNeedleRepository);
+    }
 
     private static SearchReportCondition WebCondition() => new()
     {
@@ -415,6 +583,11 @@ public sealed class ReportExportServiceTests
         StartDate = "1150801",
         EndDate = "1150831"
     };
+
+    private static C141RankingRow CreateC141Row(int number) =>
+        new(new C141AdmissionKey("1150101", "1", "A12", number),
+            "C36979", "測試", "A12", "1150101", "30", "1", "000", "1", "1",
+            null, 200m, 120m, null, null, 65m, number, false);
 
     private static void AssertCellHasThinBorder(SpreadsheetDocument document, Cell cell)
     {
@@ -445,17 +618,49 @@ public sealed class ReportExportServiceTests
         }
     }
 
+    private sealed class FakeC141RankingService : IC141RankingService
+    {
+        public IReadOnlyList<C141RankingRow> Rows { get; init; } = [];
+        public List<(int Offset, int PageSize)> BatchCalls { get; } = [];
+        public List<C141RankingSearch> SearchConditions { get; } = [];
+
+        public DateOnly GetOracleToday(CancellationToken cancellationToken = default) =>
+            new(2026, 10, 13);
+
+        public IReadOnlyList<C141RankingRow> Query(
+            C141RankingSearch search,
+            CancellationToken cancellationToken = default) => Rows;
+
+        public int GetCount(C141RankingSearch search, CancellationToken cancellationToken = default)
+        {
+            SearchConditions.Add(search);
+            return Rows.Count;
+        }
+
+        public IReadOnlyList<C141RankingRow> GetPage(
+            C141RankingSearch search,
+            int offset,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            SearchConditions.Add(search);
+            BatchCalls.Add((offset, pageSize));
+            return Rows.Skip(offset).Take(pageSize).ToArray();
+        }
+    }
+
     private sealed class FakeJobStore : IReportExportJobStore
     {
         public ReportExportJob? Created { get; private set; }
 
         public Guid? RemovedJobId { get; private set; }
 
-        public ReportExportJob Create(SearchReportCondition condition) => Created = new ReportExportJob
+        public ReportExportJob Create(SearchReportCondition condition, string? createdBy = null) => Created = new ReportExportJob
         {
             JobId = Guid.NewGuid(),
             SearchCondition = condition,
             CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = createdBy,
             Status = ReportExportJobStatus.Queued
         };
 

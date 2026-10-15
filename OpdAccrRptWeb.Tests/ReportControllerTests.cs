@@ -430,6 +430,54 @@ public sealed class ReportControllerTests
         Assert.Equal(1, exportService.DispatchCalls);
     }
 
+    [Fact]
+    public void Export_C141RequiresAuthenticatedServerIdentityAndUsesItAsOwner()
+    {
+        var exportService = new FakeReportExportService();
+        var controller = CreateController(
+            new CountingReportService(),
+            new CapturingLogger<ReportController>(),
+            exportService: exportService);
+        controller.HttpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(
+                [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "FEH\\alice")],
+                "test"));
+
+        IActionResult result = controller.Export(new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = "2026-10-13",
+            C141MedicalRecordNumber = "C36979",
+            C141BedNumber = "A12",
+            C141MinimumNetAmount = 100m
+        });
+
+        Assert.IsType<FileContentResult>(result);
+        Assert.Equal("FEH\\alice", exportService.LastOwnerIdentity);
+        Assert.Equal("C36979", exportService.LastCondition?.C141MedicalRecordNumber);
+        Assert.Equal("A12", exportService.LastCondition?.C141BedNumber);
+        Assert.Equal(100m, exportService.LastCondition?.C141MinimumNetAmount);
+    }
+
+    [Fact]
+    public void Export_UnauthenticatedC141ReturnsUnauthorizedWithoutDispatch()
+    {
+        var exportService = new FakeReportExportService();
+        var controller = CreateController(
+            new CountingReportService(),
+            new CapturingLogger<ReportController>(),
+            exportService: exportService);
+
+        IActionResult result = controller.Export(new SearchReportCondition
+        {
+            ReportCode = "C141",
+            EndDate = "2026-10-13"
+        });
+
+        Assert.IsType<UnauthorizedResult>(result);
+        Assert.Equal(0, exportService.DispatchCalls);
+    }
+
     [Theory]
     [InlineData("C18", "Emergency", "2026-08-01", "2026-08-31")]
     [InlineData("C19", "Inpatient", "2026-08-05", "2026-08-05")]

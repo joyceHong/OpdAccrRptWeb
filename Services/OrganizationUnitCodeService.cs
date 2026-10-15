@@ -40,6 +40,38 @@ public sealed class OrganizationUnitCodeService(
             : candidates.First(mapping => mapping.LegacyCode == legacyCodes[0]);
     }
 
+    public async Task<OrganizationUnitMapping?> ResolveLegacySectionCodeAsync(
+        string newCode, CancellationToken cancellationToken = default)
+    {
+        string code = Normalize(newCode);
+        if (code.Length == 0) return null;
+
+        IReadOnlyList<OrganizationUnitMapping> candidates =
+            await repository.FindByNewCodeAsync(code, OrganizationUnitMappingScope.SectionOnly,
+                activePlaceOnly: false, cancellationToken: cancellationToken);
+        string[] legacyCodes = candidates.Select(mapping => mapping.LegacyCode.Trim())
+            .Where(value => value.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
+        if (legacyCodes.Length > 1)
+            throw new OrganizationUnitMappingAmbiguousException(code);
+        return legacyCodes.Length == 0
+            ? null
+            : candidates.First(mapping => mapping.LegacyCode.Trim() == legacyCodes[0]);
+    }
+
+    public async Task<OrganizationUnitMapping?> ResolveSectionMappingAsync(
+        string newCode, string legacyCode, CancellationToken cancellationToken = default)
+    {
+        string newValue = Normalize(newCode);
+        string legacyValue = Normalize(legacyCode);
+        if (newValue.Length == 0 || legacyValue.Length == 0) return null;
+
+        IReadOnlyList<OrganizationUnitMapping> candidates =
+            await repository.FindByNewCodeAsync(newValue, OrganizationUnitMappingScope.SectionOnly,
+                activePlaceOnly: false, cancellationToken: cancellationToken);
+        return candidates.FirstOrDefault(mapping =>
+            string.Equals(Normalize(mapping.LegacyCode), legacyValue, StringComparison.Ordinal));
+    }
+
     public async Task<OrganizationUnitMapping?> ResolveNewCodeAsync(
         string legacyCode, string roomType, OrganizationUnitMappingScope scope,
         CancellationToken cancellationToken = default)

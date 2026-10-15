@@ -21,6 +21,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IOpdPriceTokenService, OpdPriceTokenService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddDataProtection();
 builder.Services
     .AddOptions<ReportExportOptions>()
     .Bind(builder.Configuration.GetSection(ReportExportOptions.SectionName))
@@ -49,6 +50,11 @@ builder.Services.AddScoped<IC11ReceivablesCollectionRepository, C11ReceivablesCo
 builder.Services.AddScoped<IC12ReportRepository, C12ReportRepository>();
 builder.Services.AddScoped<IC13HighRiskEmergencyRepository, C13HighRiskEmergencyRepository>();
 builder.Services.AddScoped<IC143AccountingBalanceDebtRepository, C143AccountingBalanceDebtRepository>();
+builder.Services.AddScoped<IC141RankingRepository, C141RankingRepository>();
+builder.Services.AddScoped<IC141RecalculationRepository, C141RecalculationRepository>();
+builder.Services.AddScoped<IC141PaymentNoticeRepository, C141PaymentNoticeRepository>();
+builder.Services.AddScoped<IC141LineBotRepository, C141LineBotRepository>();
+builder.Services.AddScoped<IC142DebtReportRepository, C142DebtReportRepository>();
 builder.Services.AddScoped<IC144DebtDetailReportRepository, C144DebtDetailReportRepository>();
 builder.Services.AddSingleton<IOutpatientReceivableBalanceRepository, OutpatientReceivableBalanceRepository>();
 builder.Services.AddSingleton<IInpatientAdvancePaymentBalanceRepository, InpatientAdvancePaymentBalanceRepository>();
@@ -122,6 +128,29 @@ builder.Services.AddSingleton<IC16LegacyReducer, C16LegacyReducer>();
 builder.Services.AddScoped<IC16ReportService, C16ReportService>();
 builder.Services.AddScoped<IC13HighRiskEmergencyReportService, C13HighRiskEmergencyReportService>();
 builder.Services.AddScoped<IC143AccountingBalanceDebtReportService, C143AccountingBalanceDebtReportService>();
+builder.Services.AddScoped<IC141RankingService, C141RankingService>();
+builder.Services.AddScoped<IC141RecalculationService, C141RecalculationService>();
+builder.Services.AddScoped<IC141PaymentNoticeService, C141PaymentNoticeService>();
+builder.Services.AddSingleton<IC141EntryDateTicketService, C141EntryDateTicketService>();
+builder.Services.AddScoped<IC141RazorViewRenderer, C141RazorViewRenderer>();
+builder.Services.AddHttpClient<IC141LineBotClient, C141LineBotSoapClient>((provider, client) =>
+{
+    var options = provider.GetRequiredService<IOptions<C141LineBotOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+});
+builder.Services.AddScoped<IC141LineBotService, C141LineBotService>();
+builder.Services.AddOptions<C141LineBotOptions>()
+    .Bind(builder.Configuration.GetSection(C141LineBotOptions.SectionName))
+    .Validate(options =>
+        Uri.TryCreate(options.Endpoint, UriKind.Absolute, out Uri? endpoint)
+        && endpoint.Scheme == Uri.UriSchemeHttps
+        && !string.IsNullOrWhiteSpace(options.SenderId)
+        && !string.IsNullOrWhiteSpace(options.PaymentTemplateNumber)
+        && !string.IsNullOrWhiteSpace(options.CardReminderTemplateNumber)
+        && options.TimeoutSeconds is > 0 and <= 120,
+        "C141 LineBot 設定無效。")
+    .ValidateOnStart();
+builder.Services.AddScoped<IC142DebtReportService, C142DebtReportService>();
 builder.Services.AddScoped<IC144DebtDetailReportService, C144DebtDetailReportService>();
 builder.Services.AddScoped<IC211ContractBalanceReportService, C211ContractBalanceReportService>();
 builder.Services.AddSingleton<IC212AmountCompatibilityPolicy, C212PreserveDecimalAmountPolicy>();

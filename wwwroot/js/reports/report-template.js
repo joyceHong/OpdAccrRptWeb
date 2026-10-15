@@ -46,6 +46,7 @@
                 ])
             })
         }),
+        C141: Object.freeze({ serverPaged: true, endDateOnly: true, c141: true }),
         C143: Object.freeze({
             serverPaged: true,
             advancedConditions: false,
@@ -62,6 +63,17 @@
                 options: Object.freeze([
                     Object.freeze({ value: "Difference", label: "差異帳表" }),
                     Object.freeze({ value: "All", label: "全部帳表" })
+                ])
+            })
+        }),
+        C142: Object.freeze({
+            serverPaged: true, advancedConditions: false, c142: true,
+            encounterSource: Object.freeze({
+                defaultValue: "Outpatient",
+                options: Object.freeze([
+                    Object.freeze({ value: "Outpatient", label: "門診" }),
+                    Object.freeze({ value: "Emergency", label: "急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
                 ])
             })
         }),
@@ -250,6 +262,10 @@
         ,chargeCodes: ""
         ,sectionPrefix: ""
         ,organizationQuery: ""
+        ,c142SectionCode: ""
+        ,c142ExportMode: "General"
+        ,c141BedNumber: ""
+        ,c141MinimumNetAmount: ""
     });
 
     window.ReportComponents = window.ReportComponents || {};
@@ -278,6 +294,22 @@
                 serverTotalPages: 0,
                 isExporting: false,
                 exportJob: null,
+                c142SnapshotId: null,
+                c142Summary: null,
+                c142Organizations: [],
+                c142OrganizationSearchTimer: null,
+                c142OrganizationSearchGeneration: 0,
+                c142SectionOpen: false,
+                c142SectionLoading: false,
+                c142SectionError: "",
+                c142SelectedNewSectionCode: "",
+                c142SelectedLegacySectionCode: "",
+                c141OracleToday: "",
+                c141EntryDateTicket: "",
+                c141SelectionOverrides: {},
+                c141LineBotKind: 0,
+                c141ActionLoading: false,
+                c141ActionResults: [],
                 exportPollTimer: null,
                 form: createInitialForm(
                     this.defaultStartDate,
@@ -324,6 +356,21 @@
                     raw: item
                 }));
             },
+            c142SectionOptions() {
+                return this.c142Organizations
+                    .filter(item => String(item.legacyCode ?? "").trim() && String(item.newCode ?? "").trim())
+                    .map(item => {
+                    const legacyCode = String(item.legacyCode ?? "").trim().toUpperCase();
+                    const newCode = String(item.newCode ?? "").trim().toUpperCase();
+                    return {
+                        value: `${legacyCode}:${newCode}`,
+                        code: newCode,
+                        label: item.displayName,
+                        suffix: legacyCode && legacyCode !== newCode ? `舊碼 ${legacyCode}` : "",
+                        raw: item
+                    };
+                });
+            },
             reportConfiguration() { return getReportConfiguration(this.selectedReport.code); },
             encounterSourceConfiguration() { return this.reportConfiguration.encounterSource ?? null; },
             hasEncounterSource() { return this.encounterSourceConfiguration !== null; },
@@ -335,6 +382,7 @@
             isC23() { return this.reportConfiguration.c23 === true; },
             isC24() { return this.reportConfiguration.c24 === true; },
             isC10() { return this.reportConfiguration.c10 === true; },
+            isC141() { return this.reportConfiguration.c141 === true; },
             isC211() { return this.reportConfiguration.c211 === true; },
             isC212() { return this.reportConfiguration.c212 === true; },
             c21ScopeOptions() {
@@ -375,7 +423,7 @@
             hasResults() { return this.rows.length > 0; },
             canExport() {
                 return ["C1", "C21", "C22", "C23", "C24", "C25", "C27", "C28", "C29",
-                    "C143", "C213", "C214", "C10", "C144", "C171", "C172", "C173", "C174",
+                    "C142", "C143", "C213", "C214", "C10", "C144", "C171", "C172", "C173", "C174",
                     "C18", "C19"]
                     .includes(this.selectedReport.code) && this.hasResults && !this.isExporting;
             },
@@ -385,6 +433,7 @@
             isC3() { return this.reportConfiguration.c3 === true; },
             isC4() { return this.reportConfiguration.c4 === true; },
             isC143() { return this.reportConfiguration.c143 === true; },
+            isC142() { return this.reportConfiguration.c142 === true; },
             isC144() { return this.reportConfiguration.c144 === true; },
             reportTypeConfiguration() { return this.reportConfiguration.reportType ?? null; },
             hasReportType() { return this.reportTypeConfiguration !== null; },
@@ -400,6 +449,13 @@
                 }
                 const start = (this.currentPage - 1) * this.pageSize;
                 return this.filteredRows.slice(start, start + this.pageSize);
+            },
+            c141CurrentPageSelected() {
+                return this.isC141 && this.pagedRows.length > 0
+                    && this.pagedRows.every(row => this.isC141RowSelected(row));
+            },
+            c141SelectedCount() {
+                return this.c141SelectedKeys().length;
             },
             c15Groups() {
                 if (!this.isC15) return [];
@@ -466,6 +522,7 @@
                 this.loadC21BillingItems();
                 this.loadC23Contracts();
                 this.loadC211Contracts();
+                if (this.isC141) this.loadC141TodayAndSearch();
             }
         },
         mounted() {
@@ -473,9 +530,12 @@
             this.loadC23Contracts();
             this.loadC211Contracts();
             if (typeof document !== "undefined") document.addEventListener("pointerdown", this.closeC211ContractsFromOutside);
+            if (this.isC141) this.loadC141TodayAndSearch();
         },
         beforeUnmount() {
             this.stopExportPolling();
+            window.clearTimeout(this.c142OrganizationSearchTimer);
+            this.c142OrganizationSearchGeneration++;
             if (typeof document !== "undefined") document.removeEventListener("pointerdown", this.closeC211ContractsFromOutside);
         },
         methods: {
@@ -485,6 +545,7 @@
                     this.defaultStartDate,
                     this.defaultEndDate,
                     getReportConfiguration(this.selectedReport.code));
+                if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
                 this.validationMessage = "";
                 this.hasSearched = false;
@@ -518,6 +579,197 @@
                 this.serverTotalPages = 0;
                 this.isExporting = false;
                 this.exportJob = null;
+                this.c142SnapshotId = null;
+                this.c142Summary = null;
+                window.clearTimeout(this.c142OrganizationSearchTimer);
+                this.c142OrganizationSearchGeneration++;
+                this.c142Organizations = [];
+                this.c142SectionOpen = false;
+                this.c142SectionLoading = false;
+                this.c142SectionError = "";
+                this.c142SelectedNewSectionCode = "";
+                this.c142SelectedLegacySectionCode = "";
+                this.c141SelectionOverrides = {};
+            },
+            c141RowKey(row) {
+                const key = row?.key ?? {};
+                return JSON.stringify([
+                    key.admissionDate ?? "",
+                    key.admissionTime ?? "",
+                    key.admissionRoom ?? "",
+                    key.admissionNumber ?? ""
+                ]);
+            },
+            isC141RowSelected(row) {
+                const key = this.c141RowKey(row);
+                return Object.hasOwn(this.c141SelectionOverrides, key)
+                    ? this.c141SelectionOverrides[key]
+                    : row?.isAutomaticallySelected === true;
+            },
+            setC141RowSelected(row, event) {
+                const key = this.c141RowKey(row);
+                this.c141SelectionOverrides = {
+                    ...this.c141SelectionOverrides,
+                    [key]: event.target.checked === true
+                };
+            },
+            setC141CurrentPageSelection(event) {
+                const selected = event.target.checked === true;
+                const overrides = { ...this.c141SelectionOverrides };
+                for (const row of this.pagedRows) overrides[this.c141RowKey(row)] = selected;
+                this.c141SelectionOverrides = overrides;
+            },
+            clearC141Selection() {
+                this.c141SelectionOverrides = {};
+                this.c141ActionResults = [];
+            },
+            c141SelectedKeys() {
+                const selected = new Map();
+                for (const [serializedKey, isSelected] of Object.entries(this.c141SelectionOverrides)) {
+                    if (!isSelected) continue;
+                    try {
+                        const [admissionDate, admissionTime, admissionRoom, admissionNumber] = JSON.parse(serializedKey);
+                        selected.set(serializedKey, {
+                            admissionDate,
+                            admissionTime,
+                            admissionRoom,
+                            admissionNumber: Number(admissionNumber)
+                        });
+                    } catch {
+                        // Ignore malformed client state; the server still validates every supplied key.
+                    }
+                }
+                for (const row of this.pagedRows) {
+                    if (this.isC141RowSelected(row)) {
+                        selected.set(this.c141RowKey(row), row.key);
+                    }
+                }
+                return [...selected.values()];
+            },
+            async sendC141LineBot() {
+                const cases = this.c141SelectedKeys();
+                if (cases.length === 0) return;
+                const noticeType = this.c141LineBotKind === 0 ? "繳款通知" : "讀卡通知";
+                if (!window.confirm(`將對 ${cases.length} 筆選取個案送出${noticeType}。SOAP 結果不明時系統不會自動重送。要繼續嗎？`)) return;
+
+                this.c141ActionLoading = true;
+                this.c141ActionResults = [];
+                try {
+                    const response = await fetch("/Report/C141/LineBot", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Accept: "application/json" },
+                        body: JSON.stringify({ kind: this.c141LineBotKind, cases })
+                    });
+                    const body = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(body.title || `LineBot 操作失敗（HTTP ${response.status}）。`);
+                    this.c141ActionResults = body.results || [];
+                    this.validationMessage = `LineBot 已處理 ${body.sent || 0} 筆，略過 ${body.skipped || 0} 筆，失敗 ${body.failed || 0} 筆。`;
+                } catch (error) {
+                    this.validationMessage = error instanceof Error ? error.message : "LineBot 操作失敗。";
+                } finally {
+                    this.c141ActionLoading = false;
+                }
+            },
+            async previewC141Notice() {
+                const cases = this.c141SelectedKeys();
+                if (cases.length === 0) return;
+                if (!window.confirm(`預覽 ${cases.length} 筆繳款通知單會更新通知日期並寫入交易紀錄。要繼續嗎？`)) return;
+                const previewWindow = window.open("about:blank", "_blank");
+                if (!previewWindow) {
+                    this.validationMessage = "瀏覽器封鎖了預覽視窗，請允許此網站開啟新視窗後重試。";
+                    return;
+                }
+
+                this.c141ActionLoading = true;
+                this.c141ActionResults = [];
+                try {
+                    const response = await fetch("/Report/C141/Notice/Preview", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Accept: "text/html, application/problem+json" },
+                        body: JSON.stringify({ cases, entryDateTicket: this.c141EntryDateTicket })
+                    });
+                    if (!response.ok) {
+                        const body = await response.json().catch(() => ({}));
+                        throw new Error(body.title || `通知單預覽失敗（HTTP ${response.status}）。`);
+                    }
+                    const html = await response.text();
+                    previewWindow.document.open();
+                    previewWindow.document.write(html);
+                    previewWindow.document.close();
+                } catch (error) {
+                    previewWindow.close();
+                    this.validationMessage = error instanceof Error ? error.message : "通知單預覽失敗。";
+                } finally {
+                    this.c141ActionLoading = false;
+                }
+            },
+            async loadC141TodayAndSearch() {
+                try {
+                    const response = await fetch("/Report/C141/Today", { headers: { Accept: "application/json" } });
+                    if (!response.ok) throw new Error(`無法載入 Oracle 帳務日（HTTP ${response.status}）。`);
+                    const result = await response.json();
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(result.accountingDate ?? ""))
+                        throw new Error("Oracle 未回傳有效的 C141 帳務日。");
+                    this.c141OracleToday = result.accountingDate;
+                    this.c141EntryDateTicket = result.entryDateTicket || "";
+                    this.form.endDate = result.accountingDate;
+                    await this.search();
+                } catch (error) {
+                    this.validationMessage = error instanceof Error
+                        ? error.message : "無法載入 Oracle 帳務日。";
+                }
+            },
+            onC142SectionInput(value) {
+                this.c142SelectedNewSectionCode = "";
+                this.c142SelectedLegacySectionCode = "";
+                this.c142Organizations = [];
+                this.currentPage = 1;
+                this.searchC142Sections(value);
+            },
+            searchC142Sections(value = this.form.c142SectionCode) {
+                window.clearTimeout(this.c142OrganizationSearchTimer);
+                const query = String(value ?? "").trim();
+                const generation = ++this.c142OrganizationSearchGeneration;
+                this.c142SectionError = "";
+                if (!query) {
+                    this.c142Organizations = [];
+                    this.c142SectionLoading = false;
+                    return;
+                }
+                this.c142OrganizationSearchTimer = window.setTimeout(async () => {
+                    this.c142SectionLoading = true;
+                    try {
+                        const response = await fetch(`/Report/C142/SectionOptions?query=${encodeURIComponent(query)}`);
+                        if (!response.ok) throw new Error();
+                        const options = await response.json();
+                        if (generation !== this.c142OrganizationSearchGeneration) return;
+                        this.c142Organizations = Array.isArray(options) ? options : [];
+                    } catch {
+                        if (generation === this.c142OrganizationSearchGeneration) {
+                            this.c142Organizations = [];
+                            this.c142SectionError = "無法載入科別清單，仍可直接輸入新科別代碼。";
+                        }
+                    } finally {
+                        if (generation === this.c142OrganizationSearchGeneration) this.c142SectionLoading = false;
+                    }
+                }, 250);
+            },
+            selectC142SectionOption(option) {
+                const mapping = option?.raw ?? option;
+                const newCode = String(mapping?.newCode ?? option?.code ?? "").trim().toUpperCase();
+                const legacyCode = String(mapping?.legacyCode ?? "").trim().toUpperCase();
+                if (!newCode || !legacyCode) return;
+                window.clearTimeout(this.c142OrganizationSearchTimer);
+                this.c142OrganizationSearchGeneration++;
+                this.c142SectionLoading = false;
+                const displayName = String(mapping?.displayName ?? option?.label ?? "").trim();
+                this.c142SelectedNewSectionCode = newCode;
+                this.c142SelectedLegacySectionCode = legacyCode;
+                this.form.c142SectionCode = displayName ? `${newCode}｜${displayName}` : newCode;
+                this.c142Organizations = [];
+                this.c142SectionOpen = false;
+                this.c142SectionError = "";
+                this.currentPage = 1;
             },
             async loadC21BillingItems() {
                 this.c21BillingItems = [];
@@ -626,6 +878,8 @@
 
                 this.validationMessage = "";
                 this.currentPage = 1;
+                if (this.isC141) this.clearC141Selection();
+                if (this.isC142) this.c142SnapshotId = null;
                 await this.fetchResults();
             },
             async fetchResults() {
@@ -637,7 +891,7 @@
                     const c4Token = this.isC4 && typeof document !== "undefined"
                         ? document.querySelector('input[name="__RequestVerificationToken"]')?.value
                         : null;
-                    const response = await fetch(this.isC4 ? "/reports/c4/query" : "/Report/GetReportData", {
+                    const response = await fetch(this.isC141 ? "/Report/C141/Query" : this.isC142 ? "/Report/C142/Query" : this.isC4 ? "/reports/c4/query" : "/Report/GetReportData", {
                         method: "POST",
                         headers: { "Content-Type": "application/json",
                             ...(c4Token ? { RequestVerificationToken: c4Token } : {}) },
@@ -645,6 +899,7 @@
                             reportCode: this.isC4 ? undefined : this.selectedReport.code,
                             startDate: this.isEndDateOnly ? undefined : this.form.startDate,
                             endDate: this.form.endDate,
+                            accountingDate: this.isC141 ? this.form.endDate : undefined,
                             encounterSource: this.hasEncounterSource && !this.isC24 && !this.isC10 && !this.isC143 && !this.isC144
                                 ? this.form.encounterSource
                                 : undefined,
@@ -663,7 +918,7 @@
                                 ? this.form.contractCode.trim() : undefined,
                             forceRebuild: (this.isC21 || this.isC23 || this.canForceC24Rebuild)
                                 ? this.form.forceRebuild : undefined,
-                            source: this.isC3 || this.isC24 || this.isC10 || this.isC143 || this.isC144 || this.isC16 ? this.form.encounterSource : undefined,
+                            source: this.isC3 || this.isC24 || this.isC10 || this.isC142 || this.isC143 || this.isC144 || this.isC16 ? this.form.encounterSource : undefined,
                             reportType: this.isC143 || this.isC16 ? this.form.reportType : undefined,
                             detailType: this.isC3 ? this.form.detailType : undefined,
                             logisticsType: this.isC3 ? this.form.logisticsType : undefined,
@@ -675,6 +930,12 @@
                             roomScope: this.isC24 || this.isC10 ? this.form.roomScope : undefined,
                             medicalRecordNo: (this.isC24 || this.isC10) && this.form.medicalRecordNo.trim()
                                 ? this.form.medicalRecordNo.trim() : undefined,
+                            medicalRecordNumber: this.isC141 && this.form.medicalRecordNo.trim()
+                                ? this.form.medicalRecordNo.trim() : undefined,
+                            bedNumber: this.isC141 && this.form.c141BedNumber.trim()
+                                ? this.form.c141BedNumber.trim() : undefined,
+                            minimumNetAmount: this.isC141 && this.form.c141MinimumNetAmount !== ""
+                                ? Number(this.form.c141MinimumNetAmount) : undefined,
                             receivableBalanceType: this.hasReceivableBalanceType
                                 ? this.form.receivableBalanceType
                                 : undefined,
@@ -683,6 +944,11 @@
                                 : undefined,
                             pageNumber: this.isServerPaged ? this.currentPage : undefined,
                             pageSize: this.isServerPaged ? this.pageSize : undefined
+                            ,sectionCode: this.isC142
+                                ? (this.c142SelectedNewSectionCode || this.form.c142SectionCode.trim())
+                                : undefined
+                            ,legacySectionCode: this.isC142 ? this.c142SelectedLegacySectionCode || undefined : undefined
+                            ,snapshotId: this.isC142 ? this.c142SnapshotId : undefined
                         })
                     });
 
@@ -700,6 +966,10 @@
                     }
 
                     const result = await response.json();
+                    if (this.isC142) {
+                        this.c142SnapshotId = result.snapshotId;
+                        this.c142Summary = result.summary;
+                    }
                     this.columns = Array.isArray(result.columns) ? result.columns : [];
                     this.rows = Array.isArray(result.data) ? result.data : [];
                     this.summaries = Array.isArray(result.summary) ? result.summary : [];
@@ -729,6 +999,7 @@
                     this.c15Summary = null;
                     this.serverTotalCount = 0;
                     this.serverTotalPages = 0;
+                    if (this.isC142) { this.c142SnapshotId = null; this.c142Summary = null; }
                     this.hasSearched = true;
                     this.validationMessage = error instanceof Error
                         ? error.message
@@ -1054,6 +1325,7 @@
             },
             async exportResults() {
                 if (!this.canExport) return;
+                if (this.isC142) return this.exportC142();
                 this.isExporting = true;
                 this.validationMessage = "";
                 this.exportJob = null;
@@ -1088,6 +1360,12 @@
                             ? this.form.roomScope : undefined,
                         medicalRecordNo: ["C10", "C24"].includes(reportCode)
                             ? this.form.medicalRecordNo.trim() || undefined : undefined,
+                        c141MedicalRecordNumber: reportCode === "C141"
+                            ? this.form.medicalRecordNo.trim() || undefined : undefined,
+                        c141BedNumber: reportCode === "C141"
+                            ? this.form.c141BedNumber.trim() || undefined : undefined,
+                        c141MinimumNetAmount: reportCode === "C141" && this.form.c141MinimumNetAmount !== ""
+                            ? Number(this.form.c141MinimumNetAmount) : undefined,
                         reportType: reportCode === "C143" ? this.form.reportType : undefined,
                         receivableBalanceType: reportCode === "C214"
                             ? this.form.receivableBalanceType : undefined
@@ -1117,6 +1395,21 @@
                     this.isExporting = false;
                     this.validationMessage = error instanceof Error ? error.message : "建立 Excel 匯出時發生錯誤。";
                 }
+            },
+            async exportC142() {
+                this.isExporting = true;
+                this.validationMessage = "";
+                try {
+                    const response = await fetch("/Report/C142/Export", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ snapshotId: this.c142SnapshotId, mode: this.form.c142ExportMode })
+                    });
+                    if (!response.ok) throw new Error(await this.readExportError(response));
+                    this.downloadBlob(await response.blob(), `C142-${this.form.c142ExportMode}.xlsx`);
+                    this.$emit("show-toast", "Excel 匯出完成。");
+                } catch (error) {
+                    this.validationMessage = error instanceof Error ? error.message : "C142 匯出失敗。";
+                } finally { this.isExporting = false; }
             },
             async pollExportJob() {
                 if (!this.exportJob?.statusUrl) return;

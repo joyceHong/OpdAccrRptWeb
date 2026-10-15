@@ -79,8 +79,8 @@ public sealed class C24ReportControllerTests
 
     private sealed class Export : IReportExportService
     {
-        public ReportExportDispatchResult Dispatch(SearchReportCondition condition) => throw new NotSupportedException();
-        public ReportExportJob? GetJob(Guid jobId) => null;
-        public ReportExportDownloadResult GetDownload(Guid jobId) => new(null, null);
+        public ReportExportDispatchResult Dispatch(SearchReportCondition condition, string? ownerIdentity = null) => throw new NotSupportedException();
+        public ReportExportJob? GetJob(Guid jobId, string? requesterIdentity = null) => null;
+        public ReportExportDownloadResult GetDownload(Guid jobId, string? requesterIdentity = null) => new(null, null);
     }
 }

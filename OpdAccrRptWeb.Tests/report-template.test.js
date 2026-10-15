@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-global.window = {};
+global.window = { clearTimeout };
 vm.runInThisContext(fs.readFileSync("wwwroot/js/reports/report-template.js", "utf8"));
 const component = window.ReportComponents.ReportTemplate;
 
@@ -636,7 +636,7 @@ async function verifiesC27UsesCutoffDateOnlySharedLifecycle() {
     assert.match(appSource, /C27:\s*window\.ReportComponents\.ReportTemplate/);
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     assert.match(markup, /v-if="!isEndDateOnly"[^>]*><span>起始日期/);
-    assert.match(markup, /<span>截止日期 <i>\*<\/i><\/span><input v-model="form\.endDate"/);
+    assert.match(markup, /<span>{{ isC141 \? '帳務日' : '截止日期' }} <i>\*<\/i><\/span><input v-model="form\.endDate"/);
 
     let requestBody;
     global.fetch = async (_url, options) => {
@@ -1596,7 +1596,7 @@ async function verifiesC212UsesSharedDatesAndPaginatedResults() {
     assert.match(markup, /v-if="!isLoading && hasResults" class="pagination"/);
     assert.match(markup, /每頁顯示[\s\S]*<option :value="10">10 筆<\/option>[\s\S]*<option :value="30">30 筆<\/option>[\s\S]*<option :value="50">50 筆<\/option>/);
     assert.match(markup, /:class="\{ 'c212-results-table': isC212 \}"/);
-    assert.match(markup, /amount: isC212 && column\.key === 'amount'/);
+    assert.match(markup, /amount: \(isC212 && column\.key === 'amount'\) \|\| \(isC141 && column\.isAmount\)/);
     assert.match(markup, /v-else-if="isC212"[^>]*v-on:click="openC212Preview">預覽／列印/);
     assert.match(markup, /c212PreviewOpen && c212PreviewSummary[^>]*role="dialog" aria-modal="true"/);
     assert.match(markup, /c212PreviewSummary\.programNo[\s\S]*c212PreviewSummary\.reportNo[\s\S]*c212PreviewSummary\.processDateTime[\s\S]*c212PreviewSummary\.editUser/);
@@ -1686,7 +1686,8 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     assert.match(markup, /v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid"/);
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
     assert.match(markup, /legacyPreviewOpen[\s\S]*report-preview-overlay[\s\S]*role="dialog"[\s\S]*closeLegacyPreview[\s\S]*printLegacyPreview/);
-    assert.doesNotMatch(templateSource, /window\.open/);
+    const c13Method = templateSource.match(/async previewC13\(\) \{[\s\S]*?\n            \},/)?.[0] || "";
+    assert.doesNotMatch(c13Method, /window\.open/);
     assert.match(preview, /社服需求急診高危險群個案明細表/);
     assert.match(preview, /處理日期/);
     assert.match(preview, /急診床號/);
@@ -2023,6 +2024,91 @@ async function verifiesC3ModalPreviewAndPrintContract() {
     assert.match(context.validationMessage, /預覽暫時無法使用/);
 }
 
+async function verifiesC141SelectionUsesFourKeysAndPersistsAcrossPages() {
+    const rowA = {
+        key: { admissionDate: "1150101", admissionTime: "1", admissionRoom: "A01", admissionNumber: 1 },
+        isAutomaticallySelected: true
+    };
+    const rowB = {
+        key: { admissionDate: "1150101", admissionTime: "1", admissionRoom: "A01", admissionNumber: 2 },
+        isAutomaticallySelected: false
+    };
+    const rowC = {
+        key: { admissionDate: "1150101", admissionTime: "1", admissionRoom: "A02", admissionNumber: 1 },
+        isAutomaticallySelected: false
+    };
+    const context = {
+        c141SelectionOverrides: {},
+        pagedRows: [rowA, rowB],
+        c141RowKey(row) { return component.methods.c141RowKey.call(this, row); }
+    };
+
+    assert.equal(component.methods.isC141RowSelected.call(context, rowA), true);
+    component.methods.setC141RowSelected.call(context, rowA, { target: { checked: false } });
+    component.methods.setC141RowSelected.call(context, rowB, { target: { checked: true } });
+    context.pagedRows = [rowC];
+    component.methods.setC141CurrentPageSelection.call(context, { target: { checked: true } });
+
+    assert.equal(component.methods.isC141RowSelected.call(context, rowA), false);
+    assert.equal(component.methods.isC141RowSelected.call(context, rowB), true);
+    assert.equal(component.methods.isC141RowSelected.call(context, rowC), true);
+    context.pagedRows = [rowA, rowB];
+    assert.equal(component.methods.isC141RowSelected.call(context, rowA), false);
+    assert.equal(component.methods.isC141RowSelected.call(context, rowB), true);
+    assert.equal(Object.keys(context.c141SelectionOverrides).length, 3);
+}
+
+async function verifiesC141NewQueryClearsManualSelections() {
+    const context = {
+        isC141: true,
+        isC212: false,
+        isC142: false,
+        isEndDateOnly: true,
+        hasEncounterSource: false,
+        reportConfiguration: {},
+        form: { endDate: "2026-10-13" },
+        currentPage: 4,
+        validationMessage: "",
+        c141SelectionOverrides: { manual: true },
+        clearC141Selection() { component.methods.clearC141Selection.call(this); },
+        async fetchResults() { this.fetched = true; }
+    };
+
+    await component.methods.search.call(context);
+
+    assert.equal(context.currentPage, 1);
+    assert.deepEqual(context.c141SelectionOverrides, {});
+    assert.equal(context.fetched, true);
+}
+
+async function verifiesC141SideEffectsSubmitSelectedKeysOnly() {
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    const templateSource = fs.readFileSync("wwwroot/js/reports/report-template.js", "utf8");
+    const rowA = {
+        key: { admissionDate: "1150101", admissionTime: "1", admissionRoom: "A01", admissionNumber: 1 },
+        isAutomaticallySelected: false
+    };
+    const rowB = {
+        key: { admissionDate: "1150101", admissionTime: "1", admissionRoom: "A02", admissionNumber: 2 },
+        isAutomaticallySelected: true
+    };
+    const context = {
+        c141SelectionOverrides: { [JSON.stringify(["1150101", "1", "A01", 1])]: true },
+        pagedRows: [rowB],
+        isC141RowSelected(row) { return component.methods.isC141RowSelected.call(this, row); },
+        c141RowKey(row) { return component.methods.c141RowKey.call(this, row); }
+    };
+
+    const selected = component.methods.c141SelectedKeys.call(context);
+
+    assert.deepEqual(selected, [rowA.key, rowB.key]);
+    assert.match(markup, /通知單預覽也會更新通知日期並寫入交易紀錄/);
+    assert.match(markup, /v-on:click="previewC141Notice"/);
+    assert.match(markup, /v-on:click="sendC141LineBot"/);
+    assert.match(templateSource, /SOAP 結果不明時系統不會自動重送/);
+    assert.match(templateSource, /fetch\("\/Report\/C141\/Notice\/Preview"/);
+}
+
 verifiesC171RequestsServerPages()
     .then(verifiesC1RequestsDateRangeAndServerPageOnly)
     .then(verifiesC25UsesSharedServerPagedLifecycle)
@@ -2064,5 +2150,8 @@ verifiesC171RequestsServerPages()
     .then(verifiesC144SharedQueryPagingAndExportContract)
     .then(verifiesC15SharedPagingGroupingAndPrintContract)
     .then(verifiesC3ModalPreviewAndPrintContract)
+    .then(verifiesC141SelectionUsesFourKeysAndPersistsAcrossPages)
+    .then(verifiesC141NewQueryClearsManualSelections)
+    .then(verifiesC141SideEffectsSubmitSelectedKeysOnly)
     .then(verifiesFirstAndLastPageControlsReuseExistingPagination)
     .then(() => console.log("report-template pagination tests passed"));

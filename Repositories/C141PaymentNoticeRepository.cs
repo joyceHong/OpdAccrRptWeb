@@ -54,6 +54,159 @@ public sealed class C141PaymentNoticeRepository(IConnectionStringProvider connec
             PartialPaymentCalculationAvailable: basic.InsuranceIdentity != "30");
     }
 
+    public C141PartialPaymentData LoadPartialPaymentData(
+        C141AdmissionKey key,
+        string medicalRecordNumber,
+        bool isDayCare,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = new OracleConnection(connectionStringProvider.GetConnectionString());
+        connection.Open();
+        var stays = new List<C141PartialPaymentStay>();
+        string? sameSickDate = null;
+        using (var command = CreateCommand(connection, C141PaymentNoticeSql.PartialPaymentStays(isDayCare), key))
+        using (OracleDataReader reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                sameSickDate ??= ReadText(reader, "SameSickDate")?.Trim();
+                stays.Add(new C141PartialPaymentStay(
+                    ReadText(reader, "PaymentCode")?.Trim() ?? string.Empty,
+                    ReadText(reader, "AdmissionDate")?.Trim(),
+                    ReadText(reader, "DischargeDate")?.Trim(),
+                    ReadText(reader, "ExtendsFreePeriod")?.Trim() == "Y",
+                    ReadText(reader, "EmergencyAdmissionDate")?.Trim()));
+                string? identity = ReadText(reader, "InsuranceIdentity")?.Trim();
+                if (identity is "01" or "35")
+                    throw new DataException("C141 部分負擔住院段身分不一致。");
+            }
+        }
+
+        int priorChargedDays = 0;
+        int priorFreeDays = 0;
+        if (!isDayCare && !string.IsNullOrWhiteSpace(sameSickDate))
+            (priorChargedDays, priorFreeDays) = ReadPriorDays(
+                connection, key, medicalRecordNumber, cancellationToken);
+
+        decimal cap;
+        using (var command = new OracleCommand(C141PaymentNoticeSql.PartialPaymentCap, connection))
+        using (OracleDataReader reader = command.ExecuteReader(CommandBehavior.SingleRow))
+        {
+            if (!reader.Read())
+                throw new DataException("C141 找不到部分負擔上限設定。");
+            string effectiveDate = ReadText(reader, "chOrdPriDay")?.Trim() ?? string.Empty;
+            cap = ReadDecimal(reader, key.AdmissionDate.CompareTo(effectiveDate) >= 0
+                ? "rlOrdPriA2" : "rlOrdPriB2")
+                ?? throw new DataException("C141 部分負擔上限設定缺少金額。");
+        }
+
+        return new C141PartialPaymentData(
+            DateOnly.FromDateTime(GetOracleNow(cancellationToken).Date),
+            stays,
+            priorChargedDays,
+            priorFreeDays,
+            cap);
+    }
+
+    public decimal GetPeriodInsuranceAmount(
+        C141AdmissionKey key,
+        DateOnly begin,
+        DateOnly end,
+        bool isDayCare,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = new OracleConnection(connectionStringProvider.GetConnectionString());
+        using var command = CreateCommand(connection, C141PaymentNoticeSql.PartialPeriodAmount(isDayCare), key);
+        C141OracleParameters.AddVarchar2(command, "periodBegin", begin.ToDateTime(TimeOnly.MinValue).ToRocDateString(), 7);
+        C141OracleParameters.AddVarchar2(command, "periodEnd", end.ToDateTime(TimeOnly.MinValue).ToRocDateString(), 7);
+        connection.Open();
+        using OracleDataReader reader = command.ExecuteReader();
+        decimal total = 0m;
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            total += decimal.Floor((ReadDecimal(reader, "Amount1") ?? 0m) + 0.5m);
+        }
+        return total;
+    }
+
+    private static (int ChargedDays, int FreeDays) ReadPriorDays(
+        OracleConnection connection,
+        C141AdmissionKey key,
+        string medicalRecordNumber,
+        CancellationToken cancellationToken)
+    {
+        var sameSickDates = new List<string>();
+        using (var command = new OracleCommand(C141PaymentNoticeSql.Readmission, connection) { BindByName = true })
+        {
+            C141OracleParameters.AddFixedChar(command, "mrNo", medicalRecordNumber.Trim(), 10);
+            C141OracleParameters.AddFixedChar(command, "opDate", key.AdmissionDate, 7);
+            using OracleDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (ReadText(reader, "chReHospType")?.Trim() == "0")
+                    sameSickDates.Add(ReadText(reader, "SameSickBefDate")?.Trim() ?? string.Empty);
+            }
+        }
+        if (sameSickDates.Count == 0)
+            return (0, 0);
+
+        var admissions = new List<C141AdmissionKey>();
+        using (var command = new OracleCommand(C141PaymentNoticeSql.PreviousAdmissions, connection) { BindByName = true })
+        {
+            C141OracleParameters.AddFixedChar(command, "mrNo", medicalRecordNumber.Trim(), 10);
+            C141OracleParameters.AddFixedChar(command, "opDate", key.AdmissionDate, 7);
+            using OracleDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                admissions.Add(new C141AdmissionKey(
+                    ReadText(reader, "AdmissionDate")?.Trim() ?? string.Empty,
+                    ReadText(reader, "AdmissionTime")?.Trim() ?? string.Empty,
+                    ReadText(reader, "AdmissionRoom")?.Trim() ?? string.Empty,
+                    ReadDecimal(reader, "AdmissionNumber") ?? 0m));
+            }
+        }
+
+        int chargedDays = 0;
+        int freeDays = 0;
+        foreach (string sameSickDate in sameSickDates)
+        foreach (C141AdmissionKey previous in admissions.Take(Math.Max(0, admissions.Count - 1)))
+        {
+            if (previous.AdmissionDate != sameSickDate)
+                continue;
+            using var command = CreateCommand(connection, C141PaymentNoticeSql.PreviousStays, previous);
+            using OracleDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                DateOnly begin = ParseRocDate(ReadText(reader, "AdmissionDate"));
+                DateOnly end = ParseRocDate(ReadText(reader, "DischargeDate"));
+                int days = Math.Max(0, end.DayNumber - begin.DayNumber);
+                if (ReadText(reader, "PaymentCode")?.Trim() == "000")
+                    chargedDays += days;
+                else
+                    freeDays += days;
+            }
+        }
+        if (freeDays > 30)
+            chargedDays += freeDays - 30;
+        return (chargedDays == 0 ? 0 : chargedDays + 1, freeDays == 0 ? 0 : freeDays + 1);
+    }
+
+    private static DateOnly ParseRocDate(string? value)
+    {
+        if (value is null || value.Length < 7 || !int.TryParse(value[..3], out int year)
+            || !DateOnly.TryParseExact($"{year + 1911:0000}{value[3..7]}", "yyyyMMdd",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date))
+            throw new DataException("C141 部分負擔日期資料無效。");
+        return date;
+    }
+
     public void RecordBeforeDocument(
         C141PaymentNoticeDocument document,
         string userId,

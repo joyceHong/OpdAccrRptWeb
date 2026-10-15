@@ -24,7 +24,10 @@ public sealed class C141PaymentNoticeController(
         CancellationToken cancellationToken)
     {
         Response.Headers.CacheControl = "private, no-store";
-        string? userId = User.Identity?.IsAuthenticated == true ? User.Identity.Name : null;
+        string? loginName = User.Identity?.IsAuthenticated == true ? User.Identity.Name : null;
+        if (string.IsNullOrWhiteSpace(loginName))
+            return Unauthorized();
+        string userId = loginName[(loginName.LastIndexOf('\\') + 1)..];
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized();
         if (userId.Length > 10)
@@ -37,7 +40,7 @@ public sealed class C141PaymentNoticeController(
             return Invalid("C141 個案四鍵格式無效。");
         if (request.Cases.Distinct().Count() != request.Cases.Count)
             return Invalid("C141 個案清單不得包含重複四鍵。");
-        if (!entryDateTickets.TryRead(request.EntryDateTicket, userId, out DateOnly entryDate))
+        if (!entryDateTickets.TryRead(request.EntryDateTicket, loginName, out DateOnly entryDate))
             return Invalid("C141 頁面進入日期已失效，請重新載入報表後再試。");
 
         string entryDateRoc = entryDate.ToDateTime(TimeOnly.MinValue).ToRocDateString();
@@ -57,7 +60,7 @@ public sealed class C141PaymentNoticeController(
             catch (Exception exception)
             {
                 LogFailure(exception, "讀取通知資料");
-                results.Add(Failure(key, "資料庫讀取失敗，未產生通知單。"));
+                results.Add(Failure(key, "通知資料讀取或部分負擔計算失敗，未產生通知單。"));
                 continue;
             }
 

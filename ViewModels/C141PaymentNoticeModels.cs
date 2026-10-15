@@ -37,6 +37,20 @@ public sealed record C141PaymentNoticeSource(
     bool IsFourteenDayReadmission = false,
     bool PartialPaymentCalculationAvailable = false);
 
+public sealed record C141PartialPaymentStay(
+    string PaymentCode,
+    string? AdmissionDate,
+    string? DischargeDate,
+    bool ExtendsFreePeriod,
+    string? EmergencyAdmissionDate);
+
+public sealed record C141PartialPaymentData(
+    DateOnly OracleToday,
+    IReadOnlyList<C141PartialPaymentStay> Stays,
+    int PriorChargedDays,
+    int PriorFreeDays,
+    decimal FirstBandCap);
+
 public sealed record C141NoticeCategoryLine(
     string? DepartmentCode,
     string? DepartmentName,

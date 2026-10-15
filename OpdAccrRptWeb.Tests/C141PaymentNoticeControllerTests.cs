@@ -32,6 +32,35 @@ public sealed class C141PaymentNoticeControllerTests
     }
 
     [Fact]
+    public async Task Preview_UsesWindowsAccountForRecordAndFullIdentityForTicket()
+    {
+        var events = new List<string>();
+        var service = new FakeNoticeService(events, CreateDocument(Key, partialAvailable: true));
+        var controller = CreateController(service, new FakeRenderer(events),
+            new FakeTicketService(true, "HOSPITAL\\srv-user"), AuthenticatedUserWithName("HOSPITAL\\srv-user"));
+
+        IActionResult result = await controller.Preview(new([Key], "valid-ticket"), default);
+
+        Assert.IsType<ContentResult>(result);
+        Assert.Equal("srv-user", service.RecordedUserId);
+        Assert.Contains("before", events);
+    }
+
+    [Fact]
+    public async Task Preview_RejectsAccountLongerThanNoticeColumnBeforeDatabaseReads()
+    {
+        var events = new List<string>();
+        var service = new FakeNoticeService(events, CreateDocument(Key, partialAvailable: true));
+        var controller = CreateController(service, new FakeRenderer(events), new FakeTicketService(true),
+            AuthenticatedUserWithName("HOSPITAL\\elevenchars"));
+
+        IActionResult result = await controller.Preview(new([Key], "valid-ticket"), default);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Empty(events);
+    }
+
+    [Fact]
     public async Task Preview_BlocksInsuredCaseUntilPartialPaymentCanBeCalculated()
     {
         var events = new List<string>();
@@ -90,7 +119,10 @@ public sealed class C141PaymentNoticeControllerTests
     }
 
     private static ClaimsPrincipal AuthenticatedUser =>
-        new(new ClaimsIdentity([new Claim(ClaimTypes.Name, "srv-user")], "test"));
+        AuthenticatedUserWithName("srv-user");
+
+    private static ClaimsPrincipal AuthenticatedUserWithName(string name) =>
+        new(new ClaimsIdentity([new Claim(ClaimTypes.Name, name)], "test"));
 
     private static C141PaymentNoticeController CreateController(
         IC141PaymentNoticeService service,
@@ -115,13 +147,13 @@ public sealed class C141PaymentNoticeControllerTests
             PartialPaymentCalculationAvailable = partialAvailable
         };
 
-    private sealed class FakeTicketService(bool valid) : IC141EntryDateTicketService
+    private sealed class FakeTicketService(bool valid, string expectedUserId = "srv-user") : IC141EntryDateTicketService
     {
         public string Create(DateOnly entryDate, string userId) => "valid-ticket";
         public bool TryRead(string? ticket, string userId, out DateOnly entryDate)
         {
             entryDate = new DateOnly(2026, 10, 13);
-            return valid && ticket == "valid-ticket" && userId == "srv-user";
+            return valid && ticket == "valid-ticket" && userId == expectedUserId;
         }
     }
 

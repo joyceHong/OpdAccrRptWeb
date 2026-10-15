@@ -10,6 +10,19 @@ public interface IC141PaymentNoticeRepository
         C141AdmissionKey key,
         CancellationToken cancellationToken);
 
+    C141PartialPaymentData LoadPartialPaymentData(
+        C141AdmissionKey key,
+        string medicalRecordNumber,
+        bool isDayCare,
+        CancellationToken cancellationToken);
+
+    decimal GetPeriodInsuranceAmount(
+        C141AdmissionKey key,
+        DateOnly begin,
+        DateOnly end,
+        bool isDayCare,
+        CancellationToken cancellationToken);
+
     void RecordBeforeDocument(
         C141PaymentNoticeDocument document,
         string userId,

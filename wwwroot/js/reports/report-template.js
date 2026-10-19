@@ -382,6 +382,7 @@
             isC23() { return this.reportConfiguration.c23 === true; },
             isC24() { return this.reportConfiguration.c24 === true; },
             isC10() { return this.reportConfiguration.c10 === true; },
+            isC1() { return this.selectedReport.code === "C1"; },
             isC141() { return this.reportConfiguration.c141 === true; },
             isC211() { return this.reportConfiguration.c211 === true; },
             isC212() { return this.reportConfiguration.c212 === true; },
@@ -1113,6 +1114,12 @@
                 await this.openLegacyPreview("/Report/C13/Preview", {
                     reportCode: "C13", startDate: this.form.startDate, endDate: this.form.endDate
                 }, "無法建立 C13 預覽。");
+            },
+            async previewC1() {
+                if (!this.isC1 || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C1/Preview", {
+                    reportCode: "C1", startDate: this.form.startDate, endDate: this.form.endDate
+                }, "無法建立 C1 列印預覽。");
             },
             async previewC16() {
                 if (!this.isC16 || !this.hasResults || this.legacyPreviewLoading) return;

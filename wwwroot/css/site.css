@@ -154,6 +154,9 @@ body{background:var(--bg)}
 .page-title p{grid-column:1/-1;margin:6px 0 0}
 .page-title h1{color:#173752;font-size:clamp(22px,1.45vw,28px);line-height:1.25}
 .page-title p{line-height:1.5}
+.page-title:has(.c1-title-actions){flex-wrap:wrap}
+.c1-title-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0;margin-left:auto}
+@media(max-width:600px){.c1-title-actions .outline-button{min-width:0;padding:9px 10px;font-size:12px;white-space:nowrap}}
 .panel{border-color:#dbe5ef;border-radius:10px;box-shadow:0 7px 24px #17375e0b,0 1px 3px #17375e08}
 .panel-title,.result-heading{color:#213e5a;background:linear-gradient(180deg,#fff,#fcfdff)}
 .query-panel .panel-title{min-height:46px;align-items:center;padding:10px 18px}
@@ -337,6 +340,22 @@ body{background:var(--bg)}
 @media(max-width:760px){.report-preview-overlay:has(.c211-print-document){padding:8px}.report-preview-overlay:has(.c211-print-document) .report-preview-paper{width:100%;min-height:0;padding:18px}.c211-print-meta{grid-template-columns:1fr}}
 @media print{body:has(.report-preview-overlay .c211-print-document) *{visibility:hidden!important}body:has(.report-preview-overlay .c211-print-document) .report-preview-overlay,body:has(.report-preview-overlay .c211-print-document) .c211-print-document,body:has(.report-preview-overlay .c211-print-document) .c211-print-document *{visibility:visible!important}body:has(.report-preview-overlay .c211-print-document) .report-preview-overlay{position:absolute;inset:0;overflow:visible;padding:0;background:#fff}body:has(.report-preview-overlay .c211-print-document) .report-preview-paper{width:210mm;min-height:297mm;margin:0;padding:10mm;box-shadow:none}body:has(.report-preview-overlay .c211-print-document) .c211-print-document{page:c211-portrait}.c211-print-group{break-inside:avoid;page-break-inside:avoid}.c211-print-table thead{display:table-header-group}.c211-print-table tr{break-inside:avoid;page-break-inside:avoid}.report-preview-actions{display:none!important}}
 .report-preview-overlay:has(.c212-print-document) .report-preview-paper{width:min(210mm,calc(100vw - 48px));min-height:297mm;padding:10mm}
+/* C1 follows the legacy surgical accounting header and separates encounter groups. */
+.report-preview-overlay:has(.c1-print-document) .report-preview-paper{width:297mm;min-height:210mm;padding:8mm;font-family:"PMingLiU","Noto Serif TC",serif}
+.c1-print-page{break-after:page;page-break-after:always}
+.c1-print-page:last-child{break-after:auto;page-break-after:auto}
+.c1-print-title{width:100%;margin:0 auto 9px;text-align:center;font-size:17px;font-weight:700}
+.c1-print-page:not(:first-child) .c1-print-title{display:none}
+.c1-print-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:3px 0;font-size:9px}
+.c1-print-meta span:nth-child(2){text-align:center}
+.c1-print-meta span:last-child{text-align:right}
+.c1-print-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:8px}
+.c1-print-table th,.c1-print-table td{border-bottom:1px solid #777;padding:3px 2px;text-align:left;overflow-wrap:anywhere;vertical-align:top}
+.c1-print-table th{white-space:nowrap;font-weight:600}
+.c1-print-table .number{text-align:right;white-space:nowrap}
+@media(max-width:760px){.report-preview-overlay:has(.c1-print-document){padding:8px}}
+@media print{body:has(.report-preview-overlay .c1-print-document) .report-preview-paper{width:297mm;min-height:0;margin:0;padding:8mm;box-shadow:none}.c1-print-page{page:c1-landscape}.c1-print-page:not(:first-child) .c1-print-title{display:block}.c1-print-table thead{display:table-header-group}.c1-print-table tr{break-inside:avoid}}
+@page c1-landscape{size:A4 landscape;margin:0}
 .c212-print-document{page:c212-portrait;box-sizing:border-box;color:#111;font-family:"Noto Serif TC","PMingLiU","Times New Roman",serif;font-size:12px}
 .c212-print-header{margin-bottom:10px;text-align:center}.c212-print-header h1{margin:0 0 6px;font-size:21px}.c212-print-header p{margin:4px 0}
 .c212-print-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 16px;margin:10px 0;text-align:left;font-size:11px}

@@ -10,4 +10,6 @@ public interface ISurgicalAccountingRepository
     int GetCount(SearchReportCondition searchCondition);
 
     List<SurgicalAccountingReportViewModel> GetPage(SearchReportCondition searchCondition);
+
+    List<SurgicalAccountingReportViewModel> GetAll(SearchReportCondition searchCondition, CancellationToken cancellationToken = default);
 }

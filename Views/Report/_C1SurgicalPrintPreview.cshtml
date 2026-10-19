@@ -1,0 +1,51 @@
+@model OpdAccrRptWeb.ViewModels.C1SurgicalPrintPreviewViewModel
+
+<div class="c1-print-document">
+    @foreach (var printPage in Model.Pages)
+    {
+        <section class="c1-print-page">
+            <header class="c1-print-header">
+                <h1 class="c1-print-title">亞東紀念醫院門診作業<br />手術室手術及材料核帳明細表</h1>
+                <div class="c1-print-meta">
+                    <span>報表名稱：門診手術核帳表　　程式名稱：Module1</span>
+                    <span>@printPage.EncounterType</span>
+                    <span>頁次：@printPage.PageNumber / @printPage.TotalPages</span>
+                </div>
+                <div class="c1-print-meta">
+                    <span>處理日期：@Model.GeneratedAt</span>
+                    <span>資料日期：@Model.StartDate　/　@Model.EndDate</span>
+                    <span>製表人：@Model.GeneratedBy</span>
+                </div>
+            </header>
+            <table class="c1-print-table">
+                <thead>
+                    <tr>
+                        <th>看診日期</th><th>時段</th><th>病歷號</th><th>病患姓名</th>
+                        <th>科別</th><th>醫師姓名</th><th>身份</th><th>付費方式</th>
+                        <th>批價碼</th><th>數量</th><th>金額</th><th>科目</th>
+                        <th>刀別</th><th>手術比例科別</th><th>手術比例醫師</th>
+                        <th>手術比例</th><th>手術比例金額</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in printPage.Rows)
+                    {
+                        <tr>
+                            <td>@row.EncounterDate</td><td>@row.EncounterTime</td>
+                            <td>@row.MedicalRecordNumber</td><td>@row.PatientName</td>
+                            <td>@row.DepartmentCode</td><td>@row.DoctorName</td>
+                            <td>@row.PatientIdentity</td><td>@row.PaymentMethod</td>
+                            <td>@row.SurgicalOrderCode</td>
+                            <td class="number">@row.Quantity.ToString("N1")</td>
+                            <td class="number">@row.Amount.ToString("N0")</td>
+                            <td>@row.ChargeItem</td><td>@row.SurgicalClass</td>
+                            <td>@row.RatioDepartmentCode</td><td>@row.RatioDoctorNumber</td>
+                            <td class="number">@row.RatioQuantity.ToString("N1")</td>
+                            <td class="number">@row.RatioAmount.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+</div>

@@ -453,6 +453,14 @@ internal sealed class FakeSurgicalAccountingRepository : ISurgicalAccountingRepo
     public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() =>
         ModelDescriptionsHelper.GetPropertyDescriptions<SurgicalAccountingReportViewModel>();
 
+    public List<SurgicalAccountingReportViewModel> GetAll(
+        SearchReportCondition searchCondition, CancellationToken cancellationToken = default)
+    {
+        LastStartDate = searchCondition.StartDate;
+        LastEndDate = searchCondition.EndDate;
+        return Data;
+    }
+
     public int GetCount(SearchReportCondition searchCondition)
     {
         CountCalls++;

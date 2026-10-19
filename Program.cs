@@ -40,6 +40,7 @@ builder.Services.AddSingleton<IHealthCenterRepository, HealthCenterRepository>()
 builder.Services.AddSingleton<IReferralMemberRepository, ReferralMemberRepository>();
 builder.Services.AddSingleton<ISafeNeedleRepository, SafeNeedleRepository>();
 builder.Services.AddSingleton<ISurgicalAccountingRepository, SurgicalAccountingRepository>();
+builder.Services.AddScoped<IC1SurgicalPrintService, C1SurgicalPrintService>();
 builder.Services.AddSingleton<ICashierCashRepository, CashierCashRepository>();
 builder.Services.AddSingleton<ICashierCashSummaryRepository, CashierCashSummaryRepository>();
 builder.Services.AddSingleton<IC21AccountingSummaryRepository, C21AccountingSummaryRepository>();

@@ -7,7 +7,11 @@
                 <h1>{{ selectedReport ? selectedReport.name : '請從左側選擇報表' }}</h1>
                 <p>設定查詢區間與條件，送出後即可檢視報表資料。</p>
             </div>
-            <button v-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC13">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+            <div v-if="isC1" class="c1-title-actions no-print">
+                <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC1">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+                <button class="outline-button no-print" type="button" :disabled="!canExport" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
+            </div>
+            <button v-else-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC13">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC3" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c3PreviewLoading" v-on:click="openC3Preview">{{ c3PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <template v-else-if="isC4">
                 <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c4PreviewLoading" v-on:click="openC4Preview">{{ c4PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>

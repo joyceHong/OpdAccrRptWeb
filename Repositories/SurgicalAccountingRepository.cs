@@ -95,9 +95,9 @@ public sealed class SurgicalAccountingRepository : ISurgicalAccountingRepository
             FROM dual
         ) resolvedSection
         LEFT JOIN GenSectionTbl sectionMap
-          ON resolvedSection.OldSection = sectionMap.chSecNo
+          ON RPAD(resolvedSection.OldSection, 7, ' ') = sectionMap.chSecNo
         LEFT JOIN GenSectionTbl ratioSectionMap
-          ON RTRIM(r.chSecNo) = ratioSectionMap.chSecNo
+          ON RPAD(RTRIM(r.chSecNo), 7, ' ') = ratioSectionMap.chSecNo
         CROSS APPLY (
             SELECT COALESCE(RTRIM(o.chOp4ExtNo), RTRIM(o.chOp4OrdNo)) AS OrderCode
             FROM dual
@@ -137,6 +137,14 @@ public sealed class SurgicalAccountingRepository : ISurgicalAccountingRepository
         ORDER BY {StableOrder}
         OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
 
+    internal static string PrintSql => $@"SELECT
+            EncounterType, EncounterDate, EncounterTime, MedicalRecordNumber,
+            PatientName, PatientIdentity, PaymentMethod, DoctorName, DepartmentCode,
+            SurgicalOrderCode, Quantity, Amount, ChargeItem, SurgicalClass,
+            RatioDepartmentCode, RatioDoctorNumber, RatioQuantity, RatioAmount
+        FROM ({BaseSql}) C1Rows
+        ORDER BY {StableOrder}";
+
     public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() =>
         ModelDescriptionsHelper.GetPropertyDescriptions<SurgicalAccountingReportViewModel>();
 
@@ -152,6 +160,15 @@ public sealed class SurgicalAccountingRepository : ISurgicalAccountingRepository
         return connection.Query<SurgicalAccountingReportViewModel>(
             PageSql,
             CreateParameters(searchCondition)).ToList();
+    }
+
+    public List<SurgicalAccountingReportViewModel> GetAll(
+        SearchReportCondition searchCondition, CancellationToken cancellationToken = default)
+    {
+        using IDbConnection connection = CreateConnection();
+        return connection.Query<SurgicalAccountingReportViewModel>(
+            new CommandDefinition(PrintSql, CreateParameters(searchCondition),
+                cancellationToken: cancellationToken)).ToList();
     }
 
     internal static object CreateParameters(SearchReportCondition searchCondition)

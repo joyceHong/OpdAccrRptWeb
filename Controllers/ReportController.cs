@@ -30,6 +30,7 @@ public sealed class ReportController : Controller
     private readonly IC16ReportService? _c16ReportService;
     private readonly IC3ReportService? _c3ReportService;
     private readonly IC211ContractBalanceReportService? _c211ReportService;
+    private readonly IC1SurgicalPrintService? _c1SurgicalPrintService;
 
     public ReportController(
         IReportCatalogService reportCatalogService,
@@ -46,7 +47,8 @@ public sealed class ReportController : Controller
         IC12ReportRepository? c12Repository = null,
         IC16ReportService? c16ReportService = null,
         IC3ReportService? c3ReportService = null,
-        IC211ContractBalanceReportService? c211ReportService = null)
+        IC211ContractBalanceReportService? c211ReportService = null,
+        IC1SurgicalPrintService? c1SurgicalPrintService = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -63,6 +65,7 @@ public sealed class ReportController : Controller
         _c16ReportService = c16ReportService;
         _c3ReportService = c3ReportService;
         _c211ReportService = c211ReportService;
+        _c1SurgicalPrintService = c1SurgicalPrintService;
     }
 
     [HttpGet("/")]
@@ -521,6 +524,43 @@ public sealed class ReportController : Controller
             var details = new ProblemDetails { Status = StatusCodes.Status503ServiceUnavailable, Title = "無法載入科別清單，仍可直接輸入科別代碼。" };
             details.Extensions["traceId"] = traceId;
             return StatusCode(details.Status.Value, details);
+        }
+    }
+
+    [HttpPost("Report/C1/Preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC1([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C1";
+        IActionResult? validation = ValidateC1Condition(condition);
+        if (validation is not null) return validation;
+
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.Pragma = "no-cache";
+        try
+        {
+            string generatedBy = User.Identity?.IsAuthenticated == true
+                ? User.Identity.Name ?? string.Empty : string.Empty;
+            C1SurgicalPrintPreviewViewModel preview = (_c1SurgicalPrintService
+                ?? throw new InvalidOperationException("C1 列印服務尚未設定。"))
+                .CreatePreview(condition, generatedBy, HttpContext.RequestAborted);
+            if (preview.Pages.Count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+            return PartialView("_C1SurgicalPrintPreview", preview);
+        }
+        catch (OperationCanceledException) { return StatusCode(499); }
+        catch (OracleException exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            _logger.LogWarning(exception,
+                "C1 preview failed. TraceId={TraceId} ErrorNumber={ErrorNumber}", traceId, exception.Number);
+            int status = IsOracleConnectionFailure(exception.Number) ? 503 : 504;
+            return StatusCode(status, new ProblemDetails { Status = status, Title = "無法建立 C1 列印預覽，請稍後再試。" });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "C1 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(500, new ProblemDetails { Status = 500, Title = "無法建立 C1 列印預覽，請稍後再試。" });
         }
     }
 

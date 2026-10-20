@@ -756,3 +756,60 @@ code:
   - .agents/skills/spectra-ingest/SKILL.md
   - .agents/skills/spectra-verify/SKILL.md
 -->
+
+---
+### Requirement: Dedicated SAP interface catalog category
+
+The report catalog SHALL expose a primary category with key `sap` and label `SAP介接作業` after the `資料查詢` category. It SHALL contain the existing `介接作業` group with exactly one `SAP` entry named `SAP 中介表作業`. The `門診批價統計報表` category SHALL NOT contain the `介接作業` group or the `SAP` entry.
+
+#### Scenario: Browse SAP operations
+
+- **WHEN** a user opens the `SAP介接作業` category
+- **THEN** the sidebar SHALL display the `介接作業` group and the `SAP 中介表作業` entry
+- **AND** selecting that entry SHALL navigate to `/sap-interface`
+
+#### Scenario: Browse outpatient accounting reports
+
+- **WHEN** a user opens the `門診批價統計報表` category
+- **THEN** the sidebar SHALL NOT display the `介接作業` group or the `SAP` entry
+
+<!-- @trace
+source: move-sap-interface-to-primary-menu
+updated: 2026-10-19
+code:
+  - scripts/sql/create-opd-accrreport-permission.sql
+-->
+
+---
+### Requirement: Available C141 inpatient receivable ranking entry
+
+The outpatient accounting report catalog SHALL display the existing C141 "住院應收帳款排行" entry as available and SHALL route it to the C141-specific Gregorian accounting-date query page after the C141 query, recalculation, export, notice, and notification actions satisfy their acceptance scenarios.
+
+#### Scenario: Select C141 from the catalog
+
+- **WHEN** an authorized user selects C141 in the receivables report group
+- **THEN** the application opens `/Report/C141`
+- **AND** the C141 accounting date, medical-record, bed, and threshold controls are displayed
+- **AND** no unavailable-report placeholder is displayed
+
+<!-- @trace
+source: implement-c141-inpatient-receivable-ranking
+updated: 2026-10-19
+code:
+  - scripts/sql/create-opd-accrreport-permission.sql
+-->
+
+---
+### Requirement: SAP interface entry
+The dedicated `SAP介接作業` catalog SHALL display the SAP intermediate-table operation in an interface-operations group and SHALL route selection to the SAP-specific operation controls.
+
+#### Scenario: Select SAP from the catalog
+- **WHEN** an operator selects SAP in the `SAP介接作業` catalog
+- **THEN** the application displays the Gregorian business date, four event choices, current completion status, and operation results
+
+<!-- @trace
+source: sap-interface-rebuild
+updated: 2026-10-19
+code:
+  - scripts/sql/create-opd-accrreport-permission.sql
+-->

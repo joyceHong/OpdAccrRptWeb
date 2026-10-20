@@ -8,23 +8,23 @@
                 <p>設定查詢區間與條件，送出後即可檢視報表資料。</p>
             </div>
             <div v-if="isC1" class="c1-title-actions no-print">
-                <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC1">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
-                <button class="outline-button no-print" type="button" :disabled="!canExport" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
+                <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC1">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+                <button class="outline-button no-print" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
             </div>
-            <button v-else-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC13">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
-            <button v-else-if="isC3" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c3PreviewLoading" v-on:click="openC3Preview">{{ c3PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC13">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC3" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c3PreviewLoading" v-show="selectedReport.canPrint" v-on:click="openC3Preview">{{ c3PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <template v-else-if="isC4">
-                <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c4PreviewLoading" v-on:click="openC4Preview">{{ c4PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
+                <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c4PreviewLoading" v-show="selectedReport.canPrint" v-on:click="openC4Preview">{{ c4PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             </template>
-            <button v-else-if="isC16" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC16">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
-            <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
-            <button v-else-if="isC211" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC211">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
-            <button v-else-if="isC212" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-on:click="openC212Preview">預覽／列印</button>
+            <button v-else-if="isC16" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC16">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-show="selectedReport.canPrint" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC211" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC211">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC212" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-show="selectedReport.canPrint" v-on:click="openC212Preview">預覽／列印</button>
             <template v-else-if="isC141">
-                <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
+                <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-show="selectedReport.canPrint" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
                 <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
             </template>
-            <button v-else class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">
+            <button v-else class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
         </section>
@@ -145,7 +145,7 @@
                             </select>
                         </label>
                         <label><span>收費科目</span><select v-model="form.billingCode"><option value="">全部</option><option v-for="item in c21BillingItems" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
-                        <label v-if="canForceC21Rebuild" class="source-option">
+                        <label v-if="canForceC21Rebuild && selectedReport.canRebuild" class="source-option">
                             <input v-model="form.forceRebuild" type="checkbox" />
                             <span>重新計算</span>
                         </label>
@@ -159,7 +159,7 @@
                         <label><span>日期模式 <i>*</i></span><select v-model="form.dateMode" v-on:change="changeC23DateMode"><option value="General">一般日期</option><option value="EncounterDate">就診日</option></select></label>
                         <label v-if="form.encounterSource === 'Inpatient' && form.dateMode === 'General'"><span>住院別 <i>*</i></span><select v-model="form.inpatientType" required><option value="" disabled>請選擇</option><option value="Inpatient">住院</option><option value="Discharged">出院</option></select></label>
                         <label><span>合約代碼</span><select v-model="form.contractCode"><option value="">全部</option><option v-for="item in c23Contracts" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
-                        <label v-if="canForceC23Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
+                        <label v-if="canForceC23Rebuild && selectedReport.canRebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
                     <div v-if="isC211" class="advanced-grid c211-contract-input">
                         <label><span>合約單位</span><div ref="c211Autocomplete" class="report-autocomplete"><input v-model="form.contractCode" autocomplete="off" placeholder="全部／可直接輸入代碼" role="combobox" aria-autocomplete="list" aria-controls="c211-contract-list" :aria-expanded="c211ContractOpen ? 'true' : 'false'" :aria-activedescendant="c211ContractActiveIndex >= 0 ? `c211-contract-option-${c211ContractActiveIndex}` : undefined" v-on:focus="openC211Contracts" v-on:input="openC211Contracts" v-on:keydown="onC211ContractKeydown" /><div v-if="c211ContractOpen && filteredC211Contracts.length" id="c211-contract-list" class="report-autocomplete-panel" role="listbox"><button v-for="(item,index) in filteredC211Contracts" :id="`c211-contract-option-${index}`" :key="item.code" type="button" class="report-autocomplete-option" :class="{ active: index === c211ContractActiveIndex }" role="option" :aria-selected="index === c211ContractActiveIndex ? 'true' : 'false'" v-on:mouseenter="c211ContractActiveIndex=index" v-on:mousedown.prevent="selectC211Contract(item)"><strong>{{ item.code }}</strong><span>{{ item.name }}</span></button></div></div></label>
@@ -168,7 +168,7 @@
                         <label v-if="isC24"><span>模式 <i>*</i></span><select v-model="form.mode" v-on:change="changeC24Mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
                         <label><span>門急診別 <i>*</i></span><select v-if="isC10" v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="Outpatient">門診</option></select><select v-else v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="NonEmergency">門診</option></select></label>
                         <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" maxlength="10" /></label>
-                        <label v-if="canForceC24Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
+                        <label v-if="canForceC24Rebuild && selectedReport.canRebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
                     <button v-if="hasAdvancedConditions" class="advanced-filter-toggle" type="button" :aria-expanded="advancedOpen ? 'true' : 'false'" aria-controls="template-advanced-filters" v-on:click="advancedOpen = !advancedOpen">
                         進階篩選 <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span><span class="chevron" :class="{ open: advancedOpen }">⌄</span>

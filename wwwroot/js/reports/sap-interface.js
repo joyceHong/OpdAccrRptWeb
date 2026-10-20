@@ -9,6 +9,7 @@
     window.ReportComponents = window.ReportComponents || {};
     window.ReportComponents.SapInterface = {
         template: "#sap-interface-template",
+        props: ["selectedReport"],
         data() {
             return {
                 businessDate: "",

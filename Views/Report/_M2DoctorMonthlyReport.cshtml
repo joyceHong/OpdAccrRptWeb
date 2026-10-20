@@ -1,8 +1,8 @@
 <template id="m2-doctor-monthly-template"><div>
 <section class="page-title"><div><span class="eyebrow">M2</span><h1>{{ selectedReport.name }}</h1>
 <p>依月份、診別、時段及是否採實際看診人數，查詢各科別醫師每日看診人數。</p></div>
-<div class="no-print"><button class="outline-button" type="button" :disabled="!hasResults||isLoading" v-on:click="openPreview">預覽／列印</button>
-<button class="outline-button" type="button" :disabled="!hasResults||isLoading" v-on:click="exportReport('xlsx')">Excel</button></div></section>
+<div class="no-print"><button class="outline-button" type="button" :disabled="!hasResults||isLoading" v-show="selectedReport.canPrint" v-on:click="openPreview">預覽／列印</button>
+<button class="outline-button" type="button" :disabled="!hasResults||isLoading" v-show="selectedReport.canExcel" v-on:click="exportReport('xlsx')">Excel</button></div></section>
 <section class="panel query-panel m2-report"><div><div class="panel-title"><span>查詢條件</span><small><i>*</i> 為必填欄位</small></div>
 <form v-on:submit.prevent="search"><div class="query-basic-row m2-basic-row"><label class="query-primary-field"><span>查詢月份 <i>*</i></span><input v-model="form.reportMonth" type="month" required v-on:change="conditionChanged" /></label><fieldset class="source-fieldset"><legend>計算方式</legend><label class="source-option"><input v-model="form.actualVisit" type="checkbox" v-on:change="conditionChanged" /><span>實際看診人數</span></label></fieldset><button class="advanced-filter-toggle" type="button" :aria-expanded="advancedOpen?'true':'false'" aria-controls="m2-advanced-filters" v-on:click="advancedOpen=!advancedOpen">進階篩選 <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span><span class="chevron" :class="{open:advancedOpen}">⌄</span></button></div><transition name="advanced-filter"><div v-show="advancedOpen" id="m2-advanced-filters" class="advanced-grid" :class="['advanced-filter-region','open']">
 <label><span>診別</span><select v-model.number="form.visitScope" v-on:change="conditionChanged"><option :value="0">門急診</option><option :value="1">門診</option><option :value="2">急診</option></select></label>

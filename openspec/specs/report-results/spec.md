@@ -601,6 +601,49 @@ The Q2 result area SHALL reuse the shared result heading, horizontal table wrapp
 - **THEN** the read-only detail panel loads below the result table
 - **AND** the Q2 result table and pagination remain available
 
+---
+### Requirement: C212 shared paginated results
+
+C212 SHALL display successful query rows in the shared result table with date, medical record number, patient name, and amount columns. The result SHALL show the complete row count and use client-side pages of 10 rows by default, with 10, 30, and 50 row choices and the shared first, previous, next, and last controls. Opening or closing C212 print preview MUST preserve the current query result and pagination state.
+
+#### Scenario: Browse C212 result pages
+
+- **WHEN** a C212 query returns 28 ordered rows with the default page size
+- **THEN** page 1 displays rows 1 through 10, total count 28, and three total pages
+- **AND** selecting the last-page control displays rows 21 through 28 without changing the query filters
+
+#### Scenario: Change C212 page size
+
+- **WHEN** a user selects 30 rows per page while viewing a later C212 page
+- **THEN** the result returns to page 1 and displays all 28 rows on one page
+
+#### Scenario: Close C212 preview
+
+- **WHEN** a user closes C212 preview while viewing page 2
+- **THEN** the same C212 rows, active filters, page size, and page 2 remain available
+
+---
+### Requirement: C211 uses the shared paginated result experience
+
+C211 SHALL use the shared result table, total count, page-size selector, Skeleton Loader, and first, previous, next, and last page controls. C211 page navigation SHALL preserve source, cutoff date, and contract code, and changing page size SHALL reset the result to page 1.
+
+#### Scenario: Navigate C211 query results
+
+- **WHEN** a C211 query has more matching rows than the selected page size and the user moves to another page
+- **THEN** the UI requests the target page from the server with the unchanged source, cutoff date, contract code, and page size
+- **AND** the result area replaces the previous rows with the returned page
+
+#### Scenario: Change C211 page size
+
+- **WHEN** the user changes the C211 page size from 10 to 30
+- **THEN** the UI requests page 1 with page size 30 and unchanged report filters
+- **AND** the shared Skeleton Loader replaces the prior result while the request is pending
+
+#### Scenario: Preserve C211 result state while preview is open
+
+- **WHEN** the user opens and then closes the C211 print preview from a paginated result
+- **THEN** the normal result table retains its current page, page size, filters, total count, and rows
+
 ## Planned Requirements
 
 下列能力屬下一階段工作。
@@ -1324,6 +1367,22 @@ code:
   - Repositories/RegistrationQueryRepository.cs
   - .agents/skills/spectra-ingest/SKILL.md
   - .agents/skills/spectra-verify/SKILL.md
+-->
+
+
+<!-- @trace
+source: align-c212-results-and-print-preview
+updated: 2026-10-19
+code:
+  - scripts/sql/create-opd-accrreport-permission.sql
+-->
+
+
+<!-- @trace
+source: paginate-and-preview-c211-report
+updated: 2026-10-19
+code:
+  - scripts/sql/create-opd-accrreport-permission.sql
 -->
 
 ### Requirement: Excel export

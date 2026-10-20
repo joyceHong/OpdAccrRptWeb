@@ -257,7 +257,7 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
 
         ReportExportJob job = _jobStore.Create(
             normalized,
-            normalized.ReportCode == "C141" ? ownerIdentity : null);
+            ownerIdentity);
         if (!_queue.TryEnqueue(job))
         {
             _jobStore.Remove(job.JobId);
@@ -269,13 +269,13 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
     public ReportExportJob? GetJob(Guid jobId, string? requesterIdentity = null)
     {
         ReportExportJob? job = _jobStore.Get(jobId);
-        return IsOwnedC141Job(job, requesterIdentity) ? null : job;
+        return IsOwnedJob(job, requesterIdentity) ? null : job;
     }
 
     public ReportExportDownloadResult GetDownload(Guid jobId, string? requesterIdentity = null)
     {
         ReportExportJob? job = _jobStore.Get(jobId);
-        if (IsOwnedC141Job(job, requesterIdentity))
+        if (IsOwnedJob(job, requesterIdentity))
         {
             return new ReportExportDownloadResult(null, null);
         }
@@ -289,10 +289,11 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             : new ReportExportDownloadResult(job, null);
     }
 
-    private static bool IsOwnedC141Job(ReportExportJob? job, string? requesterIdentity) =>
-        job?.SearchCondition.ReportCode == "C141"
-        && (string.IsNullOrWhiteSpace(requesterIdentity)
-            || !string.Equals(job.CreatedBy, requesterIdentity, StringComparison.OrdinalIgnoreCase));
+    private static bool IsOwnedJob(ReportExportJob? job, string? requesterIdentity) =>
+        job is not null &&
+        (job.SearchCondition.ReportCode == "C141" || !string.IsNullOrWhiteSpace(job.CreatedBy)) &&
+        (string.IsNullOrWhiteSpace(requesterIdentity) ||
+         !string.Equals(job.CreatedBy, requesterIdentity, StringComparison.OrdinalIgnoreCase));
 
     public void GenerateWorkbook(SearchReportCondition searchCondition, Stream destination)
     {

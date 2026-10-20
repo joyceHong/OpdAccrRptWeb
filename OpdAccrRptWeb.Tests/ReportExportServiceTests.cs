@@ -254,6 +254,21 @@ public sealed class ReportExportServiceTests
     }
 
     [Fact]
+    public void BackgroundJobForOtherReportRecordsAndChecksCreator()
+    {
+        var repository = new FakeHealthCenterRepository { C174TotalCount = 30_001 };
+        var service = CreateService(repository, new FakeJobStore(), new FakeExportQueue());
+
+        ReportExportDispatchResult result = service.Dispatch(WebCondition(), "F1482");
+        Guid id = result.Job!.JobId;
+
+        Assert.Equal("F1482", result.Job.CreatedBy);
+        Assert.NotNull(service.GetJob(id, "F1482"));
+        Assert.Null(service.GetJob(id, "OTHER"));
+        Assert.Null(service.GetDownload(id, "OTHER").Job);
+    }
+
+    [Fact]
     public void Dispatch_C141RequiresServerProvidedOwnerIdentity()
     {
         var c141 = new FakeC141RankingService { Rows = [CreateC141Row(1)] };

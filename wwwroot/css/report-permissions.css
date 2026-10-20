@@ -1,0 +1,124 @@
+.permission-page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 0 48px;
+    color: #26364b;
+}
+
+.permission-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.permission-kicker {
+    color: #6280a1;
+    margin-bottom: 4px;
+}
+
+.permission-page h1,
+.permission-page h2 {
+    margin: 0 0 12px;
+}
+
+.permission-page form,
+.permission-page section {
+    background: #fff;
+    border: 1px solid #dce6f1;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.permission-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.permission-fields label {
+    display: grid;
+    gap: 7px;
+    min-width: 220px;
+    flex: 1;
+}
+
+.permission-fields input,
+.permission-fields select {
+    border: 1px solid #b8c9dc;
+    border-radius: 7px;
+    padding: 9px 12px;
+    background: #fff;
+}
+
+#permission-batch-reports {
+    display: block;
+    width: 100%;
+    min-height: 220px;
+    margin: 10px 0 18px;
+    border: 1px solid #b8c9dc;
+    border-radius: 7px;
+}
+
+#permission-batch-reports option {
+    padding: 5px 8px;
+}
+
+#permission-batch-apply:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.permission-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    border: 1px solid #dce6f1;
+    border-radius: 8px;
+    margin: 0 0 18px;
+    padding: 14px;
+}
+
+.permission-page button {
+    background: #1766a6;
+    color: #fff;
+    border: 0;
+    border-radius: 7px;
+    padding: 10px 16px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.permission-page button:focus-visible,
+.permission-page input:focus-visible,
+.permission-page select:focus-visible {
+    outline: 2px solid #1766a6;
+    outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+    .permission-page form,
+    .permission-page section { padding: 16px; }
+    .permission-fields label { min-width: 100%; }
+}
+
+#permission-existing {
+    list-style: none;
+    padding: 0;
+}
+
+#permission-existing button {
+    background: transparent;
+    color: #1766a6;
+    padding: 6px 0;
+}
+
+#permission-copy-options {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0 18px;
+}

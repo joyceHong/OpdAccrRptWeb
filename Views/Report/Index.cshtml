@@ -5,6 +5,8 @@
     string initialState = JsonSerializer.Serialize(Model, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 }
 
+<link rel="stylesheet" href="~/css/report-permissions.css" asp-append-version="true" />
+
 <div id="report-app" v-cloak>
     @Html.AntiForgeryToken()
     <header class="app-header">
@@ -14,9 +16,10 @@
         </button>
         <nav class="top-nav" aria-label="主要功能">
             <button v-for="category in state.categories" :key="category.key" type="button"
-                    :class="{ active: activeCategory.key === category.key }" v-on:click="selectCategory(category)">
+                    :class="{ active: !showPermissionSettings && activeCategory.key === category.key }" v-on:click="selectCategory(category)">
                 {{ category.name }}
             </button>
+            <button v-if="canManagePermissions" type="button" :class="{ active: showPermissionSettings }" v-on:click="openPermissionSettings">設定權限</button>
         </nav>
         <div class="user-badge"><span>測</span><div>測試使用者<small>報表查詢人員</small></div></div>
     </header>
@@ -47,6 +50,10 @@
 
         <main class="content">
             <div class="content-inner">
+            <div v-show="!showPermissionSettings">
+            <section v-if="state.categories.length === 0" class="panel empty-result">
+                <strong>尚未取得報表權限</strong>
+            </section>
             <div class="breadcrumb">{{ activeCategory.name }} <span>›</span> {{ selectedReport ? selectedReport.name : '請選擇報表' }}</div>
             <router-view v-slot="{ Component }">
                 <div v-if="Component && selectedReport" :key="selectedReport.code" class="report-content" v-report-query-collapse="selectedReport.code">
@@ -61,6 +68,12 @@
                 </component>
                 </div>
             </router-view>
+            </div>
+            <div v-show="showPermissionSettings" class="permission-container" aria-label="設定權限">
+                <p v-if="permissionPanelLoading" role="status">載入權限設定中…</p>
+                <p v-if="permissionPanelError" role="alert">{{ permissionPanelError }}</p>
+                <div v-html="permissionPanelHtml"></div>
+            </div>
             </div>
         </main>
     </div>
@@ -90,5 +103,6 @@
     <script src="~/js/reports/medical-record-query.js" asp-append-version="true"></script>
     <script src="~/js/reports/registration-query.js" asp-append-version="true"></script>
     <script src="~/js/reports/sap-interface.js" asp-append-version="true"></script>
+    <script src="~/js/report-permissions.js" asp-append-version="true"></script>
     <script src="~/js/report-app.js" asp-append-version="true"></script>
 }

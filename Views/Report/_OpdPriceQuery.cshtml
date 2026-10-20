@@ -127,7 +127,7 @@
                                 <td>{{row.insuranceSequence}}</td>
                                 <td>{{row.cancellationLabel}}</td>
                                 <td><button type="button" class="q1-row-action q1-row-action-detail" v-on:click.stop="openDetail(row,$event)">明細</button></td>
-                                <td><button type="button" class="q1-row-action q1-row-action-receipt" v-on:click.stop="openReceipts(row,$event)">收據</button></td>
+                                <td><button type="button" class="q1-row-action q1-row-action-receipt" v-show="selectedReport.canPrint" v-on:click.stop="openReceipts(row,$event)">收據</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -174,7 +174,7 @@
                     </tbody></table></div>
                 </template>
                 <footer class="q1-modal-actions">
-                    <button v-if="modalKind === 'receipts'" type="button" class="primary-button" :disabled="!selectedReceipts.length || printPending || modalLoading" v-on:click="printSelectedReceipts">{{printPending ? '產生預覽中…' : '列印已勾選收據'}}</button>
+                    <button v-if="modalKind === 'receipts'" type="button" class="primary-button" :disabled="!selectedReceipts.length || printPending || modalLoading" v-show="selectedReport.canPrint" v-on:click="printSelectedReceipts">{{printPending ? '產生預覽中…' : '列印已勾選收據'}}</button>
                     <button type="button" class="ghost-button" v-on:click="closeModal">關閉</button>
                 </footer>
             </section>

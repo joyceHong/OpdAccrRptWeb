@@ -2,7 +2,7 @@
     <div>
         <section class="page-title">
             <div><span class="eyebrow">C11</span><h1>{{ selectedReport.name }}</h1><p>設定查詢區間與來源，送出後即可檢視報表明細。</p></div>
-            <button class="outline-button no-print" type="button" :disabled="!hasSearched" v-on:click="openPreview">預覽／列印</button>
+            <button class="outline-button no-print" type="button" :disabled="!hasSearched" v-show="selectedReport.canPrint" v-on:click="openPreview">預覽／列印</button>
         </section>
         <section class="panel query-panel"><div>
             <div class="panel-title"><span>查詢條件</span><small><i>*</i> 為必填欄位</small></div>

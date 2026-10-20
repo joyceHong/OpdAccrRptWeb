@@ -6,8 +6,8 @@
         <p>依日期查詢各科別、醫師的門診與急診看診人數。</p>
     </div>
     <div class="no-print">
-        <button class="outline-button" type="button" :disabled="!hasResults||isLoading||previewLoading" v-on:click="openPreview">預覽／列印</button>
-        <button class="outline-button" type="button" :disabled="!hasResults||isLoading" v-on:click="exportReport('xlsx')">Excel</button></div>
+        <button class="outline-button" type="button" :disabled="!hasResults||isLoading||previewLoading" v-show="selectedReport.canPrint" v-on:click="openPreview">預覽／列印</button>
+        <button class="outline-button" type="button" :disabled="!hasResults||isLoading" v-show="selectedReport.canExcel" v-on:click="exportReport('xlsx')">Excel</button></div>
 </section>
 <section class="panel query-panel">
     <div>

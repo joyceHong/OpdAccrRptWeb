@@ -24,7 +24,7 @@
                     </label>
                 </fieldset>
                 <div class="form-actions">
-                    <button class="primary-button" type="submit" :disabled="loading || !businessDate">執行作業</button>
+                    <button class="primary-button" type="submit" v-show="selectedReport.canRebuild" :disabled="loading || !businessDate">執行作業</button>
                 </div>
             </form>
         </section>
@@ -39,7 +39,7 @@
                 </label>
                 <div class="form-actions">
                     <button type="button" class="ghost-button" v-on:click="cancelConfirmation">取消</button>
-                    <button type="button" class="primary-button" v-on:click="runConfirmed" :disabled="loading">依確認內容執行</button>
+                    <button type="button" class="primary-button" v-show="selectedReport.canRebuild" v-on:click="runConfirmed" :disabled="loading">依確認內容執行</button>
                 </div>
             </div>
         </section>

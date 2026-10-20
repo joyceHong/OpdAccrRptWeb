@@ -8,13 +8,33 @@
 
 ### Requirement: Primary report categories
 
-系統 SHALL 在頁面上方提供「門診批價統計報表」、「醫務統計報表」及「資料查詢」三個主要功能分類。
+The system SHALL present four primary categories in the top navigation, in this order: `門診批價統計報表`, `醫務統計報表`, `資料查詢`, and `SAP介接作業`.
 
 #### Scenario: Switch primary category
 
-- **WHEN** 使用者選擇一個主要功能分類
-- **THEN** 系統 SHALL 將該分類設為目前分類
-- **AND** 左側選單 SHALL 顯示該分類所屬的報表群組與報表
+- **WHEN** a user selects a primary category
+- **THEN** the system SHALL activate that category
+- **AND** the sidebar SHALL display only the groups and entries belonging to that category
+
+#### Scenario: Open SAP interface category
+
+- **WHEN** a user selects `SAP介接作業` in the top navigation
+- **THEN** the system SHALL activate `SAP介接作業` and select the SAP intermediate-table operation
+- **AND** the system SHALL display the SAP operation workspace and a breadcrumb identifying `SAP介接作業` and `SAP 中介表作業`
+
+#### Scenario: Open the existing SAP route directly
+
+- **WHEN** a user opens or refreshes `/sap-interface`
+- **THEN** the system SHALL activate `SAP介接作業` and select the SAP intermediate-table operation in the sidebar
+- **AND** the system SHALL display the same SAP operation workspace
+
+
+<!-- @trace
+source: move-sap-interface-to-primary-menu
+updated: 2026-10-19
+code:
+  - scripts/sql/create-opd-accrreport-permission.sql
+-->
 
 ---
 ### Requirement: Hierarchical report menu

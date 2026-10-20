@@ -2,7 +2,6 @@ using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Models;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
-using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -14,9 +13,12 @@ Log.Logger = FileLoggingConfiguration.CreateLogger(
 builder.Host.UseSerilog();
 
 // Add services to the container.
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
+builder.Services.AddAuthentication(DefaultUserAuthenticationHandler.SchemeName)
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+        DefaultUserAuthenticationHandler>(DefaultUserAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+    options.Filters.AddService<ReportQueryPermissionFilter>());
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IOpdPriceTokenService, OpdPriceTokenService>();
 builder.Services.AddHttpContextAccessor();
@@ -36,6 +38,11 @@ builder.Services
     .AddOptions<RegistrationQueryOptions>()
     .Bind(builder.Configuration.GetSection(RegistrationQueryOptions.SectionName));
 builder.Services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
+builder.Services.AddScoped<IReportPermissionRepository, ReportPermissionRepository>();
+builder.Services.AddScoped<IReportPermissionService, ReportPermissionService>();
+builder.Services.AddScoped<ReportPermissionManagerFilter>();
+builder.Services.AddScoped<ReportPermissionAdministrationService>();
+builder.Services.AddScoped<ReportQueryPermissionFilter>();
 builder.Services.AddSingleton<IHealthCenterRepository, HealthCenterRepository>();
 builder.Services.AddSingleton<IReferralMemberRepository, ReferralMemberRepository>();
 builder.Services.AddSingleton<ISafeNeedleRepository, SafeNeedleRepository>();

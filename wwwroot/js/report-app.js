@@ -219,7 +219,7 @@
     reportRoutes.unshift({ path: "/medical-statistics/opd-emergency-daily", component: window.ReportComponents.M3OpdEmergencyDailyReport, meta: { reportCode: "M3" } });
     reportRoutes.unshift({ path: "/sap-interface", component: window.ReportComponents.SapInterface, meta: { reportCode: "SAP" } });
     reportRoutes.push(
-        { path: "/Report", redirect: "/Report/C1" },
+        { path: "/Report", component: unavailableReportComponent },
         { path: "/Report/:reportCode", component: unavailableReportComponent }
     );
     const router = VueRouter.createRouter({
@@ -231,11 +231,16 @@
         data() {
             return {
                 state: initialState,
-                activeCategory: initialState.categories[0],
-                selectedReport: initialState.categories[0].groups[0].reports[0],
+                activeCategory: initialState.categories[0] ?? { key: "none", name: "", groups: [] },
+                selectedReport: initialState.categories[0]?.groups[0]?.reports[0] ?? null,
                 sidebarPinned: true,
                 mobileDrawerOpen: false,
                 reportKeyword: "",
+                canManagePermissions: false,
+                showPermissionSettings: false,
+                permissionPanelLoading: false,
+                permissionPanelError: "",
+                permissionPanelHtml: "",
                 openGroups: [0],
                 toast: "",
                 toastTimer: null
@@ -269,6 +274,37 @@
             }
         },
         methods: {
+            async loadPermissionAdministration() {
+                try {
+                    const response = await fetch("/permissions/me", { credentials: "same-origin" });
+                    if (!response.ok) return;
+                    const result = await response.json();
+                    this.canManagePermissions = result.canManage === true;
+                    if (this.canManagePermissions && this.$route.query.permissionSettings === "1") {
+                        await this.openPermissionSettings();
+                    }
+                } catch {
+                    this.canManagePermissions = false;
+                }
+            },
+            async openPermissionSettings() {
+                this.showPermissionSettings = true;
+                this.closeMobileDrawer();
+                if (this.permissionPanelHtml || this.permissionPanelLoading) return;
+                this.permissionPanelLoading = true;
+                this.permissionPanelError = "";
+                try {
+                    const response = await fetch("/permissions/panel", { credentials: "same-origin" });
+                    if (!response.ok) throw new Error("無法載入權限設定，請稍後再試。");
+                    this.permissionPanelHtml = await response.text();
+                    await this.$nextTick();
+                    window.initializeReportPermissions();
+                } catch (error) {
+                    this.permissionPanelError = error.message;
+                } finally {
+                    this.permissionPanelLoading = false;
+                }
+            },
             findReport(reportCode) {
                 for (const category of this.state.categories) {
                     for (const group of category.groups) {
@@ -279,19 +315,21 @@
                 return null;
             },
             selectCategory(category) {
+                this.showPermissionSettings = false;
                 this.activeCategory = category;
                 this.openGroups = [0];
                 this.reportKeyword = "";
                 this.selectedReport = category.groups[0]?.reports[0] ?? null;
                 this.closeMobileDrawer();
                 const path = this.selectedReport ? this.reportPath(this.selectedReport) : "/Report";
-                if (this.$route.path !== path) this.$router.push(path);
+                if (this.$route.path !== path || this.$route.query.permissionSettings) this.$router.push(path);
             },
             selectReport(report) {
+                this.showPermissionSettings = false;
                 this.selectedReport = report;
                 this.closeMobileDrawer();
                 const path = this.reportPath(report);
-                if (this.$route.path !== path) this.$router.push(path);
+                if (this.$route.path !== path || this.$route.query.permissionSettings) this.$router.push(path);
             },
             reportPath(report) {
                 if (report.code === "Q1") return "/data-query/opd-price";
@@ -321,6 +359,9 @@
             toggleMobileDrawer() { this.mobileDrawerOpen = !this.mobileDrawerOpen; },
             closeMobileDrawer() { this.mobileDrawerOpen = false; },
             showToast(message) { this.toast = message; window.clearTimeout(this.toastTimer); this.toastTimer = window.setTimeout(() => { this.toast = ""; }, 3000); }
+        },
+        mounted() {
+            this.loadPermissionAdministration();
         },
         beforeUnmount() {
             window.clearTimeout(this.toastTimer);

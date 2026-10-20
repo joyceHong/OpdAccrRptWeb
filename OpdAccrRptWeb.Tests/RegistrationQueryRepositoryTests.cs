@@ -59,8 +59,8 @@ public sealed class RegistrationQueryRepositoryTests
 
         Assert.Contains("R.chOp0PMrNo IN (:MrNo0, :MrNo1)", where, StringComparison.Ordinal);
         Assert.Equal(2, command.Parameters.Count);
-        Assert.Equal("AB123", command.Parameters["MrNo0"].Value);
-        Assert.Equal("AB124", command.Parameters["MrNo1"].Value);
+        Assert.Equal("AB123".PadRight(10), command.Parameters["MrNo0"].Value);
+        Assert.Equal("AB124".PadRight(10), command.Parameters["MrNo1"].Value);
         Assert.DoesNotContain("AB123", where, StringComparison.Ordinal);
     }
 

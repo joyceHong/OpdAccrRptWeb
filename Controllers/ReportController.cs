@@ -1054,7 +1054,7 @@ public sealed class ReportController : Controller
             }
             var result = _reportExportService.Dispatch(
                 searchCondition,
-                searchCondition.ReportCode == "C141" ? User.Identity?.Name : null);
+                User.Identity?.Name);
             if (result.QueueFull)
             {
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails

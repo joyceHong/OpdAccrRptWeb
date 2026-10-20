@@ -1,0 +1,86 @@
+@model OpdAccrRptWeb.ViewModels.ReportIndexViewModel
+@using System.Text.Json
+@{
+    string catalogJson = JsonSerializer.Serialize(Model.Categories, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
+
+<div class="permission-page">
+    <div class="permission-header">
+        <div>
+            <p class="permission-kicker">門急診報表作業</p>
+            <h1>設定權限</h1>
+            <p>選擇授權對象與報表，再調整可使用的操作。</p>
+        </div>
+    </div>
+
+    <form id="permission-form">
+        @Html.AntiForgeryToken()
+        <div class="permission-fields">
+            <label>授權類型
+                <select id="permission-target-type">
+                    <option value="0">管理者帳號</option>
+                    <option value="1">使用者部門</option>
+                    <option value="2">個人帳號</option>
+                </select>
+            </label>
+            <label>授權對象
+                <input id="permission-target" maxlength="10" required autocomplete="off" />
+            </label>
+            <button id="permission-load" type="button">讀取既有設定</button>
+        </div>
+
+        <div class="permission-fields">
+            <label>報表
+                <select id="permission-report"></select>
+            </label>
+        </div>
+
+        <fieldset class="permission-actions">
+            <legend>允許的操作</legend>
+            <label><input id="permission-query" type="checkbox" checked /> 查詢</label>
+            <label><input id="permission-excel" type="checkbox" checked /> Excel 匯出</label>
+            <label><input id="permission-print" type="checkbox" checked /> 列印</label>
+            <label><input id="permission-rebuild" type="checkbox" /> 重建</label>
+        </fieldset>
+        <button type="submit">儲存設定</button>
+        <p id="permission-message" role="status" aria-live="polite"></p>
+    </form>
+
+    <section aria-labelledby="permission-batch-title">
+        <h2 id="permission-batch-title">批次套用</h2>
+        <p>使用上方的授權對象與操作勾選，選取多個報表後先預覽。</p>
+        <label for="permission-batch-reports">選取報表</label>
+        <select id="permission-batch-reports" multiple size="10"></select>
+        <div class="permission-fields">
+            <button id="permission-batch-preview" type="button">預覽異動</button>
+            <button id="permission-batch-apply" type="button" disabled>確認批次儲存</button>
+        </div>
+        <ul id="permission-batch-changes"></ul>
+    </section>
+
+    <section aria-labelledby="permission-existing-title">
+        <h2 id="permission-existing-title">既有設定</h2>
+        <ul id="permission-existing"></ul>
+    </section>
+
+    <section aria-labelledby="permission-copy-title">
+        <h2 id="permission-copy-title">複製管理者設定</h2>
+        <div class="permission-fields">
+            <label>來源管理者帳號
+                <input id="permission-copy-source" maxlength="10" autocomplete="off" />
+            </label>
+            <label>目標管理者帳號
+                <input id="permission-copy-target" maxlength="10" autocomplete="off" />
+            </label>
+            <button id="permission-copy-load" type="button">讀取來源設定</button>
+        </div>
+        <div id="permission-copy-options"></div>
+        <div class="permission-fields">
+            <button id="permission-copy-preview" type="button">預覽複製</button>
+            <button id="permission-copy-apply" type="button" disabled>確認複製</button>
+        </div>
+        <ul id="permission-copy-changes"></ul>
+    </section>
+</div>
+
+<script id="permission-catalog" type="application/json">@Html.Raw(catalogJson)</script>

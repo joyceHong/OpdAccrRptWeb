@@ -115,6 +115,20 @@ public sealed class ReportPermissionServiceTests
         IReadOnlyList<ReportPermissionUser> users,
         IReadOnlyList<ReportPermissionGrant> grants) : IReportPermissionRepository
     {
+        public Task<PermissionGrantRecordPage> FindActiveGrantPageAsync(
+            IReadOnlyList<string> categoryCodes, IReadOnlyList<string> matchingNameCodes,
+            string search, int page, int pageSize, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<PermissionTargetListPage> FindActiveTargetPageAsync(
+            IReadOnlyList<string> categoryCodes, IReadOnlyList<string> matchingNameCodes,
+            string search, int page, int pageSize, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<IReadOnlyList<PermissionTargetOption>> SearchTargetsAsync(
+            int targetType, string search, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public int GrantReadCount { get; private set; }
 
         public Task<IReadOnlyList<ReportPermissionUser>> FindUsersAsync(
@@ -139,6 +153,22 @@ public sealed class ReportPermissionServiceTests
         public Task SaveGrantsAsync(
             int targetType, string target, IReadOnlyDictionary<string, int> reportMasks,
             string actor, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task SaveGrantsIfUnchangedAsync(
+            int targetType, string target, IReadOnlyList<PermissionChangeItem> grants,
+            string actor, CancellationToken cancellationToken = default,
+            string? sourceUserId = null) =>
+            throw new NotImplementedException();
+
+        public Task RevokeGrantIfUnchangedAsync(
+            PermissionRevokeRequest request, string actor,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task RevokeTargetIfUnchangedAsync(
+            PermissionDeleteTargetRequest request, string actor,
+            CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
     }
 }

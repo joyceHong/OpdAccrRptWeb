@@ -6,6 +6,45 @@ namespace OpdAccrRptWeb.Tests;
 public sealed class ReportPermissionRepositoryTests
 {
     [Fact]
+    public void GrantListSourceUsesActiveRowsAndJoinedTargetNames()
+    {
+        Assert.Contains("grantRow.VCHSTAT IS NULL", ReportPermissionRepository.ActiveGrantSourceSql);
+        Assert.Contains("RTRIM(chUserName)", ReportPermissionRepository.ActiveGrantSourceSql);
+        Assert.Contains("NVL(p.CHPLANAME, s.CHSECNAME)",
+            ReportPermissionRepository.ActiveGrantSourceSql);
+    }
+
+    [Fact]
+    public void TargetListGroupsGrantsByTypeAndCodeBeforePagination()
+    {
+        string sql = ReportPermissionRepository.BuildTargetGroupSql(
+            ReportPermissionRepository.ActiveGrantSourceSql);
+
+        Assert.Contains("grantRow.VCHSTAT IS NULL", sql);
+        Assert.Contains("COUNT(DISTINCT grantRow.NMENUCODE) AS ReportCount", sql);
+        Assert.Contains("GROUP BY grantRow.NPERMISSIONTYPE, RTRIM(grantRow.VCHPERMISSIONTARGET)", sql);
+        Assert.DoesNotContain("ROW_NUMBER()", sql);
+    }
+
+    [Fact]
+    public void TargetQueriesUseActivePeopleAndCombinedDepartmentCodes()
+    {
+        using var connection = new OracleConnection();
+        using OracleCommand people = ReportPermissionRepository.CreateSearchTargetsCommand(
+            connection, 2, "E100");
+        using OracleCommand departments = ReportPermissionRepository.CreateSearchTargetsCommand(
+            connection, 1, "0691");
+
+        Assert.Contains("vchStatus = 1", people.CommandText);
+        Assert.Contains("vchStatus = 1", ReportPermissionRepository.ValidatePersonSql);
+        Assert.Contains("FULL OUTER JOIN", departments.CommandText);
+        Assert.Contains("NVL(p.CHPLANO, s.CHSECNO)", departments.CommandText);
+        Assert.Contains("CHPLAWORK = '1'", departments.CommandText);
+        Assert.Contains("FULL OUTER JOIN", ReportPermissionRepository.ValidateDepartmentSql);
+        Assert.Equal("%0691%", departments.Parameters["Search"].Value);
+    }
+
+    [Fact]
     public void LoginLookupBindsTheFullAuthenticatedName()
     {
         using var connection = new OracleConnection();

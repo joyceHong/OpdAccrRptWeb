@@ -13,8 +13,68 @@
         </div>
     </div>
 
+    <div class="permission-toolbar" aria-label="權限列表控制列">
+        <label class="permission-search-label" for="permission-list-search">搜尋權限
+            <input id="permission-list-search" type="search" placeholder="報表名稱、代碼、人員或單位" autocomplete="off" />
+        </label>
+        <label for="permission-list-category">篩選模組
+            <select id="permission-list-category">
+                <option value="">全部模組</option>
+                @foreach (var category in Model.Categories)
+                {
+                    <option value="@category.Key">@category.Name</option>
+                }
+            </select>
+        </label>
+        <button id="permission-list-clear" type="button" class="permission-quiet-button">清除篩選</button>
+        <button id="permission-add" type="button" class="permission-primary-button">＋ 新增權限</button>
+        <button id="permission-copy-open" type="button" class="permission-primary-button">⧉ 複製權限</button>
+    </div>
+
+    <section class="permission-list-card" aria-labelledby="permission-list-title">
+        <div class="permission-list-heading">
+            <div>
+                <h2 id="permission-list-title">權限列表</h2>
+                <p>依授權對象檢視及維護報表授權。</p>
+            </div>
+            <span id="permission-list-total" aria-live="polite"></span>
+        </div>
+        <p id="permission-list-status" role="status" aria-live="polite">載入中…</p>
+        <div class="permission-table-scroll">
+            <table class="permission-table">
+                <thead>
+                    <tr>
+                        <th scope="col">授權類型</th><th scope="col">人員或單位</th>
+                        <th scope="col">已授權報表</th>
+                        <th scope="col">修改人員／時間</th>
+                        <th scope="col">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="permission-list-body"></tbody>
+            </table>
+        </div>
+        <div class="pagination permission-list-footer" hidden>
+            <span id="permission-list-range"></span>
+            <div class="permission-page-buttons">
+                <button id="permission-list-first" type="button" aria-label="第一頁">‹‹</button>
+                <button id="permission-list-prev" type="button" aria-label="上一頁">‹</button>
+                <button id="permission-list-page" type="button" class="active" aria-current="page"></button>
+                <button id="permission-list-next" type="button" aria-label="下一頁">›</button>
+                <button id="permission-list-last" type="button" aria-label="最後一頁">››</button>
+            </div>
+        </div>
+    </section>
+
+    <dialog id="permission-editor-dialog" class="permission-dialog permission-editor-dialog" aria-labelledby="permission-editor-title">
     <form id="permission-form">
         @Html.AntiForgeryToken()
+        <div class="permission-editor-heading">
+            <div>
+                <h2 id="permission-editor-title">新增權限</h2>
+                <p>選擇授權對象、報表及可使用的操作。</p>
+            </div>
+            <button id="permission-editor-close" type="button" class="permission-quiet-button" aria-label="關閉權限編輯">關閉</button>
+        </div>
         <div class="permission-fields">
             <label>授權類型
                 <select id="permission-target-type">
@@ -24,16 +84,21 @@
                 </select>
             </label>
             <label>授權對象
-                <input id="permission-target" maxlength="10" required autocomplete="off" />
+                <span class="permission-target-combobox">
+                <input id="permission-target" maxlength="100" required autocomplete="off"
+                       role="combobox" aria-autocomplete="list" aria-expanded="false"
+                       aria-controls="permission-target-options" />
+                <span id="permission-target-options" class="permission-target-options" role="listbox" aria-label="授權對象搜尋結果"></span>
+                </span>
             </label>
-            <button id="permission-load" type="button">讀取既有設定</button>
         </div>
+        <p id="permission-target-hint" class="permission-hint" role="status" aria-live="polite">輸入至少兩個字，並從清單中選取。</p>
 
-        <div class="permission-fields">
-            <label>報表
-                <select id="permission-report"></select>
-            </label>
+        <div class="permission-module-heading">
+            <h3>選擇報表</h3>
+            <p>依模組或小群勾選；已授權的報表會預先勾選，取消勾選將撤銷授權。</p>
         </div>
+        <div id="permission-module-list" class="permission-module-list"></div>
 
         <fieldset class="permission-actions">
             <legend>允許的操作</legend>
@@ -42,29 +107,21 @@
             <label><input id="permission-print" type="checkbox" checked /> 列印</label>
             <label><input id="permission-rebuild" type="checkbox" /> 重建</label>
         </fieldset>
-        <button type="submit">儲存設定</button>
+        <div class="permission-editor-actions">
+            <button id="permission-preset-read" type="button" class="permission-quiet-button">僅讀取範例</button>
+            <button id="permission-preset-manager" type="button" class="permission-quiet-button">管理者範例</button>
+            <button id="permission-save" type="submit">儲存</button>
+        </div>
         <p id="permission-message" role="status" aria-live="polite"></p>
     </form>
+    </dialog>
 
-    <section aria-labelledby="permission-batch-title">
-        <h2 id="permission-batch-title">批次套用</h2>
-        <p>使用上方的授權對象與操作勾選，選取多個報表後先預覽。</p>
-        <label for="permission-batch-reports">選取報表</label>
-        <select id="permission-batch-reports" multiple size="10"></select>
-        <div class="permission-fields">
-            <button id="permission-batch-preview" type="button">預覽異動</button>
-            <button id="permission-batch-apply" type="button" disabled>確認批次儲存</button>
-        </div>
-        <ul id="permission-batch-changes"></ul>
-    </section>
-
-    <section aria-labelledby="permission-existing-title">
-        <h2 id="permission-existing-title">既有設定</h2>
-        <ul id="permission-existing"></ul>
-    </section>
-
-    <section aria-labelledby="permission-copy-title">
+    <dialog id="permission-copy-dialog" class="permission-dialog permission-copy-dialog" aria-labelledby="permission-copy-title">
+        <div class="permission-editor-heading">
         <h2 id="permission-copy-title">複製管理者設定</h2>
+        <button id="permission-copy-close" type="button" class="permission-quiet-button" aria-label="關閉複製權限">關閉</button>
+        </div>
+        <p>從另一位管理者複製選取的報表授權；儲存前會列出新增與移除的操作。</p>
         <div class="permission-fields">
             <label>來源管理者帳號
                 <input id="permission-copy-source" maxlength="10" autocomplete="off" />
@@ -80,7 +137,19 @@
             <button id="permission-copy-apply" type="button" disabled>確認複製</button>
         </div>
         <ul id="permission-copy-changes"></ul>
-    </section>
+        <p id="permission-copy-message" role="status" aria-live="polite"></p>
+    </dialog>
+    <dialog id="permission-delete-dialog" class="permission-dialog" aria-labelledby="permission-delete-title">
+        <h2 id="permission-delete-title">刪除所有權限？</h2>
+        <p id="permission-delete-description"></p>
+        <p>確認後將刪除此對象的所有報表權限。</p>
+        <p id="permission-delete-warning" class="permission-revoke-warning" hidden>若這是本人最後一筆管理者授權，刪除後將無法再進入權限管理。</p>
+        <p id="permission-delete-message" role="status" aria-live="polite"></p>
+        <div class="permission-dialog-actions">
+            <button id="permission-delete-cancel" type="button" class="permission-quiet-button">取消</button>
+            <button id="permission-delete-confirm" type="button" class="permission-delete-button">確認刪除</button>
+        </div>
+    </dialog>
 </div>
 
 <script id="permission-catalog" type="application/json">@Html.Raw(catalogJson)</script>

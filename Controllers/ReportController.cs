@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Options;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
@@ -20,9 +19,7 @@ public sealed class ReportController : Controller
     private readonly IReportExportService _reportExportService;
     private readonly ILogger<ReportController> _logger;
     private readonly IC21AccountingSummaryRepository? _c21Repository;
-    private readonly IOptions<C21Options>? _c21Options;
     private readonly IC23ContractAccountingRepository? _c23Repository;
-    private readonly IOptions<C23Options>? _c23Options;
     private readonly IC211ContractBalanceRepository? _c211Repository;
     private readonly IC12ReportService? _c12ReportService;
     private readonly IC12ReportRepository? _c12Repository;
@@ -38,9 +35,7 @@ public sealed class ReportController : Controller
         IReportExportService reportExportService,
         ILogger<ReportController> logger,
         IC21AccountingSummaryRepository? c21Repository = null,
-        IOptions<C21Options>? c21Options = null,
         IC23ContractAccountingRepository? c23Repository = null,
-        IOptions<C23Options>? c23Options = null,
         IC211ContractBalanceRepository? c211Repository = null,
         IC12ReportService? c12ReportService = null,
         IC13HighRiskEmergencyReportService? c13ReportService = null,
@@ -55,9 +50,7 @@ public sealed class ReportController : Controller
         _reportExportService = reportExportService;
         _logger = logger;
         _c21Repository = c21Repository;
-        _c21Options = c21Options;
         _c23Repository = c23Repository;
-        _c23Options = c23Options;
         _c211Repository = c211Repository;
         _c12ReportService = c12ReportService;
         _c12Repository = c12Repository;
@@ -84,8 +77,6 @@ public sealed class ReportController : Controller
         }
 
         ReportIndexViewModel viewModel = _reportCatalogService.GetReportIndex();
-        viewModel.C21RebuildEnabled = _c21Options?.Value.RebuildEnabled ?? false;
-        viewModel.C23RebuildEnabled = _c23Options?.Value.RebuildEnabled ?? false;
         return View(viewModel);
     }
 
@@ -850,8 +841,6 @@ public sealed class ReportController : Controller
         condition.ContractCode = string.IsNullOrWhiteSpace(condition.ContractCode) ? null : condition.ContractCode.Trim();
         if (condition.ForceRebuild && (condition.DateMode != C23DateModes.General || startDate != endDate))
             return BadRequest("C23 手動重建僅適用於一般模式單日查詢。");
-        if (condition.ForceRebuild && !(_c23Options?.Value.RebuildEnabled ?? false))
-            return BadRequest("C23 手動重建功能未開放。");
         return null;
     }
 
@@ -1243,6 +1232,8 @@ public sealed class ReportController : Controller
 
     private BadRequestObjectResult? ValidateC22Condition(SearchReportCondition searchCondition)
     {
+        if (searchCondition.ForceRebuild)
+            return BadRequest("C22 櫃員現金表沒有重建功能。");
         if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
             || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
         {

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using OpdAccrRptWeb.Help;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
@@ -13,18 +13,27 @@ public sealed class C23RebuildServiceTests
     public void EnsureData_MissingIntermediateDataRunsAutomaticRebuild()
     {
         var repository = new FakeRepository();
-        var service = Create(repository, enabled: false);
+        var service = Create(repository);
         Assert.True(service.EnsureData(Condition()));
         Assert.Equal("1150908", repository.RebuiltDate);
     }
 
     [Fact]
-    public void EnsureData_DisabledForcedRequestPerformsNoDml()
+    public void EnsureData_ForcedRequestUsesValidIdentity()
     {
         var repository = new FakeRepository { HasData = true };
         var condition = Condition();
         condition.ForceRebuild = true;
-        Assert.Throws<C23RebuildForbiddenException>(() => Create(repository, enabled: false).EnsureData(condition));
+        Assert.True(Create(repository).EnsureData(condition));
+        Assert.Equal("1150908", repository.RebuiltDate);
+    }
+
+    [Fact]
+    public void EnsureData_MissingDefaultLoginIdentityDeniesRequiredRebuild()
+    {
+        var repository = new FakeRepository();
+
+        Assert.Throws<C23RebuildForbiddenException>(() => Create(repository, null).EnsureData(Condition()));
         Assert.Null(repository.RebuiltDate);
     }
 
@@ -37,17 +46,20 @@ public sealed class C23RebuildServiceTests
         var condition = Condition();
         condition.DateMode = mode;
         condition.EndDate = endDate;
-        Assert.False(Create(repository, enabled: true).EnsureData(condition));
+        Assert.False(Create(repository).EnsureData(condition));
         Assert.Null(repository.RebuiltDate);
     }
 
-    private static C23RebuildService Create(FakeRepository repository, bool enabled)
+    private static C23RebuildService Create(FakeRepository repository, string? userId = "C23-USER")
     {
-        var identity = new ConfiguredC23UserIdentityProvider(Options.Create(new C23Options { CurrentUserId = "C23-USER" }));
-        var auth = new C23RebuildAuthorizationService(identity, Options.Create(new C23Options
-        {
-            CurrentUserId = "C23-USER", RebuildEnabled = enabled
-        }));
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DefaultLogin:UserId"] = userId
+            })
+            .Build();
+        var identity = new DefaultLoginRebuildUserIdentityProvider(configuration);
+        var auth = new C23RebuildAuthorizationService(identity);
         return new(repository, auth, identity, NullLogger<C23RebuildService>.Instance);
     }
 

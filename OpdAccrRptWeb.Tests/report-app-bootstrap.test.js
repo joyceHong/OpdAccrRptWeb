@@ -6,6 +6,8 @@ const source = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
 const indexMarkup = fs.readFileSync("Views/Report/Index.cshtml", "utf8");
 const routesSeen = [];
 let mounted = false;
+let appOptions;
+let assignedPath;
 const initialState = {
     categories: [{ key: "outpatient", name: "Reports", groups: [{ name: "Group", reports: [{ code: "C1", name: "One" }] }] }],
     defaultStartDate: "2026-09-30",
@@ -30,10 +32,11 @@ const window = {
         RegistrationQuery: reportTemplate
     },
     clearTimeout() {},
-    setTimeout() {}
+    setTimeout() {},
+    location: { assign(path) { assignedPath = path; } }
 };
 const document = { getElementById() { return { textContent: JSON.stringify(initialState) }; } };
-const Vue = { createApp() { return { directive(name, implementation) {
+const Vue = { createApp(options) { appOptions = options; return { directive(name, implementation) {
     assert.equal(name, "report-query-collapse");
     assert.equal(typeof implementation.mounted, "function");
     return this;
@@ -50,9 +53,15 @@ const VueRouter = {
 vm.runInNewContext(source, { window, document, Vue, VueRouter });
 
 assert.equal(mounted, true);
+const navigation = {
+    permissionsDirty: true,
+    reportPath: appOptions.methods.reportPath
+};
+appOptions.methods.selectReport.call(navigation, { code: "C21" });
+assert.equal(assignedPath, "/Report/C21");
 assert.ok(routesSeen.some(route => route.path === "/Report/C1"));
 assert.ok(routesSeen.some(route => route.path === "/Report/C141" && route.meta.reportCode === "C141"));
-assert.ok(routesSeen.some(route => route.path === "/Report" && route.redirect === "/Report/C1"));
+assert.ok(routesSeen.some(route => route.path === "/Report" && route.component));
 assert.ok(routesSeen.some(route => route.path === "/medical-statistics/doctor-daily"));
 assert.ok(routesSeen.some(route => route.path === "/data-query/opd-price"));
 assert.doesNotMatch(indexMarkup, /<template>\s*<div class="breadcrumb">/, "router view must not be hidden inside an inert template element");

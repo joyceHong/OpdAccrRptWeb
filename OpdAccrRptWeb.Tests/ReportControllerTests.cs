@@ -107,28 +107,19 @@ public sealed class ReportControllerTests
         Assert.Equal("/Report/C1", result.Url);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Index_ProjectsOnlyC21RebuildCapabilityFromConfiguration(bool rebuildEnabled)
+    [Fact]
+    public void GetReportData_C22ForcedRebuild_IsRejectedBeforeService()
     {
-        var options = Options.Create(new C21Options
+        var service = new CountingReportService();
+        var controller = CreateController(service, new CapturingLogger<ReportController>());
+        var result = controller.GetReportData(new SearchReportCondition
         {
-            CurrentUserId = "C21-SECRET",
-            RebuildEnabled = rebuildEnabled
+            ReportCode = "C22", StartDate = "2026-09-08", EndDate = "2026-09-08",
+            ForceRebuild = true
         });
-        var controller = new ReportController(
-            new FakeReportCatalogService(),
-            new CountingReportService(),
-            new FakeReportExportService(),
-            new CapturingLogger<ReportController>(),
-            c21Options: options);
 
-        var result = Assert.IsType<ViewResult>(controller.Index("C1"));
-        var model = Assert.IsType<ReportIndexViewModel>(result.Model);
-
-        Assert.Equal(rebuildEnabled, model.C21RebuildEnabled);
-        Assert.DoesNotContain("C21-SECRET", System.Text.Json.JsonSerializer.Serialize(model));
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(0, service.Calls);
     }
 
     [Theory]
@@ -1402,7 +1393,7 @@ public sealed class ReportControllerTests
     }
 
     [Fact]
-    public void GetReportData_DisabledC23ForcedRebuild_IsRejectedBeforeService()
+    public void GetReportData_ValidC23ForcedRebuild_ReachesService()
     {
         var service = new CountingReportService();
         var controller = CreateController(service, new CapturingLogger<ReportController>());
@@ -1412,8 +1403,8 @@ public sealed class ReportControllerTests
             EncounterSource = C23EncounterSources.Outpatient, DateMode = C23DateModes.General,
             ForceRebuild = true
         });
-        Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal(0, service.Calls);
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(1, service.Calls);
     }
 
     [Fact]

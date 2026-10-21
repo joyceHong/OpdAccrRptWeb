@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using OpdAccrRptWeb.Help;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
@@ -13,7 +13,7 @@ public sealed class C21RebuildServiceTests
     public void EnsureData_ZeroRoom23RowsRunsRebuildWithRocDate()
     {
         var repository = new FakeRepository { HasData = false };
-        var service = Create(repository, "C21-DEMO", rebuildEnabled: false);
+        var service = Create(repository, "C21-DEMO");
 
         Assert.True(service.EnsureData(Condition()));
         Assert.Equal("1150908", repository.RebuiltDate);
@@ -32,7 +32,7 @@ public sealed class C21RebuildServiceTests
     }
 
     [Fact]
-    public void EnsureData_MissingConfiguredIdentityDeniesRequiredRebuild()
+    public void EnsureData_MissingDefaultLoginIdentityDeniesRequiredRebuild()
     {
         var repository = new FakeRepository { HasData = false };
         var service = Create(repository, null);
@@ -42,22 +42,22 @@ public sealed class C21RebuildServiceTests
     }
 
     [Fact]
-    public void EnsureData_DisabledManualRebuildDeniesForcedRequestWithoutDml()
+    public void EnsureData_ManualRebuildUsesValidIdentity()
     {
         var repository = new FakeRepository { HasData = true };
-        var service = Create(repository, "C21-DEMO", rebuildEnabled: false);
+        var service = Create(repository, "C21-DEMO");
         var condition = Condition();
         condition.ForceRebuild = true;
 
-        Assert.Throws<C21RebuildForbiddenException>(() => service.EnsureData(condition));
-        Assert.Null(repository.RebuiltDate);
+        Assert.True(service.EnsureData(condition));
+        Assert.Equal("1150908", repository.RebuiltDate);
     }
 
     [Fact]
     public void EnsureData_MissingIdentityDeniesForcedRequestWithoutDml()
     {
         var repository = new FakeRepository { HasData = true };
-        var service = Create(repository, null, rebuildEnabled: true);
+        var service = Create(repository, null);
         var condition = Condition();
         condition.ForceRebuild = true;
 
@@ -67,17 +67,16 @@ public sealed class C21RebuildServiceTests
 
     private static C21RebuildService Create(
         FakeRepository repository,
-        string? userId,
-        bool rebuildEnabled = true)
+        string? userId)
     {
-        var identity = new ConfiguredC21UserIdentityProvider(
-            Options.Create(new C21Options { CurrentUserId = userId }));
-        return new(repository, new C21RebuildAuthorizationService(identity,
-                Options.Create(new C21Options
-                {
-                    CurrentUserId = userId,
-                    RebuildEnabled = rebuildEnabled
-                })), identity,
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DefaultLogin:UserId"] = userId
+            })
+            .Build();
+        var identity = new DefaultLoginRebuildUserIdentityProvider(configuration);
+        return new(repository, new C21RebuildAuthorizationService(identity), identity,
             NullLogger<C21RebuildService>.Instance);
     }
 

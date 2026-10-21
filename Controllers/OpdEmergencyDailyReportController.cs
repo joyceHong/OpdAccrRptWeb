@@ -26,8 +26,7 @@ public sealed class OpdEmergencyDailyReportController(
             .AddDays(-1).ToString("yyyy-MM-dd");
         return View("~/Views/Report/Index.cshtml", new ReportIndexViewModel
         {
-            Categories = source.Categories, DefaultStartDate = yesterday, DefaultEndDate = yesterday,
-            C21RebuildEnabled = source.C21RebuildEnabled, C23RebuildEnabled = source.C23RebuildEnabled
+            Categories = source.Categories, DefaultStartDate = yesterday, DefaultEndDate = yesterday
         });
     }
 

@@ -167,16 +167,15 @@ builder.Services.AddSingleton<IC24CanonicalResultRenderer, C24HtmlRenderer>();
 builder.Services.AddSingleton<IC24CanonicalResultRenderer, C24JsonRenderer>();
 builder.Services.AddSingleton<IC24CanonicalResultRenderer, C24PdfRenderer>();
 builder.Services.AddSingleton<IC24CanonicalResultRenderer, C24XlsxRenderer>();
-builder.Services.AddSingleton<IC21UserIdentityProvider, ConfiguredC21UserIdentityProvider>();
+builder.Services.AddSingleton<DefaultLoginRebuildUserIdentityProvider>();
+builder.Services.AddSingleton<IC21UserIdentityProvider>(provider =>
+    provider.GetRequiredService<DefaultLoginRebuildUserIdentityProvider>());
 builder.Services.AddSingleton<IC21RebuildAuthorizationService, C21RebuildAuthorizationService>();
 builder.Services.AddSingleton<IC21RebuildService, C21RebuildService>();
-builder.Services.AddOptions<C21Options>()
-    .Bind(builder.Configuration.GetSection(C21Options.SectionName));
-builder.Services.AddSingleton<IC23UserIdentityProvider, ConfiguredC23UserIdentityProvider>();
+builder.Services.AddSingleton<IC23UserIdentityProvider>(provider =>
+    provider.GetRequiredService<DefaultLoginRebuildUserIdentityProvider>());
 builder.Services.AddSingleton<IC23RebuildAuthorizationService, C23RebuildAuthorizationService>();
 builder.Services.AddSingleton<IC23RebuildService, C23RebuildService>();
-builder.Services.AddOptions<C23Options>()
-    .Bind(builder.Configuration.GetSection(C23Options.SectionName));
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddSingleton<IReportCatalogService, ReportCatalogService>();
 builder.Services.AddSingleton<IReportExportJobStore, ReportExportJobStore>();

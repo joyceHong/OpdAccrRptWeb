@@ -29,9 +29,7 @@ public sealed class DoctorDailyReportController(
         {
             Categories = source.Categories,
             DefaultStartDate = yesterday.ToString("yyyy-MM-dd"),
-            DefaultEndDate = yesterday.ToString("yyyy-MM-dd"),
-            C21RebuildEnabled = source.C21RebuildEnabled,
-            C23RebuildEnabled = source.C23RebuildEnabled
+            DefaultEndDate = yesterday.ToString("yyyy-MM-dd")
         });
     }
 

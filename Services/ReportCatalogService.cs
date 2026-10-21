@@ -18,7 +18,8 @@ public sealed class ReportCatalogService : IReportCatalogService
                 Category("outpatient", "門診批價統計報表",
                     Group("門診批價統計報表", Report("C1", "門急診手術核帳表")),
                     Group("會計報表",
-                        Report("C21", "批價會計總表"), Report("C22", "櫃員現金表"),
+                        Report("C21", "批價會計總表"), new ReportDefinitionViewModel
+                        { Code = "C22", Name = "櫃員現金表", CanRebuild = false },
                         Report("C23", "合約單位記帳表"), Report("C24", "欠繳補繳核帳表"),
                         Report("C25", "住院預收醫療費餘額明細表（月報）"), Report("C27", "輔具保證金餘額明細表（月報）"),
                         Report("C28", "住院應收帳款餘額明細表（月報）"), Report("C29", "合約單位收款明細表"),

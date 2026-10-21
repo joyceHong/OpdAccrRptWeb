@@ -188,7 +188,7 @@ async function verifiesC21SourceScopesPayloadAndWebOnlyMarkup() {
     await component.methods.fetchResults.call(context);
     assert.equal(request.encounterSource, "Outpatient");
     assert.equal(request.accountingScope, 0);
-    assert.equal(request.forceRebuild, false);
+    assert.equal(request.forceRebuild, undefined);
 
     context.form.encounterSource = "Inpatient";
     component.methods.changeEncounterSource.call(context);
@@ -224,10 +224,10 @@ function verifiesC213UsesSharedComponentWithoutAdvancedConditionsAndWithExport()
     assert.equal(componentFiles.some(file => /c213/i.test(file)), false);
 }
 
-function verifiesC21RebuildVisibilityFollowsServerCapabilityAndQueryBoundary() {
+function verifiesRebuildVisibilityFollowsPermissionAndQueryBoundary() {
     const canForce = component.computed.canForceC21Rebuild;
     const singleDayInpatient = {
-        c21RebuildEnabled: false,
+        selectedReport: { canRebuild: false },
         isC21: true,
         form: {
             encounterSource: "Inpatient",
@@ -237,20 +237,36 @@ function verifiesC21RebuildVisibilityFollowsServerCapabilityAndQueryBoundary() {
     };
 
     assert.equal(canForce.call(singleDayInpatient), false);
-    assert.equal(canForce.call({ ...singleDayInpatient, c21RebuildEnabled: true }), true);
+    assert.equal(canForce.call({ ...singleDayInpatient, selectedReport: { canRebuild: true } }), true);
     assert.equal(canForce.call({
         ...singleDayInpatient,
-        c21RebuildEnabled: true,
+        selectedReport: { canRebuild: true },
         form: { ...singleDayInpatient.form, endDate: "2026-09-09" }
     }), false);
     assert.equal(canForce.call({
         ...singleDayInpatient,
-        c21RebuildEnabled: true,
+        selectedReport: { canRebuild: true },
         form: { ...singleDayInpatient.form, encounterSource: "Outpatient" }
     }), false);
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    assert.match(markup, /v-if="selectedReport\.canRebuild" class="source-option"[\s\S]*?:disabled="!canForceC21Rebuild"/);
+    assert.match(markup, /限住院單日/);
+    const watcherState = { form: { forceRebuild: true } };
+    component.watch.canForceC21Rebuild.call(watcherState, false);
+    assert.equal(watcherState.form.forceRebuild, false);
+
+    const canForceC23 = component.computed.canForceC23Rebuild;
+    const c23 = {
+        isC23: true, selectedReport: { canRebuild: false },
+        form: { dateMode: "General", startDate: "2026-09-08", endDate: "2026-09-08" }
+    };
+    assert.equal(canForceC23.call(c23), false);
+    assert.equal(canForceC23.call({ ...c23, selectedReport: { canRebuild: true } }), true);
+    assert.equal(canForceC23.call({ ...c23, selectedReport: { canRebuild: true },
+        form: { ...c23.form, dateMode: "EncounterDate" } }), false);
 
     const indexMarkup = fs.readFileSync("Views/Report/Index.cshtml", "utf8");
-    assert.match(indexMarkup, /:c21-rebuild-enabled="state\.c21RebuildEnabled"/);
+    assert.doesNotMatch(indexMarkup, /:c21-rebuild-enabled/);
     assert.doesNotMatch(indexMarkup, /currentUserId/i);
 }
 
@@ -1164,6 +1180,21 @@ function verifiesSkeletonMotionAndResponsiveStyles() {
 
 async function verifiesC24FormPayloadAndInpatientRoomReset() {
     const configuration = window.ReportConfigurations.C24;
+    const canForceRebuild = component.computed.canForceC24Rebuild;
+    const rebuildContext = {
+        isC24: true,
+        selectedReport: { code: "C24", canRebuild: false },
+        form: { mode: "Accounting", startDate: "2026-09-01", endDate: "2026-09-01" }
+    };
+    assert.equal(canForceRebuild.call(rebuildContext), false);
+    assert.equal(canForceRebuild.call({ ...rebuildContext,
+        selectedReport: { code: "C24", canRebuild: true } }), true);
+    assert.equal(canForceRebuild.call({ ...rebuildContext,
+        selectedReport: { code: "C24", canRebuild: true },
+        form: { ...rebuildContext.form, mode: "Billing" } }), false);
+    assert.equal(canForceRebuild.call({ ...rebuildContext,
+        selectedReport: { code: "C24", canRebuild: true },
+        form: { ...rebuildContext.form, endDate: "2026-09-02" } }), false);
     const c21Configuration = window.ReportConfigurations.C21;
     const initial = component.data.call({
         selectedReport: { code: "C24" }, defaultStartDate: "2026-09-01", defaultEndDate: "2026-09-03"
@@ -1180,6 +1211,7 @@ async function verifiesC24FormPayloadAndInpatientRoomReset() {
         ["OpdEr", "OpdEr", "Accounting", "All", ""]);
     initial.form.encounterSource = "Inpatient";
     initial.form.roomScope = "Emergency";
+    initial.form.forceRebuild = true;
     component.methods.changeEncounterSource.call({ ...initial, isC21: false, isC23: false, isC24: true });
     assert.equal(initial.form.source, "Inpatient");
     assert.equal(initial.form.roomScope, "All");
@@ -1217,10 +1249,26 @@ async function verifiesC24FormPayloadAndInpatientRoomReset() {
     });
     assert.equal(requestBody.source, "Inpatient");
     assert.equal(Object.hasOwn(requestBody, "encounterSource"), false);
+    assert.equal(requestBody.forceRebuild, undefined);
+
+    initial.form.endDate = initial.form.startDate;
+    await component.methods.fetchResults.call({
+        ...initial,
+        selectedReport: { code: "C24", canRebuild: true },
+        canForceC24Rebuild: true,
+        currentPage: 1, pageSize: 10, isLoading: false, hasSearched: false,
+        columns: [], rows: [], summaries: [], serverTotalCount: 0, serverTotalPages: 0,
+        validationMessage: "", hasEncounterSource: true, hasStationOrBedPrefix: false,
+        hasCashierUserId: false, hasCashierCashSort: false, hasBillingCode: false,
+        hasReceivableBalanceType: false, hasAdvancedConditions: false,
+        isEndDateOnly: false, isServerPaged: true, isC21: false, isC23: false, isC24: true
+    });
+    assert.equal(requestBody.forceRebuild, true);
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
     assert.match(markup, /v-if="isC24"/);
+    assert.match(markup, /v-if="canForceC24Rebuild" class="source-option"/);
     assert.match(markup, /v-if="hasEncounterSource"[\s\S]*?v-model="form\.encounterSource"[\s\S]*?type="radio"[\s\S]*?name="encounterSource"/);
     assert.doesNotMatch(markup, /name="c24Source"/);
     assert.doesNotMatch(markup, /<legend>資料來源 <i>\*<\/i><\/legend>/);
@@ -1681,7 +1729,7 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const preview = fs.readFileSync("Views/Report/_C13HighRiskEmergencyPreview.cshtml", "utf8");
     assert.match(appSource, /C13:\s*window\.ReportComponents\.ReportTemplate/);
-    assert.match(markup, /v-if="isC13"[\s\S]*?previewC13/);
+    assert.match(markup, /v-else-if="isC13"[\s\S]*?previewC13/);
     assert.match(markup, /v-if="hasAdvancedConditions" class="advanced-filter-toggle"/);
     assert.match(markup, /v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid"/);
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
@@ -2122,7 +2170,7 @@ verifiesC171RequestsServerPages()
     .then(verifiesC18RejectsCrossYearBeforeFetch)
     .then(verifiesServerPagingDesignation)
     .then(verifiesC21SourceScopesPayloadAndWebOnlyMarkup)
-    .then(verifiesC21RebuildVisibilityFollowsServerCapabilityAndQueryBoundary)
+    .then(verifiesRebuildVisibilityFollowsPermissionAndQueryBoundary)
     .then(verifiesC213UsesSharedComponentWithoutAdvancedConditionsAndWithExport)
     .then(verifiesC213DatePagingPayloadAndResetLifecycle)
     .then(verifiesC214SharedConfigurationPayloadTypeSwitchAndReset)

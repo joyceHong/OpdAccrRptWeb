@@ -40,4 +40,27 @@ public sealed class ReportNavigationServiceTests
 
         Assert.Empty(result.Categories);
     }
+
+    [Fact]
+    public void RebuildPermissionAppearsOnlyForReportsWithRebuildOperation()
+    {
+        ReportIndexViewModel catalog = new ReportCatalogService().GetReportIndex();
+        var permissions = new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction>
+            {
+                ["C21"] = ReportAction.Query | ReportAction.Rebuild,
+                ["C22"] = ReportAction.Query | ReportAction.Rebuild,
+                ["C23"] = ReportAction.Query,
+                ["C24"] = ReportAction.Query | ReportAction.Rebuild
+            });
+
+        ReportIndexViewModel result = ReportNavigationService.Filter(catalog, permissions);
+        var reports = result.Categories.SelectMany(category => category.Groups)
+            .SelectMany(group => group.Reports).ToDictionary(report => report.Code);
+
+        Assert.True(reports["C21"].CanRebuild);
+        Assert.False(reports["C22"].CanRebuild);
+        Assert.False(reports["C23"].CanRebuild);
+        Assert.True(reports["C24"].CanRebuild);
+    }
 }

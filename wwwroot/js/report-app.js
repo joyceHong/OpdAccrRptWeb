@@ -237,11 +237,12 @@
                 mobileDrawerOpen: false,
                 reportKeyword: "",
                 canManagePermissions: false,
+                permissionsDirty: false,
                 showPermissionSettings: false,
                 permissionPanelLoading: false,
                 permissionPanelError: "",
                 permissionPanelHtml: "",
-                openGroups: [0],
+                openGroups: initialState.categories[0]?.groups[0] ? [initialState.categories[0].groups[0].name] : [],
                 toast: "",
                 toastTimer: null
             };
@@ -261,6 +262,14 @@
             }
         },
         watch: {
+            reportKeyword() {
+                if (this.reportKeyword) {
+                    this.openGroups = this.filteredGroups.map(group => group.name);
+                    return;
+                }
+                const selectedGroup = this.activeCategory.groups.find(group => group.reports.some(report => report.code === this.selectedReport?.code));
+                this.openGroups = selectedGroup ? [selectedGroup.name] : [];
+            },
             "$route.path": {
                 immediate: true,
                 handler() {
@@ -270,10 +279,14 @@
                     if (!reportLocation) return;
                     this.activeCategory = reportLocation.category;
                     this.selectedReport = reportLocation.report;
+                    this.openGroups = this.reportKeyword ? this.filteredGroups.map(group => group.name) : [reportLocation.group.name];
                 }
             }
         },
         methods: {
+            onPermissionsChanged() {
+                this.permissionsDirty = true;
+            },
             async loadPermissionAdministration() {
                 try {
                     const response = await fetch("/permissions/me", { credentials: "same-origin" });
@@ -309,15 +322,20 @@
                 for (const category of this.state.categories) {
                     for (const group of category.groups) {
                         const report = group.reports.find(item => item.code === reportCode);
-                        if (report) return { category, report };
+                        if (report) return { category, group, report };
                     }
                 }
                 return null;
             },
             selectCategory(category) {
+                if (this.permissionsDirty) {
+                    const report = category.groups[0]?.reports[0];
+                    window.location.assign(report ? this.reportPath(report) : "/Report");
+                    return;
+                }
                 this.showPermissionSettings = false;
                 this.activeCategory = category;
-                this.openGroups = [0];
+                this.openGroups = category.groups[0] ? [category.groups[0].name] : [];
                 this.reportKeyword = "";
                 this.selectedReport = category.groups[0]?.reports[0] ?? null;
                 this.closeMobileDrawer();
@@ -325,8 +343,14 @@
                 if (this.$route.path !== path || this.$route.query.permissionSettings) this.$router.push(path);
             },
             selectReport(report) {
+                if (this.permissionsDirty) {
+                    window.location.assign(this.reportPath(report));
+                    return;
+                }
                 this.showPermissionSettings = false;
                 this.selectedReport = report;
+                const group = this.activeCategory.groups.find(item => item.reports.some(candidate => candidate.code === report.code));
+                if (group && !this.reportKeyword) this.openGroups = [group.name];
                 this.closeMobileDrawer();
                 const path = this.reportPath(report);
                 if (this.$route.path !== path || this.$route.query.permissionSettings) this.$router.push(path);
@@ -341,7 +365,15 @@
                 if (report.code === "M3") return "/medical-statistics/opd-emergency-daily";
                 return `/Report/${report.code}`;
             },
-            toggleGroup(index) { this.openGroups = this.openGroups.includes(index) ? this.openGroups.filter(value => value !== index) : [...this.openGroups, index]; },
+            toggleGroup(name) {
+                if (this.reportKeyword) {
+                    this.openGroups = this.openGroups.includes(name)
+                        ? this.openGroups.filter(group => group !== name)
+                        : [...this.openGroups, name];
+                    return;
+                }
+                this.openGroups = this.openGroups.includes(name) ? [] : [name];
+            },
             collapseAll() { this.openGroups = []; },
             togglePinnedSidebar() {
                 this.sidebarPinned = !this.sidebarPinned;
@@ -362,9 +394,11 @@
         },
         mounted() {
             this.loadPermissionAdministration();
+            window.addEventListener("report-permissions-changed", this.onPermissionsChanged);
         },
         beforeUnmount() {
             window.clearTimeout(this.toastTimer);
+            window.removeEventListener("report-permissions-changed", this.onPermissionsChanged);
         }
     });
 

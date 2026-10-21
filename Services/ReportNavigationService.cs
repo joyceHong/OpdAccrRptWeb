@@ -47,7 +47,7 @@ public static class ReportNavigationService
                                 Name = report.Name,
                                 CanExcel = permissions.Allows(report.Code, ReportAction.Excel),
                                 CanPrint = permissions.Allows(report.Code, ReportAction.Print),
-                                CanRebuild = permissions.Allows(report.Code, ReportAction.Rebuild)
+                                CanRebuild = report.CanRebuild && permissions.Allows(report.Code, ReportAction.Rebuild)
                             })
                             .ToArray()
                     })
@@ -61,9 +61,7 @@ public static class ReportNavigationService
         {
             Categories = categories,
             DefaultStartDate = source.DefaultStartDate,
-            DefaultEndDate = source.DefaultEndDate,
-            C21RebuildEnabled = source.C21RebuildEnabled,
-            C23RebuildEnabled = source.C23RebuildEnabled
+            DefaultEndDate = source.DefaultEndDate
         };
     }
 }

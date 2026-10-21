@@ -33,8 +33,8 @@ public sealed class C23RebuildService(
         if (!authorizationService.CanRebuild(condition.ForceRebuild, out var userId))
         {
             throw new C23RebuildForbiddenException(condition.ForceRebuild
-                ? "C23 手動重建功能未開放或未設定有效的固定使用者帳號。"
-                : "C23 自動重建需要設定有效的固定使用者帳號。");
+                ? "C23 手動重建需要有效的登入使用者帳號。"
+                : "C23 自動重建需要有效的登入使用者帳號。");
         }
 
         logger.LogInformation("C23 rebuild started for {AccountingDate}; UserId={UserId}; IdentitySource={IdentitySource}; Forced={Forced}",

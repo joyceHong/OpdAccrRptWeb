@@ -33,8 +33,8 @@ public sealed class C21RebuildService(
         if (!authorizationService.CanRebuild(condition.ForceRebuild, out var userId))
         {
             var message = condition.ForceRebuild
-                ? "C21 手動重新計算功能未開放或未設定有效的固定使用者帳號。"
-                : "C21 自動重新計算需要設定有效的固定使用者帳號。";
+                ? "C21 手動重新計算需要有效的登入使用者帳號。"
+                : "C21 自動重新計算需要有效的登入使用者帳號。";
             throw new C21RebuildForbiddenException(message);
         }
 

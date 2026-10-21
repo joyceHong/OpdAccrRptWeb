@@ -231,6 +231,11 @@ public sealed class ReportQueryPermissionFilter(
             context.ActionArguments.TryGetValue("searchCondition", out object? condition) &&
             (condition as SearchReportCondition)?.ForceRebuild == true)
             return ReportAction.Rebuild;
+        if (string.Equals(controller, "Report", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(action, "Export", StringComparison.OrdinalIgnoreCase) &&
+            context.ActionArguments.TryGetValue("searchCondition", out object? exportCondition) &&
+            (exportCondition as SearchReportCondition)?.ForceRebuild == true)
+            return ReportAction.Excel | ReportAction.Rebuild;
         if (string.Equals(controller, "SapInterface", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(action, "Run", StringComparison.OrdinalIgnoreCase))
             return ReportAction.Rebuild;

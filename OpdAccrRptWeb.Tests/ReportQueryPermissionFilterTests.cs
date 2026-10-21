@@ -57,7 +57,11 @@ public sealed class ReportQueryPermissionFilterTests
 
     [Theory]
     [InlineData("Export", "C21", false, ReportAction.Query)]
-    [InlineData("GetReportData", "C21", true, ReportAction.Excel)]
+    [InlineData("GetReportData", "C21", true, ReportAction.Query | ReportAction.Excel)]
+    [InlineData("Export", "C21", true, ReportAction.Query | ReportAction.Excel)]
+    [InlineData("Export", "C23", true, ReportAction.Query | ReportAction.Rebuild)]
+    [InlineData("GetReportData", "C24", true, ReportAction.Query | ReportAction.Excel)]
+    [InlineData("Export", "C24", true, ReportAction.Query | ReportAction.Excel)]
     public async Task ReportActionsRequireTheirOwnGrant(
         string action, string code, bool forceRebuild, ReportAction grantedAction)
     {

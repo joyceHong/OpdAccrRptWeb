@@ -381,6 +381,10 @@ window.initializeReportPermissions = () => {
         return response;
     }
 
+    function notifyPermissionChange() {
+        window.dispatchEvent(new Event("report-permissions-changed"));
+    }
+
     async function openEditor(row) {
         const requestId = ++editorRequest;
         editingTarget = true;
@@ -473,7 +477,10 @@ window.initializeReportPermissions = () => {
             const rows = await response.json();
             payload.grants.forEach((grant, index) => { grant.expectedMask = rows[index].oldMask; });
             const hasChanges = rows.some(row => row.operation !== "無變更");
-            if (hasChanges) await postJson("/permissions/changes/apply", payload);
+            if (hasChanges) {
+                await postJson("/permissions/changes/apply", payload);
+                notifyPermissionChange();
+            }
             editorDialog.close();
             const loaded = await loadList();
             listStatus.textContent = loaded
@@ -532,6 +539,7 @@ window.initializeReportPermissions = () => {
         deleteMessage.textContent = "刪除中…";
         try {
             await postJson("/permissions/target/delete", pendingDeleteRequest);
+            notifyPermissionChange();
             pendingDeleteRequest = null;
             deleteDialog.close();
             const loaded = await loadList();
@@ -645,6 +653,7 @@ window.initializeReportPermissions = () => {
         copyApply.disabled = true;
         try {
             await postJson("/permissions/copy/apply", copyPayload);
+            notifyPermissionChange();
             copyPayload = null;
             copyApply.disabled = true;
             copyChanges.replaceChildren();

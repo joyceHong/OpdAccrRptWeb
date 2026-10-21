@@ -276,9 +276,7 @@
         props: {
             selectedReport: { type: Object, required: true },
             defaultStartDate: { type: String, required: true },
-            defaultEndDate: { type: String, required: true },
-            c21RebuildEnabled: { type: Boolean, default: false },
-            c23RebuildEnabled: { type: Boolean, default: false }
+            defaultEndDate: { type: String, required: true }
         },
         emits: ["show-toast"],
         data() {
@@ -392,18 +390,19 @@
                     : [{ value: 0, label: "全部" }, { value: 1, label: "門急診" }, { value: 2, label: "門診" }, { value: 3, label: "急診" }];
             },
             canForceC21Rebuild() {
-                return this.c21RebuildEnabled && this.isC21
-                    && this.form.encounterSource === "Inpatient"
+                return this.selectedReport?.canRebuild === true && this.isC21
+                    && this.form.encounterSource === "Inpatient" && Boolean(this.form.startDate)
                     && this.form.startDate === this.form.endDate;
             },
             canForceC23Rebuild() {
-                return this.c23RebuildEnabled && this.isC23
+                return this.selectedReport?.canRebuild === true && this.isC23
                     && this.form.dateMode === "General"
                     && this.form.startDate === this.form.endDate;
             },
             canForceC24Rebuild() {
-                return this.isC24 && this.form.mode === "Accounting"
-                    && this.form.startDate === this.form.endDate;
+                return this.selectedReport?.canRebuild === true && this.isC24
+                    && this.form.mode === "Accounting"
+                    && Boolean(this.form.startDate) && this.form.startDate === this.form.endDate;
             },
             receivableBalanceTypeConfiguration() { return this.reportConfiguration.receivableBalanceType ?? null; },
             hasReceivableBalanceType() { return this.receivableBalanceTypeConfiguration !== null; },
@@ -518,6 +517,9 @@
             }
         },
         watch: {
+            canForceC21Rebuild(canRebuild) {
+                if (!canRebuild) this.form.forceRebuild = false;
+            },
             "selectedReport.code"() {
                 this.resetForm();
                 this.loadC21BillingItems();
@@ -917,7 +919,8 @@
                             inpatientType: this.isC23 && this.form.dateMode === "General" ? this.form.inpatientType || undefined : undefined,
                             contractCode: (this.isC23 || this.isC211) && this.form.contractCode.trim()
                                 ? this.form.contractCode.trim() : undefined,
-                            forceRebuild: (this.isC21 || this.isC23 || this.canForceC24Rebuild)
+                            forceRebuild: (this.canForceC21Rebuild || this.canForceC23Rebuild ||
+                                this.canForceC24Rebuild)
                                 ? this.form.forceRebuild : undefined,
                             source: this.isC3 || this.isC24 || this.isC10 || this.isC142 || this.isC143 || this.isC144 || this.isC16 ? this.form.encounterSource : undefined,
                             reportType: this.isC143 || this.isC16 ? this.form.reportType : undefined,
@@ -1356,7 +1359,8 @@
                         billingCode: ["C21", "C29"].includes(reportCode)
                             ? this.form.billingCode.trim() || undefined : undefined,
                         accountingScope: reportCode === "C21" ? this.form.accountingScope : undefined,
-                        forceRebuild: ["C21", "C23", "C24"].includes(reportCode)
+                        forceRebuild: (this.canForceC21Rebuild || this.canForceC23Rebuild ||
+                            this.canForceC24Rebuild)
                             ? this.form.forceRebuild : undefined,
                         dateMode: reportCode === "C23" ? this.form.dateMode : undefined,
                         inpatientType: reportCode === "C23" ? this.form.inpatientType : undefined,

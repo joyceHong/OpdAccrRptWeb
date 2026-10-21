@@ -17,3 +17,4 @@ openspec/.vector-search.db*
 /document
 /docs
 /.chrome-ui-test
+/SECURITY_AUDIT_ISO27001.md

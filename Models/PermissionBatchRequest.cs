@@ -9,6 +9,7 @@ public sealed class PermissionBatchRequest
     public bool Excel { get; set; } = true;
     public bool Print { get; set; } = true;
     public bool Rebuild { get; set; }
+    public bool LineBot { get; set; }
 }
 
 public sealed record PermissionBatchPreviewRow(

@@ -59,6 +59,18 @@ public sealed class ReportPermissionServiceTests
     }
 
     [Fact]
+    public async Task C141LineBotGrantIsIndependentOfPrint()
+    {
+        var repository = new FakeRepository(
+            [new("E100", "D10")],
+            [new("C141", 2, "E100", 17)]);
+        ReportPermissionSnapshot result = await CreateService(repository).ResolveAsync("E100");
+
+        Assert.True(result.Allows("C141", ReportAction.LineBot));
+        Assert.False(result.Allows("C141", ReportAction.Print));
+    }
+
+    [Fact]
     public async Task UnmappedOrDuplicateIdentityIsDenied()
     {
         var missing = new FakeRepository([], [new("C21", 2, "E100", 15)]);

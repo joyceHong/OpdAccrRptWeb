@@ -22,16 +22,16 @@
             <button v-else-if="isC212" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-show="selectedReport.canPrint" v-on:click="openC212Preview">預覽／列印</button>
             <template v-else-if="isC141">
                 <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-show="selectedReport.canPrint" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
-                <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
+                <button v-if="selectedReport.canLineBot" class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
             </template>
             <button v-else class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
         </section>
-        <section v-if="isC141" class="export-status no-print" aria-live="polite">
-            <p>通知單預覽也會更新通知日期並寫入交易紀錄。</p>
+        <section v-if="isC141 && (selectedReport.canPrint || selectedReport.canLineBot)" class="export-status no-print" aria-live="polite">
+            <p v-if="selectedReport.canPrint">通知單預覽也會更新通知日期並寫入交易紀錄。</p>
             <div class="advanced-grid">
-                <label><span>LineBot 通知類型</span><select v-model.number="c141LineBotKind" :disabled="c141ActionLoading" aria-label="LineBot 通知類型"><option :value="0">繳款通知</option><option :value="1">讀卡通知</option></select></label>
+                <label v-if="selectedReport.canLineBot"><span>LineBot 通知類型</span><select v-model.number="c141LineBotKind" :disabled="c141ActionLoading" aria-label="LineBot 通知類型"><option :value="0">繳款通知</option><option :value="1">讀卡通知</option></select></label>
             </div>
             <div v-if="c141ActionResults.length" class="c141-action-results">
                 <div v-for="(result, index) in c141ActionResults" :key="`${result.key?.admissionDate}-${result.key?.admissionTime}-${result.key?.admissionRoom}-${result.key?.admissionNumber}-${index}`">
@@ -243,8 +243,8 @@
             </div>
             <div v-else class="table-wrap">
                 <table :class="{ 'c212-results-table': isC212 }">
-                    <thead><tr><th v-if="isC141"><input type="checkbox" :checked="c141CurrentPageSelected" aria-label="選取本頁所有案件" v-on:change="setC141CurrentPageSelection($event)" /></th><th v-for="column in columns" :key="column.key" :class="{ amount: (isC212 && column.key === 'amount') || (isC141 && column.isAmount) }">{{ column.label }}</th></tr></thead>
-                    <tbody><tr v-for="(row, index) in pagedRows" :key="isC141 ? c141RowKey(row) : (row.id ?? index)"><td v-if="isC141"><input type="checkbox" :checked="isC141RowSelected(row)" :title="row.automaticSelectionReason || '手動選取'" :aria-label="`選取 ${row.medicalRecordNumber || '本案'}`" v-on:change="setC141RowSelected(row, $event)" /></td><td v-for="column in columns" :key="column.key" :class="{ amount: (isC212 && column.key === 'amount') || (isC141 && column.isAmount) }">{{ row[column.key] }}</td></tr></tbody>
+                    <thead><tr><th v-if="isC141 && (selectedReport.canPrint || selectedReport.canLineBot)"><input type="checkbox" :checked="c141CurrentPageSelected" aria-label="選取本頁所有案件" v-on:change="setC141CurrentPageSelection($event)" /></th><th v-for="column in columns" :key="column.key" :class="{ amount: (isC212 && column.key === 'amount') || (isC141 && column.isAmount) }">{{ column.label }}</th></tr></thead>
+                    <tbody><tr v-for="(row, index) in pagedRows" :key="isC141 ? c141RowKey(row) : (row.id ?? index)"><td v-if="isC141 && (selectedReport.canPrint || selectedReport.canLineBot)"><input type="checkbox" :checked="isC141RowSelected(row)" :title="row.automaticSelectionReason || '手動選取'" :aria-label="`選取 ${row.medicalRecordNumber || '本案'}`" v-on:change="setC141RowSelected(row, $event)" /></td><td v-for="column in columns" :key="column.key" :class="{ amount: (isC212 && column.key === 'amount') || (isC141 && column.isAmount) }">{{ row[column.key] }}</td></tr></tbody>
                 </table>
             </div>
             <div v-if="!isLoading && hasResults" class="pagination">

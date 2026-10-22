@@ -62,6 +62,7 @@ public sealed class ReportQueryPermissionFilterTests
     [InlineData("Export", "C23", true, ReportAction.Query | ReportAction.Rebuild)]
     [InlineData("GetReportData", "C24", true, ReportAction.Query | ReportAction.Excel)]
     [InlineData("Export", "C24", true, ReportAction.Query | ReportAction.Excel)]
+    [InlineData("Export", "C141", false, ReportAction.Query | ReportAction.Print | ReportAction.LineBot)]
     public async Task ReportActionsRequireTheirOwnGrant(
         string action, string code, bool forceRebuild, ReportAction grantedAction)
     {
@@ -85,6 +86,8 @@ public sealed class ReportQueryPermissionFilterTests
 
     [Theory]
     [InlineData("Report", "PreviewC1", "C1")]
+    [InlineData("C141PaymentNotice", "Preview", "C141")]
+    [InlineData("C141LineBot", "Send", "C141")]
     [InlineData("OpdPriceQuery", "Receipt", "Q1")]
     [InlineData("SapInterface", "Run", "SAP")]
     public async Task DedicatedActionsRequireMoreThanQueryGrant(
@@ -101,6 +104,33 @@ public sealed class ReportQueryPermissionFilterTests
             throw new InvalidOperationException("Action must not run"));
 
         Assert.Equal(403, Assert.IsType<StatusCodeResult>(context.Result).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("C141PaymentNotice", "Preview", ReportAction.Print, ReportAction.LineBot)]
+    [InlineData("C141LineBot", "Send", ReportAction.LineBot, ReportAction.Print)]
+    public async Task C141ActionsRequireTheirDistinctGrant(
+        string controller, string action, ReportAction required, ReportAction unrelated)
+    {
+        var context = CreateContext(controller, action, new Dictionary<string, object?>());
+        var unrelatedGrant = CreateFilter(new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction> { ["C141"] = ReportAction.Query | unrelated }));
+        await unrelatedGrant.OnActionExecutionAsync(context, () =>
+            throw new InvalidOperationException("Action must not run"));
+        Assert.Equal(403, Assert.IsType<StatusCodeResult>(context.Result).StatusCode);
+
+        context.Result = null;
+        bool executed = false;
+        var permitted = CreateFilter(new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction> { ["C141"] = ReportAction.Query | required }));
+        await permitted.OnActionExecutionAsync(context, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(
+                new ActionContext(context.HttpContext, context.RouteData, context.ActionDescriptor),
+                [], new object()));
+        });
+        Assert.True(executed);
     }
 
     [Theory]

@@ -9,4 +9,5 @@ public sealed class PermissionGrantEditRequest
     public bool Excel { get; set; } = true;
     public bool Print { get; set; } = true;
     public bool Rebuild { get; set; }
+    public bool LineBot { get; set; }
 }

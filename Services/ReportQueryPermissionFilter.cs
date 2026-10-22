@@ -239,6 +239,9 @@ public sealed class ReportQueryPermissionFilter(
         if (string.Equals(controller, "SapInterface", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(action, "Run", StringComparison.OrdinalIgnoreCase))
             return ReportAction.Rebuild;
+        if (string.Equals(controller, "C141LineBot", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(action, "Send", StringComparison.OrdinalIgnoreCase))
+            return ReportAction.LineBot;
         if (string.Equals(action, "ExportPdf", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(action, "Receipt", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(action, "Receipts", StringComparison.OrdinalIgnoreCase) ||

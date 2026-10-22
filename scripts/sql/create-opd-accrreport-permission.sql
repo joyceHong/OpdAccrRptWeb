@@ -2,7 +2,7 @@
 -- GUID_AP01 has quota on TBS_GUID/TBS_IDX_GUID, not on its default GENDATA4.
 -- Grant IDs are assigned by the application under an exclusive table lock.
 -- NMENUCODE stores the report code from ReportCatalogService (for example C21 or C214).
--- NBTNPERMISSION bits: query=1, Excel=2, print=4, rebuild=8.
+-- NBTNPERMISSION bits: query=1, Excel=2, print=4, rebuild=8, C141 LineBot=16.
 -- A new grant defaults to 7 (query + Excel + print). Rebuild requires an explicit grant.
 -- VCHSTAT NULL means active; DC means deleted.
 
@@ -26,7 +26,7 @@ CREATE TABLE OpdAccrReportPermissionTbl (
         USING INDEX TABLESPACE TBS_IDX_GUID,
     CONSTRAINT CK_OpdAccrReportPermType CHECK (NPERMISSIONTYPE IN (0, 1, 2)),
     CONSTRAINT CK_OpdAccrReportPermStat CHECK (VCHSTAT IS NULL OR VCHSTAT = 'DC'),
-    CONSTRAINT CK_OpdAccrReportPermMask CHECK (NBTNPERMISSION BETWEEN 0 AND 15)
+    CONSTRAINT CK_OpdAccrReportPermMask CHECK (NBTNPERMISSION BETWEEN 0 AND 31)
 ) TABLESPACE TBS_GUID;
 
 CREATE INDEX IX_OpdAccrReportPermTarget
@@ -45,7 +45,7 @@ COMMENT ON COLUMN OpdAccrReportPermissionTbl.DRECDATE IS 'Updated at';
 COMMENT ON COLUMN OpdAccrReportPermissionTbl.VCHRECID IS 'Updated by GenUserProfile1.chUserID';
 COMMENT ON COLUMN OpdAccrReportPermissionTbl.DDCDATE IS 'Deleted at';
 COMMENT ON COLUMN OpdAccrReportPermissionTbl.VCHDCUSERID IS 'Deleted by GenUserProfile1.chUserID';
-COMMENT ON COLUMN OpdAccrReportPermissionTbl.NBTNPERMISSION IS 'Action mask: query=1, Excel=2, print=4, rebuild=8';
+COMMENT ON COLUMN OpdAccrReportPermissionTbl.NBTNPERMISSION IS 'Action mask: query=1, Excel=2, print=4, rebuild=8, C141 LineBot=16';
 
 
 -- Seed the first permission manager before enforcing report permissions.

@@ -245,6 +245,24 @@ public sealed class ReportPermissionAdministrationServiceTests
     }
 
     [Fact]
+    public async Task LineBotGrantAppliesOnlyToC141()
+    {
+        var repository = new FakeRepository();
+        var service = CreateService(repository);
+        await service.SaveGrantAsync(new PermissionGrantEditRequest
+        {
+            TargetType = 2, Target = "E100", ReportCode = "C141", LineBot = true
+        }, "F1482");
+        Assert.Equal(23, repository.LastMasks!["C141"]);
+
+        await service.SaveGrantAsync(new PermissionGrantEditRequest
+        {
+            TargetType = 2, Target = "E100", ReportCode = "C21", LineBot = true
+        }, "F1482");
+        Assert.Equal(7, repository.LastMasks!["C21"]);
+    }
+
+    [Fact]
     public async Task UnknownReportOrTargetDoesNotWrite()
     {
         var repository = new FakeRepository();

@@ -122,7 +122,7 @@ public sealed class ReportPermissionAdministrationService(
         if (request.TargetType is < 0 or > 2
             || string.IsNullOrWhiteSpace(request.Target) || request.Target.Length > 10
             || !CatalogCodes().Contains(request.ReportCode)
-            || request.ExpectedMask is < 0 or > 15)
+            || !IsValidMask(request.ReportCode, request.ExpectedMask))
             throw new ArgumentException("撤銷的授權資料無效。", nameof(request));
         if (string.IsNullOrWhiteSpace(actor) || actor.Length > 10)
             throw new ArgumentException("操作者帳號無效。", nameof(actor));
@@ -137,7 +137,7 @@ public sealed class ReportPermissionAdministrationService(
         string target = ValidateTargetKey(request.TargetType, request.Target);
         if (request.ExpectedMasks is null || request.ExpectedMasks.Count == 0
             || request.ExpectedMasks.Any(pair => string.IsNullOrWhiteSpace(pair.Key)
-                || pair.Value is < 0 or > 15))
+                || !IsValidMask(pair.Key, pair.Value)))
             throw new ArgumentException("請重新讀取此對象的權限。", nameof(request));
         if (string.IsNullOrWhiteSpace(actor) || actor.Length > 10)
             throw new ArgumentException("操作者帳號無效。", nameof(actor));
@@ -155,8 +155,8 @@ public sealed class ReportPermissionAdministrationService(
             : await ValidateTargetAsync(request.TargetType, request.Target, cancellationToken);
         HashSet<string> known = CatalogCodes();
         if (request.Grants.Any(grant => !known.Contains(grant.ReportCode)
-            || grant.ActionMask is < 0 or > 15
-            || grant.ExpectedMask is < 0 or > 15))
+            || !IsValidMask(grant.ReportCode, grant.ActionMask)
+            || grant.ExpectedMask is int expectedMask && !IsValidMask(grant.ReportCode, expectedMask)))
             throw new ArgumentException("報表或權限值無效。", nameof(request));
         if (request.Grants.Select(grant => grant.ReportCode).Distinct(StringComparer.Ordinal).Count()
             != request.Grants.Count)
@@ -182,7 +182,8 @@ public sealed class ReportPermissionAdministrationService(
         if (string.IsNullOrWhiteSpace(actor) || actor.Length > 10)
             throw new ArgumentException("操作者帳號無效。", nameof(actor));
 
-        int mask = ActionMask(request.Query, request.Excel, request.Print, request.Rebuild);
+        int mask = ActionMask(request.Query, request.Excel, request.Print, request.Rebuild,
+            request.ReportCode == "C141" && request.LineBot);
         await repository.SaveGrantsAsync(
             request.TargetType, target,
             new Dictionary<string, int> { [request.ReportCode] = mask },
@@ -199,9 +200,10 @@ public sealed class ReportPermissionAdministrationService(
             request.TargetType, target, cancellationToken);
         HashSet<string> existingCodes = existing
             .Select(grant => grant.ReportCode).ToHashSet(StringComparer.Ordinal);
-        int mask = ActionMask(request.Query, request.Excel, request.Print, request.Rebuild);
         return codes.Select(code => new PermissionBatchPreviewRow(
-            code, existingCodes.Contains(code) ? "更新" : "新增", mask)).ToArray();
+            code, existingCodes.Contains(code) ? "更新" : "新增",
+            ActionMask(request.Query, request.Excel, request.Print, request.Rebuild,
+                code == "C141" && request.LineBot))).ToArray();
     }
 
     public async Task ApplyBatchAsync(
@@ -212,10 +214,11 @@ public sealed class ReportPermissionAdministrationService(
         IReadOnlyList<string> codes = ValidateReportCodes(request.ReportCodes);
         if (string.IsNullOrWhiteSpace(actor) || actor.Length > 10)
             throw new ArgumentException("操作者帳號無效。", nameof(actor));
-        int mask = ActionMask(request.Query, request.Excel, request.Print, request.Rebuild);
         await repository.SaveGrantsAsync(
             request.TargetType, target,
-            codes.ToDictionary(code => code, _ => mask, StringComparer.Ordinal),
+            codes.ToDictionary(code => code,
+                code => ActionMask(request.Query, request.Excel, request.Print, request.Rebuild,
+                    code == "C141" && request.LineBot), StringComparer.Ordinal),
             actor, cancellationToken);
     }
 
@@ -270,7 +273,7 @@ public sealed class ReportPermissionAdministrationService(
             await repository.FindTargetGrantsAsync(0, source, cancellationToken);
         HashSet<string> catalogCodes = CatalogCodes();
         Dictionary<string, int> available = sourceGrants
-            .Where(grant => grant.ActionMask is >= 0 and <= 15 && catalogCodes.Contains(grant.ReportCode))
+            .Where(grant => IsValidMask(grant.ReportCode, grant.ActionMask) && catalogCodes.Contains(grant.ReportCode))
             .ToDictionary(grant => grant.ReportCode, grant => grant.ActionMask, StringComparer.Ordinal);
         if (codes.Any(code => !available.ContainsKey(code)))
             throw new ArgumentException("來源管理者沒有選取報表的有效授權。", nameof(request));
@@ -287,8 +290,13 @@ public sealed class ReportPermissionAdministrationService(
         return reportCodes.Distinct(StringComparer.Ordinal).ToArray();
     }
 
-    private static int ActionMask(bool query, bool excel, bool print, bool rebuild) =>
-        (query ? 1 : 0) | (excel ? 2 : 0) | (print ? 4 : 0) | (rebuild ? 8 : 0);
+    private static int ActionMask(bool query, bool excel, bool print, bool rebuild, bool lineBot) =>
+        (query ? 1 : 0) | (excel ? 2 : 0) | (print ? 4 : 0) | (rebuild ? 8 : 0) |
+        (lineBot ? 16 : 0);
+
+    private static bool IsValidMask(string reportCode, int mask) =>
+        mask is >= 0 and <= 31 &&
+        (reportCode == "C141" || (mask & (int)ReportAction.LineBot) == 0);
 
     private async Task<string> ValidateTargetAsync(
         int targetType, string target, CancellationToken cancellationToken)

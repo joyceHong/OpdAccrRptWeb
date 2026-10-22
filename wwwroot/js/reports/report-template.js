@@ -650,6 +650,7 @@
                 return [...selected.values()];
             },
             async sendC141LineBot() {
+                if (!this.isC141 || !this.selectedReport.canLineBot) return;
                 const cases = this.c141SelectedKeys();
                 if (cases.length === 0) return;
                 const noticeType = this.c141LineBotKind === 0 ? "繳款通知" : "讀卡通知";
@@ -674,6 +675,7 @@
                 }
             },
             async previewC141Notice() {
+                if (!this.isC141 || !this.selectedReport.canPrint) return;
                 const cases = this.c141SelectedKeys();
                 if (cases.length === 0) return;
                 if (!window.confirm(`預覽 ${cases.length} 筆繳款通知單會更新通知日期並寫入交易紀錄。要繼續嗎？`)) return;

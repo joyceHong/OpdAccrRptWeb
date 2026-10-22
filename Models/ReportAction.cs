@@ -7,5 +7,6 @@ public enum ReportAction
     Query = 1,
     Excel = 2,
     Print = 4,
-    Rebuild = 8
+    Rebuild = 8,
+    LineBot = 16
 }

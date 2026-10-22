@@ -1,8 +1,20 @@
 @model OpdAccrRptWeb.ViewModels.ReportIndexViewModel
+@inject OpdAccrRptWeb.Services.IUserDisplayNameService UserDisplayNameService
+@using System.Security.Claims
 @using System.Text.Json
 @{
     ViewData["Title"] = "門急診報表作業";
     string initialState = JsonSerializer.Serialize(Model, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    string? displayName = User.FindFirst("display_name")?.Value;
+    string? givenName = User.FindFirst(ClaimTypes.GivenName)?.Value;
+    string? profileName = User.Identity?.IsAuthenticated == true
+        ? await UserDisplayNameService.GetDisplayNameAsync(User.Identity.Name, Context.RequestAborted)
+        : null;
+    string userName = !string.IsNullOrWhiteSpace(profileName) ? profileName
+        : !string.IsNullOrWhiteSpace(displayName) ? displayName
+        : !string.IsNullOrWhiteSpace(givenName) ? givenName
+        : !string.IsNullOrWhiteSpace(User.Identity?.Name) ? User.Identity.Name!
+        : "登入者";
 }
 
 <link rel="stylesheet" href="~/css/report-permissions.css" asp-append-version="true" />
@@ -21,7 +33,16 @@
             </button>
             <button v-if="canManagePermissions" type="button" :class="{ active: showPermissionSettings }" v-on:click="openPermissionSettings">設定權限</button>
         </nav>
-        <div class="user-badge"><span>測</span><div>測試使用者<small>報表查詢人員</small></div></div>
+        <div class="user-menu">
+            <button class="user-badge" type="button" aria-label="使用者選單：@userName" aria-haspopup="true">
+                <span aria-hidden="true">@userName[..1]</span>
+                <strong>@userName</strong>
+                <span class="user-menu-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="user-menu-dropdown">
+                <a href="/Account/logout">登出</a>
+            </div>
+        </div>
     </header>
 
     <div class="app-shell" :class="{ 'sidebar-pinned': sidebarPinned, 'sidebar-collapsed': !sidebarPinned }">

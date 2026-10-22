@@ -88,65 +88,57 @@ public sealed class ReportController : Controller
             IActionResult? validationResult = ValidateC3Condition(searchCondition, out _);
             if (validationResult is not null) return validationResult;
         }
-        if (searchCondition.ReportCode == "C10")
+        else if (searchCondition.ReportCode == "C10")
         {
             IActionResult? validationResult = ValidateC10Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C11")
+        else if (searchCondition.ReportCode == "C11")
         {
             IActionResult? validationResult = ValidateC11Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C12")
+        else if (searchCondition.ReportCode == "C12")
         {
             IActionResult? validationResult = ValidateC12Condition(searchCondition, out _);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C13")
+        else if (searchCondition.ReportCode == "C13")
         {
             IActionResult? validationResult = ValidateC13Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C15")
+        else if (searchCondition.ReportCode == "C15")
         {
             IActionResult? validationResult = ValidateC15Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C16")
+        else if (searchCondition.ReportCode == "C16")
         {
             IActionResult? validationResult = ValidateC16Condition(searchCondition, out _);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C143")
+        else if (searchCondition.ReportCode == "C143")
         {
             IActionResult? validationResult = ValidateC143Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C144")
+        else if (searchCondition.ReportCode == "C144")
         {
             IActionResult? validationResult = ValidateC144Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C211")
+        else if (searchCondition.ReportCode == "C211")
         {
             IActionResult? validationResult = ValidateC211Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-        if (searchCondition.ReportCode == "C212")
+        else if (searchCondition.ReportCode == "C212")
         {
             IActionResult? validationResult = ValidateC212Condition(searchCondition, out _);
             if (validationResult is not null) return validationResult;
         }
-        if (searchCondition.ReportCode == "C21")
+        else if (searchCondition.ReportCode == "C21")
         {
             IActionResult? validationResult = ValidateC21Condition(searchCondition);
             if (validationResult is not null)
@@ -154,20 +146,17 @@ public sealed class ReportController : Controller
                 return validationResult;
             }
         }
-
-        if (searchCondition.ReportCode == "C23")
+        else if (searchCondition.ReportCode == "C23")
         {
             IActionResult? validationResult = ValidateC23Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C24")
+        else if (searchCondition.ReportCode == "C24")
         {
             IActionResult? validationResult = ValidateC24Condition(searchCondition);
             if (validationResult is not null) return validationResult;
         }
-
-        if (searchCondition.ReportCode == "C1")
+        else if (searchCondition.ReportCode == "C1")
         {
             IActionResult? validationResult = ValidateC1Condition(searchCondition);
             if (validationResult is not null)
@@ -175,8 +164,7 @@ public sealed class ReportController : Controller
                 return validationResult;
             }
         }
-
-        if (searchCondition.ReportCode == "C22")
+        else if (searchCondition.ReportCode == "C22")
         {
             IActionResult? validationResult = ValidateC22Condition(searchCondition);
             if (validationResult is not null)
@@ -185,7 +173,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C213")
+        else if (searchCondition.ReportCode == "C213")
         {
             IActionResult? validationResult = ValidateC213Condition(searchCondition);
             if (validationResult is not null)
@@ -194,7 +182,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C214")
+        else if (searchCondition.ReportCode == "C214")
         {
             IActionResult? validationResult = ValidateC214Condition(searchCondition);
             if (validationResult is not null)
@@ -203,7 +191,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C25")
+        else if (searchCondition.ReportCode == "C25")
         {
             IActionResult? validationResult = ValidateC25Condition(searchCondition);
             if (validationResult is not null)
@@ -212,7 +200,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C27")
+        else if (searchCondition.ReportCode == "C27")
         {
             IActionResult? validationResult = ValidateC27Condition(searchCondition);
             if (validationResult is not null)
@@ -221,7 +209,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C28")
+        else if (searchCondition.ReportCode == "C28")
         {
             IActionResult? validationResult = ValidateC28Condition(searchCondition);
             if (validationResult is not null)
@@ -230,7 +218,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C29")
+        else if (searchCondition.ReportCode == "C29")
         {
             IActionResult? validationResult = ValidateC29Condition(searchCondition);
             if (validationResult is not null)
@@ -239,7 +227,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C18")
+        else if (searchCondition.ReportCode == "C18")
         {
             IActionResult? validationResult = ValidateC18Condition(searchCondition);
             if (validationResult is not null)
@@ -248,7 +236,7 @@ public sealed class ReportController : Controller
             }
         }
 
-        if (searchCondition.ReportCode == "C19")
+        else if (searchCondition.ReportCode == "C19")
         {
             IActionResult? validationResult = ValidateC19Condition(searchCondition);
             if (validationResult is not null)

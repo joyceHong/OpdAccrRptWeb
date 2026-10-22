@@ -14,6 +14,22 @@ namespace OpdAccrRptWeb.Tests;
 
 public sealed class ReportQueryPermissionFilterTests
 {
+    [Theory]
+    [InlineData("Root")]
+    [InlineData("Index")]
+    public async Task AnonymousReportPageChallengesCookieAuthentication(string action)
+    {
+        var context = CreateContext("Report", action, new Dictionary<string, object?>());
+        context.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
+        var filter = CreateFilter(new ReportPermissionSnapshot(
+            "E100", false, new Dictionary<string, ReportAction>()));
+
+        await filter.OnActionExecutionAsync(context, () =>
+            throw new InvalidOperationException("Anonymous report page must not run"));
+
+        Assert.IsType<ChallengeResult>(context.Result);
+    }
+
     [Fact]
     public async Task DirectReportUrlWithoutQueryGrantReturnsForbidden()
     {

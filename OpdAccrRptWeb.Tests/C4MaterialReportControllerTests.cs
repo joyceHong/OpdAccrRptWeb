@@ -15,13 +15,13 @@ public sealed class C4MaterialReportControllerTests
     {
         string projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../.."));
         string program = File.ReadAllText(Path.Combine(projectRoot, "Program.cs"));
-        int authenticationRegistration = program.IndexOf("AddAuthentication", StringComparison.Ordinal);
+        int authenticationRegistration = program.IndexOf("AddFemhCookieAuthentication", StringComparison.Ordinal);
         int authenticationMiddleware = program.IndexOf("UseAuthentication", StringComparison.Ordinal);
-        int authorizationMiddleware = program.IndexOf("UseAuthorization", StringComparison.Ordinal);
+        int authorizationMiddleware = program.IndexOf("UseFemhCookieAuthentication", StringComparison.Ordinal);
 
-        Assert.True(authenticationRegistration >= 0, "Authorized C4 endpoints require an authentication handler.");
+        Assert.True(authenticationRegistration >= 0, "Authorized C4 endpoints require FEMH cookie authentication.");
         Assert.True(authenticationMiddleware >= 0 && authenticationMiddleware < authorizationMiddleware,
-            "Authentication middleware must run before authorization middleware.");
+            "Authentication middleware must run before FEMH login and authorization middleware.");
     }
 
     [Fact]

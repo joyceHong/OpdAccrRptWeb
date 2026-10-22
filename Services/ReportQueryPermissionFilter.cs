@@ -62,7 +62,7 @@ public sealed class ReportQueryPermissionFilter(
 
         if (context.HttpContext.User.Identity?.IsAuthenticated != true)
         {
-            context.Result = new UnauthorizedResult();
+            context.Result = isReportPage ? new ChallengeResult() : new UnauthorizedResult();
             return;
         }
 

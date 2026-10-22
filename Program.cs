@@ -4,6 +4,7 @@ using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
 using Microsoft.Extensions.Options;
 using Serilog;
+using FemhCookieAuthentication;
 
 var builder = WebApplication.CreateBuilder(args);
 Log.Logger = FileLoggingConfiguration.CreateLogger(
@@ -12,10 +13,8 @@ Log.Logger = FileLoggingConfiguration.CreateLogger(
     builder.Environment.IsDevelopment());
 builder.Host.UseSerilog();
 
+
 // Add services to the container.
-builder.Services.AddAuthentication(DefaultUserAuthenticationHandler.SchemeName)
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
-        DefaultUserAuthenticationHandler>(DefaultUserAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews(options =>
     options.Filters.AddService<ReportQueryPermissionFilter>());
@@ -38,6 +37,8 @@ builder.Services
     .AddOptions<RegistrationQueryOptions>()
     .Bind(builder.Configuration.GetSection(RegistrationQueryOptions.SectionName));
 builder.Services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
+builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+builder.Services.AddScoped<IUserDisplayNameService, UserDisplayNameService>();
 builder.Services.AddScoped<IReportPermissionRepository, ReportPermissionRepository>();
 builder.Services.AddScoped<IReportPermissionService, ReportPermissionService>();
 builder.Services.AddScoped<ReportPermissionManagerFilter>();
@@ -187,6 +188,19 @@ builder.Services.AddSingleton<IReportExportService>(provider => provider.GetRequ
 builder.Services.AddSingleton<IReportWorkbookGenerator>(provider => provider.GetRequiredService<ReportExportService>());
 builder.Services.AddHostedService<BackgroundReportExportService>();
 
+builder.Services.AddFemhCookieAuthentication(new FemhCookieAuthenticationOptions
+{
+    SystemId = "OPDACCRRPT",
+    LoginPath = new PathString("/Account/Login"),
+    LogoutPath = new PathString("/Account/Logout"),
+    AccessDeniedPath = new PathString("/AccessDenied"),
+    CallbackPath = new PathString("/Account/Callback"),
+    AuthServer = AuthServerType.Intra,
+    ClientId = "dfa41571-a427-418f-9180-606c7a365abf",
+    ClientSecret = "I2qUtaWMgROunoOfvj04IWmN7fLSEgMPaMDO1TND",
+    VerifyIdentityPath = new PathString("/Account/VerifyIdentity"),
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -202,7 +216,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();
-app.UseAuthorization();
+app.UseFemhCookieAuthentication();
 
 app.MapControllerRoute(
     name: "default",

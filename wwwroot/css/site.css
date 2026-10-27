@@ -377,3 +377,30 @@ body{background:var(--bg)}
 @page c212-portrait{size:A4 portrait;margin:0}
 @media(max-width:760px){.report-preview-overlay:has(.c212-print-document){padding:8px}.report-preview-overlay:has(.c212-print-document) .report-preview-paper{width:100%;min-height:0;padding:18px}.c212-print-meta{grid-template-columns:1fr}}
 @media print{body:has(.c212-preview-overlay .c212-print-document) *{visibility:hidden!important}body:has(.c212-preview-overlay .c212-print-document) .c212-preview-overlay,body:has(.c212-preview-overlay .c212-print-document) .c212-print-document,body:has(.c212-preview-overlay .c212-print-document) .c212-print-document *{visibility:visible!important}body:has(.c212-preview-overlay .c212-print-document) .c212-preview-overlay{position:absolute;inset:0;overflow:visible;padding:0;background:#fff}body:has(.c212-preview-overlay .c212-print-document) .report-preview-paper{width:210mm;min-height:297mm;margin:0;padding:10mm;box-shadow:none}body:has(.c212-preview-overlay .c212-print-document) .c212-print-document{page:c212-portrait}.c212-print-table thead{display:table-header-group}.c212-print-table tr{break-inside:avoid;page-break-inside:avoid}.c212-preview-actions{display:none!important}}
+
+/* C21 query layout: preserve the shared card while grouping related controls. */
+.c21-query-panel form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:18px 20px;width:100%;max-width:1200px;box-sizing:border-box;padding:18px 20px 20px}
+.c21-query-panel form>.date-row{grid-column:span 2;display:flex;flex:none;width:100%;max-width:none;gap:12px}
+.c21-query-panel form>.date-row label{min-width:0}
+.c21-query-panel form>.segmented-source-fieldset{grid-column:3;display:block;min-width:0;margin:0;padding:0}
+.c21-query-panel form>.c21-filter-grid{grid-column:1/3;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;flex:none;width:100%;min-width:0;margin:0;padding:0}
+.c21-query-panel .c21-filter-grid label{min-width:0}
+.c21-query-panel form>.c21-rebuild-option{grid-column:1/-1;justify-self:start;min-height:34px}
+.c21-query-panel form>.validation-message{grid-column:1/-1}
+.c21-query-panel form>.form-actions{grid-column:1/-1;justify-self:stretch;width:100%;margin:0;padding-top:12px;border-top:1px solid #e7edf3}
+
+/* Native radios remain focusable; the label surface carries the visual state. */
+.segmented-source-fieldset legend{float:none;width:100%;margin:0 0 7px;padding:0;color:#43556b;font-size:13px;font-weight:700}
+.segmented-source-fieldset .source-option{position:relative;display:inline-flex;min-width:112px;margin:0 -1px 0 0;font-size:13px;font-weight:700;vertical-align:top}
+.segmented-source-fieldset .source-option input{position:absolute;width:1px;height:1px;margin:0;opacity:0;clip-path:inset(50%)}
+.segmented-source-fieldset .source-option span{display:flex;width:100%;min-height:38px;box-sizing:border-box;align-items:center;justify-content:center;gap:7px;padding:7px 13px;border:1px solid #c9d7e4;color:#43556b;background:#fff;transition:border-color .16s ease,background-color .16s ease,color .16s ease}
+.segmented-source-fieldset .source-option:first-of-type span{border-radius:7px 0 0 7px}
+.segmented-source-fieldset .source-option:last-of-type span{border-radius:0 7px 7px 0}
+.segmented-source-fieldset .source-option span::before{content:"✓";font-size:12px;font-weight:800;visibility:hidden}
+.segmented-source-fieldset .source-option:hover input:not(:disabled)+span{position:relative;border-color:#7eabc9;background:#f5fafe}
+.segmented-source-fieldset .source-option input:checked+span{position:relative;border-color:#4b91bf;color:#114b73;background:#eaf5fc}
+.segmented-source-fieldset .source-option input:checked+span::before{visibility:visible}
+.segmented-source-fieldset .source-option input:focus-visible+span{z-index:1;outline:2px solid #1769aa;outline-offset:2px}
+.segmented-source-fieldset .source-option input:disabled+span{color:#8798aa;background:#f3f6f8;cursor:not-allowed}
+@media(max-width:1050px){.c21-query-panel form{grid-template-columns:repeat(2,minmax(0,1fr))}.c21-query-panel form>.date-row,.c21-query-panel form>.c21-filter-grid{grid-column:1/-1}.c21-query-panel form>.segmented-source-fieldset{grid-column:1/-1}}
+@media(max-width:760px){.c21-query-panel form{grid-template-columns:minmax(0,1fr);gap:16px;padding:16px}.c21-query-panel form>.date-row{grid-column:1;flex-direction:column;align-items:stretch}.c21-query-panel form>.date-row .date-arrow{display:none}.c21-query-panel form>.segmented-source-fieldset,.c21-query-panel form>.c21-filter-grid,.c21-query-panel form>.c21-rebuild-option,.c21-query-panel form>.validation-message,.c21-query-panel form>.form-actions{grid-column:1}.c21-query-panel form>.c21-filter-grid{grid-template-columns:minmax(0,1fr);gap:16px}.c21-query-panel form>.form-actions{justify-content:flex-end}}

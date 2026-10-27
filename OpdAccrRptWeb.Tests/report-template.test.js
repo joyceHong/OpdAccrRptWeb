@@ -249,7 +249,9 @@ function verifiesRebuildVisibilityFollowsPermissionAndQueryBoundary() {
         form: { ...singleDayInpatient.form, encounterSource: "Outpatient" }
     }), false);
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
-    assert.match(markup, /v-if="selectedReport\.canRebuild" class="source-option"[\s\S]*?:disabled="!canForceC21Rebuild"/);
+    assert.match(markup, /v-if="isC21 && selectedReport\.canRebuild" class="source-option c21-rebuild-option"[\s\S]*?:disabled="!canForceC21Rebuild"/);
+    assert.doesNotMatch(markup, /未授予重新計算權限/);
+    assert.ok(markup.indexOf('class="advanced-grid c21-filter-grid"') < markup.indexOf('class="source-option c21-rebuild-option"'));
     assert.match(markup, /限住院單日/);
     const watcherState = { form: { forceRebuild: true } };
     component.watch.canForceC21Rebuild.call(watcherState, false);

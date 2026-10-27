@@ -46,7 +46,7 @@
             <a v-else-if="exportJob.status === 'Ready' && exportJob.downloadUrl" :href="exportJob.downloadUrl">下載完成的 Excel</a>
             <span v-else>{{ exportJob.message || '工作已結束，請重新申請匯出。' }}</span>
         </section>
-        <section class="panel query-panel">
+        <section class="panel query-panel" :class="{ 'c21-query-panel': isC21 }">
             <div>
                 <div class="panel-title">
                     <span>查詢條件</span>
@@ -59,7 +59,7 @@
                         <label><span>{{ isC141 ? '帳務日' : '截止日期' }} <i>*</i></span><input v-model="form.endDate" type="date" required :min="isC141 ? '1912-01-01' : undefined" :max="isC141 && c141OracleToday ? c141OracleToday : undefined" v-on:change="currentPage = 1" /></label>
                         <button v-if="isC143" class="ghost-button" type="button" v-on:click="useYesterday">改成昨天</button>
                     </div>
-                    <fieldset v-if="hasEncounterSource" class="source-fieldset">
+                    <fieldset v-if="hasEncounterSource" class="source-fieldset" :class="{ 'segmented-source-fieldset': isC21 }">
                         <legend>就醫來源 <i>*</i></legend>
                         <label v-for="option in encounterSourceConfiguration.options" :key="option.value" class="source-option">
                             <input
@@ -137,7 +137,7 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
-                    <div v-if="isC21" class="advanced-grid">
+                    <div v-if="isC21" class="advanced-grid c21-filter-grid">
                         <label>
                             <span>{{ form.encounterSource === 'Inpatient' ? '住院別' : '門急診選項' }}</span>
                             <select v-model.number="form.accountingScope">
@@ -145,12 +145,11 @@
                             </select>
                         </label>
                         <label><span>收費科目</span><select v-model="form.billingCode"><option value="">全部</option><option v-for="item in c21BillingItems" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
-                        <label v-if="selectedReport.canRebuild" class="source-option">
-                            <input v-model="form.forceRebuild" type="checkbox" :disabled="!canForceC21Rebuild" />
-                            <span>重新計算<small v-if="!canForceC21Rebuild">（限住院單日）</small></span>
-                        </label>
-                        <span v-else class="report-rebuild-hint">未授予重新計算權限</span>
                     </div>
+                    <label v-if="isC21 && selectedReport.canRebuild" class="source-option c21-rebuild-option">
+                        <input v-model="form.forceRebuild" type="checkbox" :disabled="!canForceC21Rebuild" />
+                        <span>重新計算<small v-if="!canForceC21Rebuild">（限住院單日）</small></span>
+                    </label>
                     <div v-if="isC141" class="advanced-grid">
                         <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" type="text" maxlength="10" autocomplete="off" v-on:input="currentPage = 1" /></label>
                         <label><span>床號</span><input v-model.trim="form.c141BedNumber" type="text" maxlength="8" autocomplete="off" v-on:input="currentPage = 1" /></label>

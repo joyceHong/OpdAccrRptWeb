@@ -241,7 +241,7 @@
         hospitalCode: "",
         billingCode: "",
         accountingScope: reportConfiguration.c21 === true
-            ? (reportConfiguration.encounterSource?.defaultValue === "Inpatient" ? 4 : 0)
+            ? (reportConfiguration.encounterSource?.defaultValue === "Inpatient" ? 5 : 0)
             : null,
         forceRebuild: false,
         dateMode: reportConfiguration.c23 === true ? "General" : (reportConfiguration.c16 === true ? "AccountingDate" : ""),
@@ -386,8 +386,8 @@
             isC212() { return this.reportConfiguration.c212 === true; },
             c21ScopeOptions() {
                 return this.form.encounterSource === "Inpatient"
-                    ? [{ value: 4, label: "全部" }, { value: 5, label: "住院總帳" }, { value: 8, label: "出院總帳" }]
-                    : [{ value: 0, label: "全部" }, { value: 1, label: "門急診" }, { value: 2, label: "門診" }, { value: 3, label: "急診" }];
+                    ? [{ value: 5, label: "住院總帳" }, { value: 8, label: "出院總帳" }]
+                    : [{ value: 0, label: "全部" }, { value: 2, label: "門診" }, { value: 3, label: "急診" }];
             },
             canForceC21Rebuild() {
                 return this.selectedReport?.canRebuild === true && this.isC21
@@ -1143,6 +1143,22 @@
                     contractCode: this.form.contractCode.trim() || undefined
                 }, "無法建立 C211 預覽。");
             },
+            async previewC21(scope) {
+                const source = this.form.encounterSource;
+                if (!this.isC21 || !((source === "Inpatient" && [5, 8].includes(scope))
+                    || (source === "Outpatient" && [0, 2, 3].includes(scope)))
+                    || scope !== this.form.accountingScope
+                    || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C21/Preview", {
+                    reportCode: "C21",
+                    startDate: this.form.startDate,
+                    endDate: this.form.endDate,
+                    encounterSource: source,
+                    accountingScope: scope,
+                    billingCode: this.form.billingCode.trim() || undefined,
+                    forceRebuild: false
+                }, "無法建立 C21 列印預覽。");
+            },
             openC212Preview() {
                 if (!this.isC212 || !this.hasResults || !this.c212Summary) return;
                 this.c212PreviewRows = this.rows.map(row => ({ ...row }));
@@ -1226,7 +1242,7 @@
             changeEncounterSource() {
                 this.currentPage = 1;
                 if (this.isC21) {
-                    this.form.accountingScope = this.form.encounterSource === "Inpatient" ? 4 : 0;
+                    this.form.accountingScope = this.form.encounterSource === "Inpatient" ? 5 : 0;
                     this.form.forceRebuild = false;
                 }
                 if (this.isC23) {

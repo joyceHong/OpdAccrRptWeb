@@ -1,0 +1,82 @@
+@model OpdAccrRptWeb.ViewModels.C21AccountingSummaryPreviewDocumentViewModel
+@using System.Globalization
+@functions {
+    private static string Amount(decimal? value) => value is null or 0m
+        ? string.Empty : value.Value.ToString("#,0.##", CultureInfo.InvariantCulture);
+}
+@foreach (var reportPage in Model.Pages)
+{
+<article class="c21-print-document">
+    <header class="c21-print-header">
+        <div class="c21-print-identifiers">
+            <span>程式編號：ReportProject1</span>
+            <span>報表編號：ReportOpdAcc</span>
+            <span>列印日期：@reportPage.PrintedAt</span>
+        </div>
+        <div class="c21-print-title">
+            <h1>亞 東 紀 念 醫 院</h1>
+            <h2>@reportPage.Title</h2>
+            <p>資料日期：@reportPage.DateRange</p>
+        </div>
+        <strong class="c21-print-scope">（ @reportPage.ScopeName ）</strong>
+    </header>
+    <table class="c21-print-table">
+        <thead>
+            <tr>
+                @for (int side = 0; side < 2; side++)
+                {
+                    <th class="code">科目</th><th class="name">收費名稱</th>
+                    <th class="amount">民眾</th><th class="amount">健保</th><th class="amount">健保未帶卡</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in reportPage.FirstSection)
+            {
+                <tr>
+                    @foreach (var cell in new[] { row.Left, row.Right })
+                    {
+                        <td>@cell.Code</td><td class="name">@cell.Name</td>
+                        <td class="amount">@Amount(cell.SelfPayAmount)</td>
+                        <td class="amount">@Amount(cell.InsuranceAmount)</td>
+                        <td class="amount">@Amount(cell.InsuranceWithoutCardAmount)</td>
+                    }
+                </tr>
+            }
+            <tr class="c21-print-spacer"><td colspan="10"></td></tr>
+            @if (reportPage.Subtotal is not null)
+            {
+                <tr class="c21-print-summary">
+                    <td colspan="6"></td><td>@reportPage.Subtotal.Label</td>
+                    <td class="amount">@Amount(reportPage.Subtotal.SelfPayAmount)</td>
+                    <td class="amount">@Amount(reportPage.Subtotal.InsuranceAmount)</td>
+                    <td class="amount">@Amount(reportPage.Subtotal.InsuranceWithoutCardAmount)</td>
+                </tr>
+            }
+            <tr class="c21-print-spacer"><td colspan="10"></td></tr>
+            @foreach (var row in reportPage.SecondSection)
+            {
+                <tr>
+                    @foreach (var cell in new[] { row.Left, row.Right })
+                    {
+                        <td>@cell.Code</td><td class="name">@cell.Name</td>
+                        <td class="amount">@Amount(cell.SelfPayAmount)</td>
+                        <td class="amount">@Amount(cell.InsuranceAmount)</td>
+                        <td class="amount">@Amount(cell.InsuranceWithoutCardAmount)</td>
+                    }
+                </tr>
+            }
+            @foreach (var summary in new[] { reportPage.Income, reportPage.Difference }.Where(item => item is not null))
+            {
+                <tr class="c21-print-summary">
+                    <td colspan="6"></td><td>@summary!.Label</td>
+                    <td class="amount">@Amount(summary.SelfPayAmount)</td>
+                    <td class="amount">@Amount(summary.InsuranceAmount)</td>
+                    <td class="amount">@Amount(summary.InsuranceWithoutCardAmount)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <footer class="c21-print-footer">製表人：@reportPage.GeneratedBy</footer>
+</article>
+}

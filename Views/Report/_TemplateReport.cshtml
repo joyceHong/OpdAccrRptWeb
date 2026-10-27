@@ -20,6 +20,14 @@
             <button v-else-if="isC15" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c15PreviewLoading" v-show="selectedReport.canPrint" v-on:click="openC15Preview">{{ c15PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC211" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC211">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC212" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading" v-show="selectedReport.canPrint" v-on:click="openC212Preview">預覽／列印</button>
+            <div v-else-if="isC21" class="c21-title-actions no-print">
+                <template v-if="form.encounterSource === 'Inpatient' && selectedReport.canPrint">
+                    <button v-if="form.accountingScope === 5" class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC21(5)">住院總帳預覽／列印</button>
+                    <button v-if="form.accountingScope === 8" class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC21(8)">出院總帳預覽／列印</button>
+                </template>
+                <button v-else-if="form.encounterSource === 'Outpatient' && selectedReport.canPrint" class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC21(form.accountingScope)">{{ form.accountingScope === 0 ? '全部' : c21ScopeOptions.find(option => option.value === form.accountingScope)?.label }}預覽／列印</button>
+                <button class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
+            </div>
             <template v-else-if="isC141">
                 <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-show="selectedReport.canPrint" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
                 <button v-if="selectedReport.canLineBot" class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
@@ -281,7 +289,7 @@
                 </table>
             </article>
         </div>
-        <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">關閉預覽</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">列印</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
+        <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">{{ isC21 ? '取消' : '關閉預覽' }}</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">{{ isC21 ? '確定列印' : '列印' }}</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
         <div v-if="c4PreviewOpen && c4Preview" class="c4-preview-overlay" role="dialog" aria-modal="true" aria-label="C4 列印預覽">
             <div class="c4-preview-actions no-print">
                 <button class="ghost-button" type="button" v-on:click="closeC4Preview">關閉預覽</button>

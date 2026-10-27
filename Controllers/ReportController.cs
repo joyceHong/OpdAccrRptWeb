@@ -19,6 +19,7 @@ public sealed class ReportController : Controller
     private readonly IReportExportService _reportExportService;
     private readonly ILogger<ReportController> _logger;
     private readonly IC21AccountingSummaryRepository? _c21Repository;
+    private readonly IC21AccountingSummaryCalculationService? _c21CalculationService;
     private readonly IC23ContractAccountingRepository? _c23Repository;
     private readonly IC211ContractBalanceRepository? _c211Repository;
     private readonly IC12ReportService? _c12ReportService;
@@ -43,13 +44,15 @@ public sealed class ReportController : Controller
         IC16ReportService? c16ReportService = null,
         IC3ReportService? c3ReportService = null,
         IC211ContractBalanceReportService? c211ReportService = null,
-        IC1SurgicalPrintService? c1SurgicalPrintService = null)
+        IC1SurgicalPrintService? c1SurgicalPrintService = null,
+        IC21AccountingSummaryCalculationService? c21CalculationService = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
         _reportExportService = reportExportService;
         _logger = logger;
         _c21Repository = c21Repository;
+        _c21CalculationService = c21CalculationService;
         _c23Repository = c23Repository;
         _c211Repository = c211Repository;
         _c12ReportService = c12ReportService;
@@ -705,6 +708,58 @@ public sealed class ReportController : Controller
         if (_c211Repository is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
         Response.Headers.CacheControl = "private, no-store";
         return Ok(await _c211Repository.GetContractChoicesAsync(cancellationToken));
+    }
+
+    [HttpPost("Report/C21/Preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC21([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C21";
+        if (condition.ForceRebuild)
+            return BadRequest("預覽不可執行重新計算。");
+        IActionResult? validation = ValidateC21Condition(condition);
+        if (validation is not null) return validation;
+
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.Pragma = "no-cache";
+        try
+        {
+            var repository = _c21Repository
+                ?? throw new InvalidOperationException("C21 repository 尚未設定。");
+            var billingItems = repository.GetBillingItems();
+            var rows = (_c21CalculationService
+                ?? throw new InvalidOperationException("C21 calculation service 尚未設定。"))
+                .Calculate(condition, repository.GetSourceAmounts(condition), billingItems);
+            string generatedBy = User.Identity?.IsAuthenticated == true
+                ? User.Identity.Name ?? string.Empty : string.Empty;
+            var preview = C21AccountingSummaryPreviewBuilder.BuildDocument(
+                condition, rows, billingItems,
+                DateTimeOffset.Now, generatedBy);
+            return PartialView("_C21AccountingSummaryPreview", preview);
+        }
+        catch (C21RebuildForbiddenException exception)
+        {
+            return StatusCode(403, new ProblemDetails { Status = 403, Title = exception.Message });
+        }
+        catch (OracleException exception)
+        {
+            string traceId = HttpContext.TraceIdentifier;
+            _logger.LogWarning(exception, "C21 preview failed. TraceId={TraceId} ErrorNumber={ErrorNumber}",
+                traceId, exception.Number);
+            int status = IsOracleConnectionFailure(exception.Number) ? 503 : 504;
+            return StatusCode(status, new ProblemDetails
+            {
+                Status = status, Title = "無法建立 C21 列印預覽，請稍後再試。"
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "C21 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(500, new ProblemDetails
+            {
+                Status = 500, Title = "無法建立 C21 列印預覽，請稍後再試。"
+            });
+        }
     }
 
     [HttpPost("Report/C211/Preview")]

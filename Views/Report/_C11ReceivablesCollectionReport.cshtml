@@ -7,7 +7,7 @@
         <section class="panel query-panel"><div>
             <div class="panel-title"><span>查詢條件</span><small><i>*</i> 為必填欄位</small></div>
             <form v-on:submit.prevent="search">
-                <div class="date-row"><label><span>起始日期 <i>*</i></span><input v-model="form.startDate" v-on:blur="form.endDate = form.startDate" type="date" required /></label><span class="date-arrow">→</span><label><span>截止日期 <i>*</i></span><input v-model="form.endDate" type="date" required /></label></div>
+                <div class="date-row"><label><span>起始日期 <i>*</i></span><input v-model="form.startDate" v-on:change="syncDefaultEndDate" type="date" required /></label><span class="date-arrow">→</span><label><span>截止日期 <i>*</i></span><input v-model="form.endDate" v-on:change="markEndDateChanged" type="date" required /></label></div>
                 <fieldset class="source-fieldset"><legend>資料來源 <i>*</i></legend><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="OpdEr" /><span>門急診</span></label><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="Inpatient" /><span>住院</span></label></fieldset>
                 <p v-if="error" class="validation-message">{{ error }}</p>
                 <div class="form-actions"><button class="ghost-button" type="button" :disabled="loading" v-on:click="resetForm">重設</button><button class="primary-button" type="submit" :disabled="loading">{{ loading ? '查詢中…' : '⌕ 查詢' }}</button></div>
@@ -32,13 +32,14 @@
 window.ReportComponents = window.ReportComponents || {};
 window.ReportComponents.C11Report = {
     template: "#c11-report-template", props: ["selectedReport", "defaultStartDate", "defaultEndDate"],
+    mixins: [window.ReportDateRangeMixin],
     data() { return { form: { startDate: "", endDate: "", source: "OpdEr" }, report: null, loading: false, error: "", hasSearched: false, pageSize: 10, currentPage: 1, previewOpen: false }; },
     computed: { detailRows() { if (!this.report) return []; return this.report.groups.flatMap((group, groupIndex) => group.rows.map((row, rowIndex) => ({ ...row, roomTypeName: group.roomTypeName, id: `${groupIndex}-${rowIndex}` }))); }, totalPages() { return Math.max(1, Math.ceil(this.detailRows.length / this.pageSize)); }, pagedRows() { const start = (this.currentPage - 1) * this.pageSize; return this.detailRows.slice(start, start + this.pageSize); } },
     mounted() { this.setDefaultDates(); },
     methods: {
-        setDefaultDates() { this.form.startDate = this.defaultStartDate || ""; this.form.endDate = this.defaultEndDate || this.form.startDate; },
+        setDefaultDates() { this.form = { startDate: this.defaultStartDate || "", endDate: this.defaultEndDate || this.defaultStartDate || "", source: "OpdEr" }; },
         toRocDate(value) { const [year, month, day] = value.split("-"); return `${String(Number(year) - 1911).padStart(3, "0")}${month}${day}`; },
-        resetForm() { this.setDefaultDates(); this.form.source = "OpdEr"; this.report = null; this.error = ""; this.hasSearched = false; this.currentPage = 1; this.previewOpen = false; },
+        resetForm() { this.setDefaultDates(); this.report = null; this.error = ""; this.hasSearched = false; this.currentPage = 1; this.previewOpen = false; },
         async search() { this.loading = true; this.error = ""; this.previewOpen = false; try { const response = await fetch("/Report/GetReportData", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reportCode: "C11", startDate: this.toRocDate(this.form.startDate), endDate: this.toRocDate(this.form.endDate), source: this.form.source, pageNumber: 1, pageSize: 10 }) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.title || payload || "查詢失敗"); this.report = payload; this.hasSearched = true; this.currentPage = 1; } catch (error) { this.error = error.message || "查詢失敗"; this.report = null; this.hasSearched = false; } finally { this.loading = false; } },
         openPreview() { if (this.hasSearched && this.report) this.previewOpen = true; }, printReport() { window.print(); },
         number(value) { return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }).format(value || 0); }, displayRoc(value) { const text = value || ""; return text.length >= 7 ? `${text.slice(0,3)}/${text.slice(3,5)}/${text.slice(5,7)}` : text; }, formatGeneratedAt(value) { return value ? new Date(value).toLocaleString("zh-TW") : ""; }

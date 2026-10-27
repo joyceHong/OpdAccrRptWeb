@@ -6,7 +6,9 @@ const router = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
 
 assert.match(router, /C11:\s*window\.ReportComponents\.C11Report/);
 assert.match(view, /source:\s*"OpdEr"/);
-assert.match(view, /form\.endDate = form\.startDate/);
+assert.match(view, /v-on:change="syncDefaultEndDate"/);
+assert.match(view, /v-on:change="markEndDateChanged"/);
+assert.match(view, /mixins:\s*\[window\.ReportDateRangeMixin\]/);
 assert.match(view, /1～30天/);
 assert.match(view, /30天以上/);
 assert.match(view, /report\.groups\.length === 0/);

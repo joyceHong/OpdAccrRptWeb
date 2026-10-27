@@ -272,6 +272,7 @@
     window.ReportConfigurations = reportConfigurations;
     window.ReportComponents.ReportTemplate = {
         template: "#report-template",
+        mixins: [window.ReportDateRangeMixin],
         components: { ReportAutocomplete: window.ReportComponents.ReportAutocomplete },
         props: {
             selectedReport: { type: Object, required: true },
@@ -1270,6 +1271,7 @@
                 const today = new Date();
                 const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
                 this.form.endDate = previousDate(localToday);
+                this.markEndDateChanged();
                 this.currentPage = 1;
             },
             changeC24Source() {

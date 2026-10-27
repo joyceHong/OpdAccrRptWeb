@@ -3,6 +3,7 @@
     window.ReportComponents = window.ReportComponents || {};
     window.ReportComponents.C5Report = {
         template: "#c5-report-template",
+        mixins: [window.ReportDateRangeMixin],
         props: ["selectedReport", "defaultStartDate", "defaultEndDate"],
         data() {
             return { isLoading: false, hasSearched: false, validationMessage: "", rows: [], columns: [], totalCount: 0, totalPages: 0, currentPage: 1, pageSize: 10, organizations: [], organizationSearchTimer: null, previewOpen: false, previewLoading: false, preview: null, advancedOpen: false, form: this.initialForm() };

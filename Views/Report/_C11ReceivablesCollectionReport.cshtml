@@ -8,7 +8,7 @@
             <div class="panel-title"><span>查詢條件</span><small><i>*</i> 為必填欄位</small></div>
             <form v-on:submit.prevent="search">
                 <div class="date-row"><label><span>起始日期 <i>*</i></span><input v-model="form.startDate" v-on:change="syncDefaultEndDate" type="date" required /></label><span class="date-arrow">→</span><label><span>截止日期 <i>*</i></span><input v-model="form.endDate" v-on:change="markEndDateChanged" type="date" required /></label></div>
-                <fieldset class="source-fieldset"><legend>資料來源 <i>*</i></legend><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="OpdEr" /><span>門急診</span></label><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="Inpatient" /><span>住院</span></label></fieldset>
+                <fieldset class="source-fieldset segmented-source-fieldset"><legend>資料來源 <i>*</i></legend><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="OpdEr" /><span>門急診</span></label><label class="source-option"><input v-model="form.source" type="radio" name="c11Source" value="Inpatient" /><span>住院</span></label></fieldset>
                 <p v-if="error" class="validation-message">{{ error }}</p>
                 <div class="form-actions"><button class="ghost-button" type="button" :disabled="loading" v-on:click="resetForm">重設</button><button class="primary-button" type="submit" :disabled="loading">{{ loading ? '查詢中…' : '⌕ 查詢' }}</button></div>
             </form>

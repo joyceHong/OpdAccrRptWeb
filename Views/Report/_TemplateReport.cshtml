@@ -67,7 +67,7 @@
                         <label><span>{{ isC141 ? '帳務日' : '截止日期' }} <i>*</i></span><input v-model="form.endDate" type="date" required :min="isC141 ? '1912-01-01' : undefined" :max="isC141 && c141OracleToday ? c141OracleToday : undefined" v-on:change="markEndDateChanged(); currentPage = 1" /></label>
                         <button v-if="isC143" class="ghost-button" type="button" v-on:click="useYesterday">改成昨天</button>
                     </div>
-                    <fieldset v-if="hasEncounterSource" class="source-fieldset" :class="{ 'segmented-source-fieldset': isC21 }">
+                    <fieldset v-if="hasEncounterSource" class="source-fieldset segmented-source-fieldset">
                         <legend>就醫來源 <i>*</i></legend>
                         <label v-for="option in encounterSourceConfiguration.options" :key="option.value" class="source-option">
                             <input

@@ -192,7 +192,7 @@ async function verifiesC21SourceScopesPayloadAndWebOnlyMarkup() {
 
     context.form.encounterSource = "Inpatient";
     component.methods.changeEncounterSource.call(context);
-    assert.equal(context.form.accountingScope, 4);
+    assert.equal(context.form.accountingScope, 5);
     assert.equal(context.form.forceRebuild, false);
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
@@ -521,6 +521,7 @@ async function verifiesC22DefaultsResetPayloadAndMarkup() {
     });
     assert.equal(initial.form.cashierUserId, "");
     assert.equal(initial.form.cashierCashSortType, "Cashier");
+    assert.equal(initial.form.encounterSource, "Outpatient");
 
     let requestBody;
     global.fetch = async (_url, options) => {
@@ -529,20 +530,24 @@ async function verifiesC22DefaultsResetPayloadAndMarkup() {
     };
     const context = {
         selectedReport: { code: "C22" },
-        form: { startDate: "2026-08-01", endDate: "2026-08-03", cashierUserId: "A123", cashierCashSortType: "Encounter", department: "" },
+        form: { startDate: "2026-08-01", endDate: "2026-08-03", encounterSource: "Inpatient", cashierUserId: "A123", cashierCashSortType: "Encounter", department: "" },
         currentPage: 2, pageSize: 30, isLoading: false, hasSearched: false, columns: [], rows: [],
-        serverTotalCount: 0, serverTotalPages: 0, validationMessage: "", hasEncounterSource: false,
+        serverTotalCount: 0, serverTotalPages: 0, validationMessage: "", hasEncounterSource: true,
         hasStationOrBedPrefix: false, hasCashierUserId: true, hasCashierCashSort: true, isServerPaged: true
     };
     await component.methods.fetchResults.call(context);
     assert.equal(requestBody.cashierUserId, "A123");
     assert.equal(requestBody.cashierCashSortType, "Encounter");
+    assert.equal(requestBody.encounterSource, "Inpatient");
     assert.equal(requestBody.pageNumber, 2);
     assert.equal(requestBody.pageSize, 30);
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     assert.match(markup, /v-if="hasCashierUserId"/);
     assert.match(markup, /v-if="hasCashierCashSort"/);
+    assert.match(markup, /v-else-if="isC22"[\s\S]*selectedReport\.canPrint[\s\S]*previewC22/);
+    assert.match(markup, /c22-filter-dialog/);
+    assert.match(markup, /確定列印/);
     assert.deepEqual(window.ReportConfigurations.C22.cashierCashSort.options.map(option => option.label), ["依櫃員", "依門急診"]);
 }
 
@@ -922,7 +927,7 @@ function verifiesReportsWithoutSourceDoNotSubmitSource() {
 
 function verifiesC18SourceMarkup() {
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
-    assert.match(markup, /v-if="hasEncounterSource"/);
+    assert.match(markup, /v-else-if="hasEncounterSource"/);
     assert.match(markup, /type="radio"/);
     assert.match(markup, /name="encounterSource"/);
     assert.match(markup, /required/);
@@ -1271,7 +1276,7 @@ async function verifiesC24FormPayloadAndInpatientRoomReset() {
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
     assert.match(markup, /v-if="isC24"/);
     assert.match(markup, /v-if="canForceC24Rebuild" class="source-option"/);
-    assert.match(markup, /v-if="hasEncounterSource"[\s\S]*?v-model="form\.encounterSource"[\s\S]*?type="radio"[\s\S]*?name="encounterSource"/);
+    assert.match(markup, /v-else-if="hasEncounterSource"[\s\S]*?v-model="form\.encounterSource"[\s\S]*?type="radio"[\s\S]*?name="encounterSource"/);
     assert.doesNotMatch(markup, /name="c24Source"/);
     assert.doesNotMatch(markup, /<legend>資料來源 <i>\*<\/i><\/legend>/);
     assert.match(markup, /<span>門急診別 <i>\*<\/i><\/span>/);
@@ -1723,7 +1728,7 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     assert.equal(component.computed.hasAdvancedConditions.call({ reportConfiguration: configuration }), false);
     assert.equal(component.computed.hasAdvancedConditions.call({
         reportConfiguration: window.ReportConfigurations.C22
-    }), true);
+    }), false);
     assert.equal(component.computed.isServerPaged.call({ selectedReport: { code: "C13" } }), true);
     assert.equal(component.computed.isC13.call({ reportConfiguration: configuration }), true);
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");

@@ -1,0 +1,63 @@
+@model OpdAccrRptWeb.ViewModels.C22CashierCashPreviewViewModel
+@using System.Globalization
+@using OpdAccrRptWeb.ViewModels
+@functions {
+    private static string Amount(decimal value) => value == 0 ? "" : value.ToString("#,0.##", CultureInfo.InvariantCulture);
+    private static string RocDate(string value) => DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+        DateTimeStyles.None, out var date)
+        ? $"{date.Year - 1911:000}/{date.Month:00}/{date.Day:00}" : value;
+}
+<section class="c22-print-document">
+    <header class="c22-print-header">
+        <div class="c22-print-meta">
+            <span>處理日期：@Model.PrintedAt.ToString("yyyy/MM/dd HH:mm:ss")</span>
+            <span class="c22-print-title">亞東紀念醫院<br /><strong>收款員現金明細表</strong><br /><small>資料日期：@RocDate(Model.StartDate) - @RocDate(Model.EndDate)</small></span>
+            <span class="c22-print-page">頁次：1</span>
+        </div>
+    </header>
+    <table class="c22-print-table">
+        <thead><tr>
+            <th>收入日期</th><th>收款員</th><th>姓名</th><th>現金收入</th><th>補繳現金</th><th>金融卡</th><th>支票</th><th>社服補助</th><th>消費券</th><th>醫糾補助</th><th>信用卡</th><th>儲值卡</th><th>振興券</th><th>保險支付</th><th>保險公司</th><th>病人銀行<br />帳戶扣款</th><th>應繳金額</th><th>收據迄號</th>
+        </tr></thead>
+        <tbody>
+            @foreach (var group in Model.Rows.GroupBy(row => row.CounterName))
+            {
+                <tr class="c22-group-heading"><td colspan="18">@group.Key</td></tr>
+                @foreach (var row in group)
+                {
+                    <tr>
+                        <td>@row.CashierDate</td><td>@row.CashierUserId</td><td>@row.CashierUserName</td>
+                        <td>@Amount(row.CashAmount)</td><td>@Amount(row.SupplementaryCashAmount)</td>
+                        <td>@Amount(row.DebitCardAmount)</td><td>@Amount(row.CheckAmount)</td>
+                        <td>@Amount(row.SocialServiceAmount)</td><td>@Amount(row.VoucherAmount)</td>
+                        <td>@Amount(row.MedicalDisputeSubsidyAmount)</td><td>@Amount(row.CreditCardAmount)</td>
+                        <td>@Amount(row.StoredValueCardAmount)</td><td>@Amount(row.RevitalizationVoucherAmount)</td>
+                        <td>@Amount(row.InsurancePaymentAmount)</td><td>@row.InsurancePaymentNote</td>
+                        <td>@Amount(row.PatientBankDebitAmount)</td><td>@Amount(C22CashierCashPreviewViewModel.DueAmount(row))</td>
+                        <td>@row.ReceiptEndSequence</td>
+                    </tr>
+                }
+                <tr class="c22-print-subtotal">
+                    <th colspan="3">@group.Key 合計：</th>
+                    <td>@Amount(group.Sum(row => row.CashAmount))</td><td>@Amount(group.Sum(row => row.SupplementaryCashAmount))</td>
+                    <td>@Amount(group.Sum(row => row.DebitCardAmount))</td><td>@Amount(group.Sum(row => row.CheckAmount))</td>
+                    <td>@Amount(group.Sum(row => row.SocialServiceAmount))</td><td>@Amount(group.Sum(row => row.VoucherAmount))</td>
+                    <td>@Amount(group.Sum(row => row.MedicalDisputeSubsidyAmount))</td><td>@Amount(group.Sum(row => row.CreditCardAmount))</td>
+                    <td>@Amount(group.Sum(row => row.StoredValueCardAmount))</td><td>@Amount(group.Sum(row => row.RevitalizationVoucherAmount))</td>
+                    <td>@Amount(group.Sum(row => row.InsurancePaymentAmount))</td><td></td>
+                    <td>@Amount(group.Sum(row => row.PatientBankDebitAmount))</td><td>@Amount(group.Sum(C22CashierCashPreviewViewModel.DueAmount))</td><td></td>
+                </tr>
+            }
+            <tr class="c22-print-total"><th colspan="3">總計：</th>
+                <td>@Amount(Model.Rows.Sum(row => row.CashAmount))</td><td>@Amount(Model.Rows.Sum(row => row.SupplementaryCashAmount))</td>
+                <td>@Amount(Model.Rows.Sum(row => row.DebitCardAmount))</td><td>@Amount(Model.Rows.Sum(row => row.CheckAmount))</td>
+                <td>@Amount(Model.Rows.Sum(row => row.SocialServiceAmount))</td><td>@Amount(Model.Rows.Sum(row => row.VoucherAmount))</td>
+                <td>@Amount(Model.Rows.Sum(row => row.MedicalDisputeSubsidyAmount))</td><td>@Amount(Model.Rows.Sum(row => row.CreditCardAmount))</td>
+                <td>@Amount(Model.Rows.Sum(row => row.StoredValueCardAmount))</td><td>@Amount(Model.Rows.Sum(row => row.RevitalizationVoucherAmount))</td>
+                <td>@Amount(Model.Rows.Sum(row => row.InsurancePaymentAmount))</td><td></td>
+                <td>@Amount(Model.Rows.Sum(row => row.PatientBankDebitAmount))</td><td>@Amount(Model.Rows.Sum(C22CashierCashPreviewViewModel.DueAmount))</td><td></td>
+            </tr>
+        </tbody>
+    </table>
+    <footer class="c22-print-footer">製表人：@Model.GeneratedBy</footer>
+</section>

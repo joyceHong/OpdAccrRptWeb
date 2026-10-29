@@ -17,6 +17,7 @@ public sealed class CashierCashRepository : ICashierCashRepository
     internal const string SourceSql = @"SELECT
             ac.chAccDate AS CashierDate, RTRIM(ac.chAccUserID) AS CashierUserId,
             RTRIM(upf.chUserName) AS CashierUserName, SUBSTR(ac.chAccSeqNo, 1, 1) AS SourceType,
+            ac.chAccSeq AS ReceiptSequence,
             CASE WHEN SUBSTR(ac.chAccSeqNo, 1, 1) = 'E' THEN '急診' ELSE RTRIM(ac.chAccBid) END AS OriginalCounter,
             NVL(ac.intAccCash1, 0) AS Cash1, NVL(ac.intAccCash2, 0) AS Cash2,
             NVL(ac.intAccCash3, 0) AS Cash3, NVL(ac.intAccCash4, 0) AS Cash4,
@@ -28,12 +29,13 @@ public sealed class CashierCashRepository : ICashierCashRepository
         FROM GenAccCaseDayTbl ac
         LEFT JOIN GenUserProfile1 upf ON ac.chAccUserID = upf.chUserID
         WHERE ac.chAccDate BETWEEN :startDate AND :endDate
+          AND :encounterSource = 'Outpatient'
           AND ac.chAccMrNo NOT IN ('C36979', '1000000')
           AND (:cashierUserId IS NULL OR RTRIM(ac.chAccUserID) = :cashierUserId)
         UNION ALL
         SELECT
             ac.vchAccDate, RTRIM(ac.vchAccUserID), RTRIM(upf.chUserName),
-            SUBSTR(ac.vchAccSeqNo, 1, 1), RTRIM(ac.vchAccBid),
+            SUBSTR(ac.vchAccSeqNo, 1, 1), ac.vchAccSeq, RTRIM(ac.vchAccBid),
             NVL(ac.intAccCash1, 0), NVL(ac.intAccCash2, 0), NVL(ac.intAccCash3, 0),
             NVL(ac.intAccCash4, 0), NVL(ac.intAccCash5, 0), NVL(ac.intAccCash6, 0),
             NVL(ac.intSocFree, 0), NVL(ac.intAccCash7, 0), NVL(ac.intAccCash8, 0),
@@ -42,18 +44,21 @@ public sealed class CashierCashRepository : ICashierCashRepository
         FROM IpdAccCaseDayTbl ac
         LEFT JOIN GenUserProfile1 upf ON RPAD(ac.vchAccUserID, 10, ' ') = upf.chUserID
         WHERE ac.vchAccDate BETWEEN :startDate AND :endDate
+          AND :encounterSource = 'Inpatient'
           AND ac.vchAccMrNo NOT IN ('C36979', '1000000')
           AND (:cashierUserId IS NULL OR RTRIM(ac.vchAccUserID) = :cashierUserId)
         UNION ALL
         SELECT
             ac.vchAccDate, RTRIM(ac.vchAccUserID), RTRIM(upf.chUserName),
-            SUBSTR(ac.vchAccSeqNo, 1, 1), RTRIM(ac.vchAccBid),
+            SUBSTR(ac.vchAccSeqNo, 1, 1), ac.vchAccSeq, RTRIM(ac.vchAccBid),
             NVL(ac.intAccCash1, 0), NVL(ac.intAccCash2, 0), NVL(ac.intAccCash3, 0),
             NVL(ac.intAccCash4, 0), 0, 0, NVL(ac.intSocFree, 0), 0, 0, 0, '', 0,
             NVL(ac.intOp2AMT50, 0), 'CONTRACT'
         FROM IpdContractAccTbl ac
         LEFT JOIN GenUserProfile1 upf ON RPAD(ac.vchAccUserID, 10, ' ') = upf.chUserID
         WHERE ac.vchAccDate BETWEEN :startDate AND :endDate
+          AND ((:encounterSource = 'Inpatient' AND SUBSTR(ac.vchAccSeqNo, 1, 1) = 'I')
+            OR (:encounterSource = 'Outpatient' AND SUBSTR(ac.vchAccSeqNo, 1, 1) <> 'I'))
           AND ac.vchAccMrNo NOT IN ('C36979', '1000000')
           AND (:cashierUserId IS NULL OR RTRIM(ac.vchAccUserID) = :cashierUserId)";
 
@@ -66,7 +71,8 @@ public sealed class CashierCashRepository : ICashierCashRepository
             SUM(Cash6) AS CreditCardAmount, SUM(SocFree) AS VoucherAmount,
             SUM(Cash7) AS StoredValueCardAmount, SUM(Cash8) AS RevitalizationVoucherAmount,
             SUM(Cash9) AS InsurancePaymentAmount, Cash9Note AS InsurancePaymentNote,
-            SUM(Cash10) AS PatientBankDebitAmount, SourceType
+            SUM(Cash10) AS PatientBankDebitAmount, SourceType,
+            MAX(ReceiptSequence) AS ReceiptEndSequence
         FROM (
             SELECT sourceRows.*,
                 CASE
@@ -88,13 +94,24 @@ public sealed class CashierCashRepository : ICashierCashRepository
             SupplementaryCashAmount, CheckAmount, SocialServiceAmount, DebitCardAmount,
             MedicalDisputeSubsidyAmount, CreditCardAmount, VoucherAmount,
             StoredValueCardAmount, RevitalizationVoucherAmount, InsurancePaymentAmount,
-            InsurancePaymentNote, PatientBankDebitAmount
+            InsurancePaymentNote, PatientBankDebitAmount, ReceiptEndSequence
         FROM ({AggregateSql}) C22Rows
         ORDER BY {(sortType == CashierCashSortTypes.Encounter ? EncounterOrder : CashierOrder)}
         OFFSET :rowOffset ROWS FETCH NEXT :pageSize ROWS ONLY";
 
     public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() =>
-        ModelDescriptionsHelper.GetPropertyDescriptions<CashierCashReportViewModel>();
+        ModelDescriptionsHelper.GetPropertyDescriptions<CashierCashReportViewModel>()
+            .Where(column => column.Key != "receiptEndSequence").ToList();
+
+    public List<CashierCashReportViewModel> GetPrintRows(SearchReportCondition condition)
+    {
+        using IDbConnection connection = CreateConnection();
+        string order = condition.CashierCashSortType == CashierCashSortTypes.Encounter
+            ? EncounterOrder : CashierOrder;
+        return connection.Query<CashierCashReportViewModel>(
+            $"SELECT * FROM ({AggregateSql}) C22Rows ORDER BY {order}",
+            CreateParameters(condition)).ToList();
+    }
 
     public int GetCount(SearchReportCondition condition)
     {
@@ -117,6 +134,7 @@ public sealed class CashierCashRepository : ICashierCashRepository
         {
             startDate = condition.StartDate ?? throw new ArgumentException("C22 缺少起始日期。"),
             endDate = condition.EndDate ?? throw new ArgumentException("C22 缺少截止日期。"),
+            encounterSource = condition.EncounterSource ?? throw new ArgumentException("C22 缺少就醫來源。"),
             cashierUserId = string.IsNullOrWhiteSpace(condition.CashierUserId) ? null : condition.CashierUserId.Trim(),
             rowOffset = ((long)pageNumber - 1) * pageSize,
             pageSize

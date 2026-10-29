@@ -132,6 +132,14 @@
             source == Outpatient ? scope is 0 or 1 or 2 or 3 : scope is 4 or 5 or 8;
     }
 
+    public static class C22EncounterSources
+    {
+        public const string Outpatient = "Outpatient";
+        public const string Inpatient = "Inpatient";
+
+        public static bool IsSupported(string? value) => value is Outpatient or Inpatient;
+    }
+
     public static class C23EncounterSources
     {
         public const string Outpatient = "Outpatient";

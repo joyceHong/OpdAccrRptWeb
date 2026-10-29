@@ -31,6 +31,9 @@ public sealed class CashierCashRepositoryTests
         Assert.Contains(":startDate", sql);
         Assert.Contains(":endDate", sql);
         Assert.Contains(":cashierUserId", sql);
+        Assert.Contains(":encounterSource", sql);
+        Assert.Contains(":encounterSource = 'Outpatient'", sql);
+        Assert.Contains(":encounterSource = 'Inpatient'", sql);
         Assert.Contains("NOT IN ('C36979', '1000000')", sql);
         Assert.Contains("NVL(ac.intAccCash10, 0)", sql);
         Assert.DoesNotContain("CashPrintTbl", sql);
@@ -57,6 +60,7 @@ public sealed class CashierCashRepositoryTests
         object parameters = CashierCashRepository.CreateParameters(new SearchReportCondition
         {
             StartDate = "1150801", EndDate = "1150803", CashierUserId = " A123 ",
+            EncounterSource = C22EncounterSources.Outpatient,
             PageNumber = 2, PageSize = 30
         });
         var values = parameters.GetType().GetProperties().ToDictionary(p => p.Name, p => p.GetValue(parameters));
@@ -70,6 +74,20 @@ public sealed class CashierCashRepositoryTests
     {
         Assert.Equal(350m, new[] { 100m, 250m }.Sum());
         Assert.Contains("SUM(CASE WHEN OriginalCounter = '繳欠' THEN 0 ELSE Cash1 END)", CashierCashRepository.AggregateSql);
+    }
+
+    [Fact]
+    public void PreviewDueAmount_ExcludesBankDebitAndMatchesLegacyOutpatientFixture()
+    {
+        var outpatient = new CashierCashReportViewModel
+        {
+            CashAmount = 100, SupplementaryCashAmount = 13, DebitCardAmount = 40,
+            CheckAmount = 20, SocialServiceAmount = 30, VoucherAmount = 70,
+            MedicalDisputeSubsidyAmount = 50, CreditCardAmount = 60,
+            StoredValueCardAmount = 80, RevitalizationVoucherAmount = 90,
+            InsurancePaymentAmount = 11, PatientBankDebitAmount = 12
+        };
+        Assert.Equal(564m, C22CashierCashPreviewViewModel.DueAmount(outpatient));
     }
 
     private static int Count(string value, string token) =>

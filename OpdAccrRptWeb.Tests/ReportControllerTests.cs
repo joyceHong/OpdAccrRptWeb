@@ -244,6 +244,7 @@ public sealed class ReportControllerTests
         {
             ReportCode = "C22", StartDate = "2026-08-01", EndDate = "2026-08-03",
             CashierCashSortType = CashierCashSortTypes.Cashier,
+            EncounterSource = C22EncounterSources.Outpatient,
             CashierUserId = " A123 ", PageNumber = pageNumber, PageSize = pageSize
         };
         Assert.IsType<OkObjectResult>(controller.GetReportData(condition));
@@ -268,7 +269,8 @@ public sealed class ReportControllerTests
         var result = controller.GetReportData(new SearchReportCondition
         {
             ReportCode = "C22", StartDate = startDate, EndDate = endDate,
-            CashierCashSortType = sortType, PageNumber = pageNumber, PageSize = pageSize
+            CashierCashSortType = sortType, EncounterSource = C22EncounterSources.Outpatient,
+            PageNumber = pageNumber, PageSize = pageSize
         });
         Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal(0, service.Calls);
@@ -1671,7 +1673,7 @@ public sealed class ReportControllerTests
         ReportCode = reportCode,
         StartDate = reportCode is "C27" or "C28" or "C214" ? null : "2026-08-01",
         EndDate = "2026-08-31",
-        EncounterSource = reportCode is "C21" or "C23" ? "Outpatient" :
+        EncounterSource = reportCode is "C21" or "C22" or "C23" ? "Outpatient" :
             reportCode == "C29" ? EncounterSources.Emergency : null,
         CashierCashSortType = reportCode == "C22" ? "Cashier" : null,
         Source = reportCode == "C24" ? C24Sources.OpdEr :

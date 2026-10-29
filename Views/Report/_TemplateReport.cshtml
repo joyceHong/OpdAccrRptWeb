@@ -28,6 +28,10 @@
                 <button v-else-if="form.encounterSource === 'Outpatient' && selectedReport.canPrint" class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-on:click="previewC21(form.accountingScope)">{{ form.accountingScope === 0 ? '全部' : c21ScopeOptions.find(option => option.value === form.accountingScope)?.label }}預覽／列印</button>
                 <button class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
             </div>
+            <div v-else-if="isC22" class="c21-title-actions no-print">
+                <button class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC22">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+                <button class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
+            </div>
             <template v-else-if="isC141">
                 <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-show="selectedReport.canPrint" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
                 <button v-if="selectedReport.canLineBot" class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
@@ -67,7 +71,20 @@
                         <label><span>{{ isC141 ? '帳務日' : '截止日期' }} <i>*</i></span><input v-model="form.endDate" type="date" required :min="isC141 ? '1912-01-01' : undefined" :max="isC141 && c141OracleToday ? c141OracleToday : undefined" v-on:change="markEndDateChanged(); currentPage = 1" /></label>
                         <button v-if="isC143" class="ghost-button" type="button" v-on:click="useYesterday">改成昨天</button>
                     </div>
-                    <fieldset v-if="hasEncounterSource" class="source-fieldset segmented-source-fieldset">
+                    <div v-if="isC22" class="c22-source-filter-row">
+                        <fieldset class="source-fieldset segmented-source-fieldset">
+                            <legend>就醫來源 <i>*</i></legend>
+                            <label v-for="option in encounterSourceConfiguration.options" :key="option.value" class="source-option">
+                                <input v-model="form.encounterSource" type="radio" name="encounterSource" :value="option.value" required v-on:change="changeEncounterSource" />
+                                <span>{{ option.label }}</span>
+                            </label>
+                        </fieldset>
+                        <button class="c22-filter-button" type="button" :aria-label="activeFilterCount ? `進階篩選，已套用 ${activeFilterCount} 項` : '進階篩選'" aria-haspopup="dialog" aria-controls="c22-filter-dialog" v-on:click="openC22Filters">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="white"/><circle cx="16" cy="17" r="2.5" fill="white"/></svg>
+                            <span>進階篩選</span><span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
+                        </button>
+                    </div>
+                    <fieldset v-else-if="hasEncounterSource" class="source-fieldset segmented-source-fieldset">
                         <legend>就醫來源 <i>*</i></legend>
                         <label v-for="option in encounterSourceConfiguration.options" :key="option.value" class="source-option">
                             <input
@@ -289,7 +306,17 @@
                 </table>
             </article>
         </div>
-        <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">{{ isC21 ? '取消' : '關閉預覽' }}</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">{{ isC21 ? '確定列印' : '列印' }}</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
+        <div v-if="c22FilterOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeC22Filters">
+            <section id="c22-filter-dialog" class="c22-filter-dialog" role="dialog" aria-modal="true" aria-labelledby="c22-filter-title" v-on:keydown.esc="closeC22Filters">
+                <h2 id="c22-filter-title">進階篩選條件</h2>
+                <div class="advanced-grid">
+                    <label><span>批價員代碼</span><input ref="c22FilterInput" v-model.trim="c22FilterDraft.cashierUserId" maxlength="10" placeholder="空白代表全部" /></label>
+                    <label><span>排序方式</span><select v-model="c22FilterDraft.cashierCashSortType"><option v-for="option in cashierCashSortConfiguration.options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
+                </div>
+                <div class="c22-filter-actions"><button class="ghost-button" type="button" v-on:click="closeC22Filters">取消</button><button class="primary-button" type="button" v-on:click="applyC22Filters">套用篩選</button></div>
+            </section>
+        </div>
+        <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">{{ isC21 || isC22 ? '取消' : '關閉預覽' }}</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">{{ isC21 || isC22 ? '確定列印' : '列印' }}</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
         <div v-if="c4PreviewOpen && c4Preview" class="c4-preview-overlay" role="dialog" aria-modal="true" aria-label="C4 列印預覽">
             <div class="c4-preview-actions no-print">
                 <button class="ghost-button" type="button" v-on:click="closeC4Preview">關閉預覽</button>

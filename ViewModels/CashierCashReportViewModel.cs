@@ -21,6 +21,7 @@ public sealed class CashierCashReportViewModel
     [Description("保險支付")] public decimal InsurancePaymentAmount { get; set; }
     [Description("保險公司")] public string? InsurancePaymentNote { get; set; }
     [Description("病人銀行帳戶扣款")] public decimal PatientBankDebitAmount { get; set; }
+    public string? ReceiptEndSequence { get; set; }
 }
 
 public static class CashierCashSortTypes

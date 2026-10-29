@@ -343,6 +343,7 @@ public class ReportService : IReportService
                     {
                         [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
                         [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate,
+                        [nameof(SearchReportCondition.EncounterSource)] = searchCondition.EncounterSource,
                         [nameof(SearchReportCondition.CashierUserId)] = string.IsNullOrWhiteSpace(searchCondition.CashierUserId) ? null : searchCondition.CashierUserId.Trim()
                     },
                     () => cashierCashRepository.GetCount(searchCondition));

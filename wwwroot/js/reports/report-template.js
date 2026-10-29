@@ -127,7 +127,16 @@
         }),
         C22: Object.freeze({
             serverPaged: true,
+            c22: true,
+            advancedConditions: false,
             cashierUserId: true,
+            encounterSource: Object.freeze({
+                defaultValue: "Outpatient",
+                options: Object.freeze([
+                    Object.freeze({ value: "Outpatient", label: "門急診" }),
+                    Object.freeze({ value: "Inpatient", label: "住院" })
+                ])
+            }),
             cashierCashSort: Object.freeze({
                 defaultValue: "Cashier",
                 options: Object.freeze([
@@ -283,6 +292,8 @@
         data() {
             return {
                 advancedOpen: false,
+                c22FilterOpen: false,
+                c22FilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier" },
                 validationMessage: "",
                 isLoading: false,
                 hasSearched: false,
@@ -378,6 +389,7 @@
             hasCashierCashSort() { return this.reportConfiguration.cashierCashSort !== undefined; },
             hasBillingCode() { return this.reportConfiguration.billingCode === true; },
             isC21() { return this.reportConfiguration.c21 === true; },
+            isC22() { return this.reportConfiguration.c22 === true; },
             isC23() { return this.reportConfiguration.c23 === true; },
             isC24() { return this.reportConfiguration.c24 === true; },
             isC10() { return this.reportConfiguration.c10 === true; },
@@ -408,13 +420,15 @@
             receivableBalanceTypeConfiguration() { return this.reportConfiguration.receivableBalanceType ?? null; },
             hasReceivableBalanceType() { return this.receivableBalanceTypeConfiguration !== null; },
             hasAdvancedConditions() {
-                return advancedConditionKeys.some(key => this.reportConfiguration[key] !== undefined);
+                return this.reportConfiguration.advancedConditions !== false
+                    && advancedConditionKeys.some(key => this.reportConfiguration[key] !== undefined);
             },
             activeFilterCount() {
                 const defaults = createInitialForm(this.defaultStartDate, this.defaultEndDate, this.reportConfiguration);
                 return advancedConditionKeys.reduce((count, key) => {
-                    if (this.reportConfiguration[key] === undefined || !(key in this.form)) return count;
-                    return count + (JSON.stringify(this.form[key]) !== JSON.stringify(defaults[key]) ? 1 : 0);
+                    const formKey = key === "cashierCashSort" ? "cashierCashSortType" : key;
+                    if (this.reportConfiguration[key] === undefined || !(formKey in this.form)) return count;
+                    return count + (JSON.stringify(this.form[formKey]) !== JSON.stringify(defaults[formKey]) ? 1 : 0);
                 }, 0);
             },
             cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
@@ -543,6 +557,25 @@
             if (typeof document !== "undefined") document.removeEventListener("pointerdown", this.closeC211ContractsFromOutside);
         },
         methods: {
+            openC22Filters() {
+                this.c22FilterDraft = {
+                    cashierUserId: this.form.cashierUserId,
+                    cashierCashSortType: this.form.cashierCashSortType
+                };
+                this.c22FilterOpen = true;
+                this.$nextTick?.(() => this.$refs?.c22FilterInput?.focus());
+            },
+            closeC22Filters() { this.c22FilterOpen = false; },
+            applyC22Filters() {
+                this.form.cashierUserId = this.c22FilterDraft.cashierUserId.trim();
+                this.form.cashierCashSortType = this.c22FilterDraft.cashierCashSortType;
+                this.currentPage = 1;
+                this.hasSearched = false;
+                this.rows = [];
+                this.serverTotalCount = 0;
+                this.serverTotalPages = 0;
+                this.c22FilterOpen = false;
+            },
             resetForm() {
                 this.stopExportPolling?.();
                 this.form = createInitialForm(
@@ -551,6 +584,8 @@
                     getReportConfiguration(this.selectedReport.code));
                 if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
+                this.c22FilterOpen = false;
+                this.c22FilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier" };
                 this.validationMessage = "";
                 this.hasSearched = false;
                 this.c4Organizations = [];
@@ -1160,6 +1195,17 @@
                     forceRebuild: false
                 }, "無法建立 C21 列印預覽。");
             },
+            async previewC22() {
+                if (!this.isC22 || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C22/Preview", {
+                    reportCode: "C22",
+                    startDate: this.form.startDate,
+                    endDate: this.form.endDate,
+                    encounterSource: this.form.encounterSource,
+                    cashierUserId: this.form.cashierUserId.trim() || undefined,
+                    cashierCashSortType: this.form.cashierCashSortType
+                }, "無法建立 C22 列印預覽。");
+            },
             openC212Preview() {
                 if (!this.isC212 || !this.hasResults || !this.c212Summary) return;
                 this.c212PreviewRows = this.rows.map(row => ({ ...row }));
@@ -1242,6 +1288,12 @@
             },
             changeEncounterSource() {
                 this.currentPage = 1;
+                if (this.isC22) {
+                    this.hasSearched = false;
+                    this.rows = [];
+                    this.serverTotalCount = 0;
+                    this.serverTotalPages = 0;
+                }
                 if (this.isC21) {
                     this.form.accountingScope = this.form.encounterSource === "Inpatient" ? 5 : 0;
                     this.form.forceRebuild = false;
@@ -1368,7 +1420,7 @@
                         source: ["C10", "C143", "C144"].includes(reportCode)
                             ? this.form.encounterSource
                             : reportCode === "C24" ? this.form.source : undefined,
-                        encounterSource: ["C18", "C19", "C21", "C23", "C29"].includes(reportCode)
+                        encounterSource: ["C18", "C19", "C21", "C22", "C23", "C29"].includes(reportCode)
                             ? this.form.encounterSource : undefined,
                         stationOrBedPrefix: reportCode === "C19"
                             ? this.form.stationOrBedPrefix.trim() || undefined : undefined,

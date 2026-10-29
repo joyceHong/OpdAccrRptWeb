@@ -8,4 +8,5 @@ public interface ICashierCashRepository
     List<ModelDescriptionsHelper.PropertyMetadata> GetColumns();
     int GetCount(SearchReportCondition searchCondition);
     List<CashierCashReportViewModel> GetPage(SearchReportCondition searchCondition);
+    List<CashierCashReportViewModel> GetPrintRows(SearchReportCondition searchCondition);
 }

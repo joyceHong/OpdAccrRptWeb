@@ -19,6 +19,7 @@ public sealed class ReportController : Controller
     private readonly IReportExportService _reportExportService;
     private readonly ILogger<ReportController> _logger;
     private readonly IC21AccountingSummaryRepository? _c21Repository;
+    private readonly ICashierCashRepository? _c22Repository;
     private readonly IC21AccountingSummaryCalculationService? _c21CalculationService;
     private readonly IC23ContractAccountingRepository? _c23Repository;
     private readonly IC211ContractBalanceRepository? _c211Repository;
@@ -45,13 +46,15 @@ public sealed class ReportController : Controller
         IC3ReportService? c3ReportService = null,
         IC211ContractBalanceReportService? c211ReportService = null,
         IC1SurgicalPrintService? c1SurgicalPrintService = null,
-        IC21AccountingSummaryCalculationService? c21CalculationService = null)
+        IC21AccountingSummaryCalculationService? c21CalculationService = null,
+        ICashierCashRepository? c22Repository = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
         _reportExportService = reportExportService;
         _logger = logger;
         _c21Repository = c21Repository;
+        _c22Repository = c22Repository;
         _c21CalculationService = c21CalculationService;
         _c23Repository = c23Repository;
         _c211Repository = c211Repository;
@@ -762,6 +765,52 @@ public sealed class ReportController : Controller
         }
     }
 
+    [HttpPost("Report/C22/Preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC22([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C22";
+        IActionResult? validation = ValidateC22Condition(condition);
+        if (validation is not null) return validation;
+        Response.Headers.CacheControl = "private, no-store";
+        try
+        {
+            var repository = _c22Repository
+                ?? throw new InvalidOperationException("C22 repository 尚未設定。");
+            var sourceCondition = new SearchReportCondition
+            {
+                StartDate = DateTimeExtensions.ToRocDateString(
+                    DateOnly.ParseExact(condition.StartDate!, "yyyy-MM-dd", CultureInfo.InvariantCulture)
+                        .ToDateTime(TimeOnly.MinValue)),
+                EndDate = DateTimeExtensions.ToRocDateString(
+                    DateOnly.ParseExact(condition.EndDate!, "yyyy-MM-dd", CultureInfo.InvariantCulture)
+                        .ToDateTime(TimeOnly.MinValue)),
+                EncounterSource = condition.EncounterSource,
+                CashierUserId = condition.CashierUserId,
+                CashierCashSortType = condition.CashierCashSortType
+            };
+            int count = repository.GetCount(sourceCondition);
+            if (count == 0) return NotFound(new ProblemDetails { Status = 404, Title = "查無可預覽資料。" });
+            if (count > 5000) return StatusCode(413, new ProblemDetails
+            {
+                Status = 413, Title = "預覽資料超過 5,000 列，請縮小日期範圍。"
+            });
+            var rows = repository.GetPrintRows(sourceCondition);
+            if (rows.Count == 0) return NotFound(new ProblemDetails { Status = 404, Title = "查無可預覽資料。" });
+            var generatedBy = User.Identity?.IsAuthenticated == true
+                ? User.Identity.Name ?? string.Empty : string.Empty;
+            return PartialView("_C22CashierCashPreview", new C22CashierCashPreviewViewModel(
+                condition.StartDate!, condition.EndDate!, condition.EncounterSource!,
+                DateTimeOffset.Now, generatedBy, rows));
+        }
+        catch (OracleException exception)
+        {
+            _logger.LogWarning(exception, "C22 preview failed. TraceId={TraceId} ErrorNumber={ErrorNumber}",
+                HttpContext.TraceIdentifier, exception.Number);
+            return StatusCode(503, new ProblemDetails { Status = 503, Title = "C22 列印預覽暫時無法取得資料。" });
+        }
+    }
+
     [HttpPost("Report/C211/Preview")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> PreviewC211([FromBody] SearchReportCondition condition)
@@ -1290,6 +1339,8 @@ public sealed class ReportController : Controller
         {
             return BadRequest("C22 排序方式僅接受依櫃員或依門急診。");
         }
+        if (!C22EncounterSources.IsSupported(searchCondition.EncounterSource))
+            return BadRequest("C22 資料來源僅接受門急診或住院。");
         searchCondition.CashierUserId = string.IsNullOrWhiteSpace(searchCondition.CashierUserId)
             ? null
             : searchCondition.CashierUserId.Trim();

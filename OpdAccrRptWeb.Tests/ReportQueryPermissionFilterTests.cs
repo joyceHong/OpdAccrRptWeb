@@ -102,6 +102,7 @@ public sealed class ReportQueryPermissionFilterTests
 
     [Theory]
     [InlineData("Report", "PreviewC1", "C1")]
+    [InlineData("Report", "PreviewC22", "C22")]
     [InlineData("C141PaymentNotice", "Preview", "C141")]
     [InlineData("C141LineBot", "Send", "C141")]
     [InlineData("OpdPriceQuery", "Receipt", "Q1")]
@@ -112,7 +113,7 @@ public sealed class ReportQueryPermissionFilterTests
         var context = CreateContext(controller, action,
             new Dictionary<string, object?>());
         if (controller == "Report")
-            context.HttpContext.Request.Path = "/Report/C1/Preview";
+            context.HttpContext.Request.Path = $"/Report/{code}/Preview";
         var filter = CreateFilter(new ReportPermissionSnapshot("E100", false,
             new Dictionary<string, ReportAction> { [code] = ReportAction.Query }));
 
@@ -120,6 +121,26 @@ public sealed class ReportQueryPermissionFilterTests
             throw new InvalidOperationException("Action must not run"));
 
         Assert.Equal(403, Assert.IsType<StatusCodeResult>(context.Result).StatusCode);
+    }
+
+    [Fact]
+    public async Task C22PreviewRunsOnlyWithPrintGrant()
+    {
+        var context = CreateContext("Report", "PreviewC22", new Dictionary<string, object?>());
+        context.HttpContext.Request.Path = "/Report/C22/Preview";
+        bool executed = false;
+        var filter = CreateFilter(new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction> { ["C22"] = ReportAction.Query | ReportAction.Print }));
+
+        await filter.OnActionExecutionAsync(context, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(
+                new ActionContext(context.HttpContext, context.RouteData, context.ActionDescriptor),
+                [], new object()));
+        });
+
+        Assert.True(executed);
     }
 
     [Theory]

@@ -50,7 +50,13 @@ public sealed class C21AccountingSummaryRepositoryTests
             Assert.Equal(1, Count(sql, $"B{branch:D2}"));
         }
         Assert.Contains("rlOp3DrgTot", C21RebuildSql.InsertRoom23Sql);
-        Assert.Contains("SUM(self_amt)*-1", C21RebuildSql.InsertMrNoCSql);
+        Assert.Contains("-SUM(CASE WHEN dct='49'", C21RebuildSql.InsertMrNoCSql);
+        Assert.Contains("-SUM(NVL(s6,0)*sign_value) debt_amt", C21RebuildSql.InsertMrNoCSql);
+        Assert.Contains("JOIN IpdBasicTbl b", C21RebuildSql.InsertRoom23Sql);
+        Assert.Contains("FROM IpdContractAccTbl", C21RebuildSql.InsertRoom45Sql);
+        Assert.Contains("WHEN dct='69' THEN debt_amt-pay_amt", C21RebuildSql.InsertRoom45Sql);
+        Assert.Contains("WHEN dct='75' THEN pay_amt+debt_amt", C21RebuildSql.InsertRoom45Sql);
+        Assert.Contains("WHEN fin IN ('01','35') AND dct<>'69'", C21RebuildSql.InsertRoom45Sql);
         Assert.Contains(":SDate", C21RebuildSql.IntegritySql);
         Assert.DoesNotContain("COMMIT", sql, StringComparison.OrdinalIgnoreCase);
     }

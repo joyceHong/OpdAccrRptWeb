@@ -9,6 +9,15 @@ namespace OpdAccrRptWeb.Tests;
 public sealed class C23ContractAccountingRepositoryTests
 {
     [Fact]
+    public void BasicLookup_ExcludesSameMedicalRecordsAsLegacyC23()
+    {
+        Assert.Contains("b.chOp1MrNo NOT IN ('C36979', '1000000')",
+            C23ContractAccountingRepository.BasicSqlTemplate);
+        Assert.DoesNotContain("2006010", C23ContractAccountingRepository.BasicSqlTemplate);
+        Assert.DoesNotContain("1999999", C23ContractAccountingRepository.BasicSqlTemplate);
+    }
+
+    [Fact]
     public void CreateParameters_ConvertsDatesAndNormalizesContract()
     {
         var parameters = C23ContractAccountingRepository.CreateParameters(new SearchReportCondition
@@ -33,6 +42,8 @@ public sealed class C23ContractAccountingRepositoryTests
         });
 
         Assert.Contains("FROM OpdRecRpt_PFin2SumDM1", sql);
+        Assert.Contains("chOp1Date AS AccountingDate", sql);
+        Assert.DoesNotContain("chOp1Date2 AS AccountingDate", sql);
         Assert.Contains(":dateFlagStart", sql);
         Assert.Contains(":dateFlagEnd", sql);
         Assert.Contains(":contract", sql);
@@ -41,6 +52,7 @@ public sealed class C23ContractAccountingRepositoryTests
         Assert.Contains("rlOp1SubAMT", sql);
         Assert.DoesNotContain("rlOp1Sub5", sql);
         Assert.DoesNotContain("2026-09-08", sql);
+        Assert.Contains(":VisitDate,:RoomType", C23ContractAccountingRepository.InsertIntermediateTemplate);
     }
 
     [Fact]

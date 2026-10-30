@@ -29,7 +29,8 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
         SELECT RTRIM(b.chOp1MrNo) AS MedicalRecordNumber, RTRIM(b.chOp1PName) AS PatientName,
                RTRIM(b.chOp1DrName) AS DoctorName, RTRIM(s.chSecName) AS DepartmentName
         FROM {BASIC} b LEFT JOIN GenSectionTbl s ON b.chOp1Sec=s.chSecNo
-        WHERE b.chOp1Date=:visitDate AND b.chOp1Time=:visitTime
+        WHERE b.chOp1MrNo NOT IN ('C36979', '1000000')
+          AND b.chOp1Date=:visitDate AND b.chOp1Time=:visitTime
           AND b.chOp1Room=:visitRoom AND b.intOp1No=:visitNumber
         """;
 
@@ -39,7 +40,7 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
            chOp1PFin2,chOp1PFin2Nm,chOp1MrNo,chOp1PName,chOp1PSecNm,chOp1DrIDNm,
            chOp1Dct,chOp1DctNm,rlOp1Sub3,rlOp1Sub2,rlOp1SubAMT,chCUser,intFlag,chDateFlag)
         VALUES
-          (:AccountingDate,:MedicalRecordNumber,:RoomTypeName,:AccountingDate,:RoomType,:RoomTypeName,
+          (:AccountingDate,:MedicalRecordNumber,:RoomTypeName,:VisitDate,:RoomType,:RoomTypeName,
            :ContractCode,:ContractName,:MedicalRecordNumber,:PatientName,:DepartmentName,:DoctorName,
            :BillingCode,:BillingName,:DiscountAmount,:ContractAmount,:GrossAmount,:Creator,0,:DateFlag)
         """;
@@ -47,11 +48,17 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
     internal const string InsertContractHeaderSql = """
         INSERT INTO IpdContractTbl
             (chOp1Date,chOp1Time,chOp1Room,intOp1No,vchRoomType,vchPrintFlag,vchPayBack,intOp2Amt,vchStat)
-        VALUES (:dateValue,:timeValue,:roomValue,:numberValue,:roomType,'0','0',0,'00')
+        SELECT :dateValue,:timeValue,:roomValue,:numberValue,:roomType,'0','0',0,'00'
+        FROM dual
+        WHERE NOT EXISTS (
+            SELECT 1 FROM IpdContractTbl
+            WHERE chOp1Date=:dateValue AND chOp1Time=:timeValue
+              AND chOp1Room=:roomValue AND intOp1No=:numberValue)
         """;
 
     public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() =>
-        ModelDescriptionsHelper.GetPropertyDescriptions<C23ContractAccountingReportViewModel>();
+        ModelDescriptionsHelper.GetPropertyDescriptions<C23ContractAccountingReportViewModel>()
+            .Where(column => column.Key is not ("doctorName" or "clerkName")).ToList();
 
     public IReadOnlyList<C23ContractOption> GetContracts()
     {
@@ -116,9 +123,10 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
 
         var table = GetIntermediateTable(condition.EncounterSource!);
         var detail = $"""
-            SELECT chOp1Date2 AS AccountingDate, RTRIM(chOp1PFin2) AS ContractCode,
+            SELECT chOp1Date AS AccountingDate, RTRIM(chOp1PFin2) AS ContractCode,
                    RTRIM(chOp1PFin2Nm) AS ContractName, RTRIM(chOp1MrNo) AS MedicalRecordNumber,
                    RTRIM(chOp1PName) AS PatientName, RTRIM(chOp1PSecNm) AS DepartmentName,
+                   RTRIM(chOp1DrIDNm) AS DoctorName, RTRIM(chCUser) AS ClerkName,
                    RTRIM(chOp1Dct) AS BillingCode, RTRIM(chOp1DctNm) AS BillingName,
                    NVL(rlOp1SubAMT, 0) AS GrossAmount,
                    TO_NUMBER(NVL(NULLIF(TRIM(rlOp1Sub2), ''), '0')) AS ContractAmount,
@@ -135,7 +143,8 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
         return $"""
             SELECT :startDate || '-' || :endDate AS AccountingDate, RTRIM(chOp1PFin2) AS ContractCode,
                    MAX(RTRIM(chOp1PFin2Nm)) AS ContractName, '' AS MedicalRecordNumber,
-                   '' AS PatientName, '' AS DepartmentName, RTRIM(chOp1Dct) AS BillingCode,
+                   '' AS PatientName, '' AS DepartmentName, '' AS DoctorName, '' AS ClerkName,
+                   RTRIM(chOp1Dct) AS BillingCode,
                    MAX(RTRIM(chOp1DctNm)) AS BillingName, SUM(NVL(rlOp1SubAMT, 0)) AS GrossAmount,
                    SUM(TO_NUMBER(NVL(NULLIF(TRIM(rlOp1Sub2), ''), '0'))) AS ContractAmount,
                    SUM(NVL(rlOp1Sub3, 0)) AS DiscountAmount, 'Summary' AS ResultType
@@ -201,6 +210,7 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
             SELECT chop1date AS AccountingDate, RTRIM(chop1pfin2) AS ContractCode,
                    RTRIM(chop1pfin2nm) AS ContractName, RTRIM(chop1mrno) AS MedicalRecordNumber,
                    RTRIM(chop1pname) AS PatientName, RTRIM(chop1psecnm) AS DepartmentName,
+                   RTRIM(chop1dridnm) AS DoctorName, RTRIM(chcuser) AS ClerkName,
                    RTRIM(chop1dct) AS BillingCode, RTRIM(chop1dctnm) AS BillingName,
                    NVL(rlop1subamt,0) AS GrossAmount, NVL(rlop1sub2,0) AS ContractAmount,
                    NVL(rlop1sub3,0) AS DiscountAmount, 'Detail' AS ResultType
@@ -242,7 +252,7 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
                     visitDate = row.ChOp1Date, visitTime = row.ChOp1Time,
                     visitRoom = row.ChOp1Room, visitNumber = row.IntOp1No
                 }, transaction);
-                if (basic is null || basic.MedicalRecordNumber is "2006010" or "1999999") continue;
+                if (basic is null) continue;
                 var calculated = C23AccountingCalculationService.Calculate(new(
                     rocDate, row.ChOp1Room, row.ChOp4PFin2, row.ChOp4OrdNo,
                     row.ChOp4SPay, row.VchIrbNo, !outpatient, row.RlOp4Sub3, row.RlOp4Sub5,
@@ -252,6 +262,7 @@ public sealed class C23ContractAccountingRepository(IConnectionStringProvider co
                 connection.Execute(insertSql, new
                 {
                     AccountingDate = rocDate,
+                    VisitDate = row.ChOp1Date,
                     basic.MedicalRecordNumber, basic.PatientName, basic.DepartmentName, basic.DoctorName,
                     RoomType = sourceQuery.IsDischargeSnapshot ? "2" : null,
                     RoomTypeName = sourceQuery.IsDischargeSnapshot ? "出院" : outpatient ? "門急診" : "住院",

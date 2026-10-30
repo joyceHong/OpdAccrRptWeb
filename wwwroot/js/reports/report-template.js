@@ -1206,6 +1206,19 @@
                     cashierCashSortType: this.form.cashierCashSortType
                 }, "無法建立 C22 列印預覽。");
             },
+            async previewC23() {
+                if (!this.isC23 || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C23/Preview", {
+                    reportCode: "C23",
+                    startDate: this.form.startDate,
+                    endDate: this.form.endDate,
+                    encounterSource: this.form.encounterSource,
+                    dateMode: this.form.dateMode,
+                    inpatientType: this.form.dateMode === "General" ? this.form.inpatientType || undefined : undefined,
+                    contractCode: this.form.contractCode.trim() || undefined,
+                    forceRebuild: false
+                }, "無法建立 C23 列印預覽。");
+            },
             openC212Preview() {
                 if (!this.isC212 || !this.hasResults || !this.c212Summary) return;
                 this.c212PreviewRows = this.rows.map(row => ({ ...row }));
@@ -1247,7 +1260,23 @@
                 }
             },
             closeLegacyPreview() { this.legacyPreviewOpen = false; this.legacyPreviewHtml = ""; },
-            printLegacyPreview() { if (this.legacyPreviewOpen) window.print(); },
+            printLegacyPreview() {
+                if (!this.legacyPreviewOpen) return;
+                if (!this.isC23) { window.print(); return; }
+                const printWindow = window.open("", "_blank");
+                if (!printWindow) {
+                    this.validationMessage = "無法開啟列印視窗，請允許此網站開啟彈出視窗。";
+                    return;
+                }
+                const stylesheet = document.querySelector('link[href*="site.css"]');
+                const stylesheetUrl = stylesheet?.href || "/css/site.css";
+                const paper = document.querySelector(".report-preview-overlay .report-preview-paper");
+                if (!paper) { printWindow.close(); return; }
+                printWindow.document.open();
+                printWindow.document.write(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>C23 列印</title><link rel="stylesheet" href="${stylesheetUrl}"><link rel="stylesheet" href="/css/c23-preview.css"></head><body><div class="report-preview-overlay"><article class="report-preview-paper">${paper.innerHTML}</article></div></body></html>`);
+                printWindow.addEventListener("load", () => { printWindow.focus(); printWindow.print(); }, { once: true });
+                printWindow.document.close();
+            },
             async openC3Preview() {
                 if (!this.isC3 || !this.hasResults || this.c3PreviewLoading) return;
                 this.c3PreviewLoading = true;

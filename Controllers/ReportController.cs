@@ -705,6 +705,51 @@ public sealed class ReportController : Controller
         return Ok(_c23Repository.GetContracts());
     }
 
+    [HttpPost("Report/C23/Preview")]
+    [Authorize]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC23([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C23";
+        if (condition.ForceRebuild) return BadRequest("預覽不可執行重新計算。");
+        IActionResult? validation = ValidateC23Condition(condition);
+        if (validation is not null) return validation;
+        Response.Headers.CacheControl = "private, no-store";
+        try
+        {
+            var repository = _c23Repository
+                ?? throw new InvalidOperationException("C23 repository 尚未設定。");
+            const int pageSize = 500;
+            var rows = new List<C23ContractAccountingReportViewModel>();
+            var count = repository.GetCount(condition);
+            for (var page = 1; rows.Count < count; page++)
+            {
+                condition.PageNumber = page;
+                condition.PageSize = pageSize;
+                var batch = repository.GetPage(condition);
+                if (batch.Count == 0) break;
+                rows.AddRange(batch);
+            }
+            if (rows.Count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+            var preview = C23ContractAccountingPreviewBuilder.Build(condition, rows,
+                DateTime.Now, User.Identity?.Name ?? string.Empty);
+            if (preview.Pages.Count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+            return PartialView("_C23ContractAccountingPreview", preview);
+        }
+        catch (OracleException exception)
+        {
+            _logger.LogWarning(exception, "C23 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(503, new ProblemDetails { Status = 503, Title = "資料庫服務暫時無法使用，請稍後再試。" });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "C23 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(500, new ProblemDetails { Status = 500, Title = "建立 C23 預覽時發生錯誤。" });
+        }
+    }
+
     [HttpGet("Report/C211/Contracts")]
     public async Task<IActionResult> GetC211Contracts(CancellationToken cancellationToken)
     {

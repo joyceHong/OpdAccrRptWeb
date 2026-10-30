@@ -385,7 +385,7 @@ body{background:var(--bg)}
 .c21-query-panel form>.segmented-source-fieldset{grid-column:3;display:block;min-width:0;margin:0;padding:0}
 .c21-query-panel form>.c21-filter-grid{grid-column:1/3;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;flex:none;width:100%;min-width:0;margin:0;padding:0}
 .c21-query-panel .c21-filter-grid label{min-width:0}
-.c21-query-panel form>.c21-rebuild-option{grid-column:1/3;justify-self:start;min-height:34px}
+.c21-query-panel form>.c21-rebuild-option{grid-column:1/3;justify-self:start}
 .c21-query-panel form>.validation-message{grid-column:1/-1}
 .c21-query-panel form>.form-actions{grid-column:3;justify-self:end;width:auto;margin:0}
 
@@ -406,25 +406,31 @@ body{background:var(--bg)}
 @media(max-width:1050px){.c21-query-panel form{grid-template-columns:repeat(2,minmax(0,1fr))}.c21-query-panel form>.date-row,.c21-query-panel form>.c21-filter-grid{grid-column:1/-1}.c21-query-panel form>.segmented-source-fieldset{grid-column:1/-1}.c21-query-panel form>.c21-rebuild-option{grid-column:1}.c21-query-panel form>.form-actions{grid-column:2}}
 @media(max-width:760px){.c21-query-panel form{grid-template-columns:minmax(0,1fr);gap:16px;padding:16px}.c21-query-panel form>.date-row{grid-column:1;flex-direction:column;align-items:stretch}.c21-query-panel form>.date-row .date-arrow{display:none}.c21-query-panel form>.segmented-source-fieldset,.c21-query-panel form>.c21-filter-grid,.c21-query-panel form>.c21-rebuild-option,.c21-query-panel form>.validation-message,.c21-query-panel form>.form-actions{grid-column:1}.c21-query-panel form>.c21-filter-grid{grid-template-columns:minmax(0,1fr);gap:16px}.c21-query-panel form>.form-actions{justify-self:stretch;width:100%;justify-content:flex-end}}
 
-/* Keep C23 filters together and give the rebuild action its own clear surface. */
-.c23-query-panel form{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);align-items:end;gap:20px 24px;box-sizing:border-box;width:min(1120px,100%);padding:20px 24px 22px}
+/* Shared rebuild checkbox surface for C21, C23, and C24. */
+.report-rebuild-option{display:flex;align-items:center;gap:12px;box-sizing:border-box;width:min(520px,100%);min-height:70px;padding:12px 15px;border:1px solid #c9d7e4;border-radius:9px;color:#293b50;background:#f8fbfd;cursor:pointer;transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease}
+.report-rebuild-option input{flex:none;width:19px;height:19px;margin:0;accent-color:var(--blue);cursor:pointer}
+.report-rebuild-option span{display:grid;gap:3px;min-width:0}
+.report-rebuild-option strong{font-size:13px;line-height:1.4}
+.report-rebuild-option small{color:#667b90;font-size:12px;font-weight:400;line-height:1.4}
+.report-rebuild-option:not(.is-disabled):hover{border-color:#7eabc9;background:#f3f9fd}
+.report-rebuild-option.is-selected{border-color:#4b91bf;background:#eaf5fc}
+.report-rebuild-option:focus-within{outline:2px solid #1769aa;outline-offset:2px}
+.report-rebuild-option.is-disabled{color:#8798aa;background:#f3f6f8;cursor:not-allowed}
+.report-rebuild-option.is-disabled input{cursor:not-allowed}
+.report-rebuild-option.is-disabled small{color:#8798aa}
+
+/* Keep C23 filters together and place actions at the right edge. */
+.c23-query-panel form{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);align-items:end;gap:20px 24px;box-sizing:border-box;width:100%;padding:20px 24px 22px}
 .c23-query-panel form>.date-row{grid-column:1;display:flex;flex:none;width:100%;max-width:none;gap:12px}
 .c23-query-panel form>.date-row label{min-width:0}
 .c23-query-panel form>.segmented-source-fieldset{grid-column:2;min-width:0;margin:0;padding:0}
 .c23-query-panel form>.c23-filter-grid{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:none;gap:20px 24px;width:100%;min-width:0;margin:0;padding:0}
 .c23-query-panel form>.c23-filter-grid label{min-width:0}
-.c23-query-panel form>.c23-rebuild-option{grid-column:1/-1;display:flex;align-items:center;gap:12px;box-sizing:border-box;width:min(520px,100%);min-height:70px;padding:12px 15px;border:1px solid #c9d7e4;border-radius:9px;color:#293b50;background:#f8fbfd;cursor:pointer;transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease}
-.c23-rebuild-option input{flex:none;width:19px;height:19px;margin:0;accent-color:var(--blue);cursor:pointer}
-.c23-rebuild-option span{display:grid;gap:3px;min-width:0}
-.c23-rebuild-option strong{font-size:13px;line-height:1.4}
-.c23-rebuild-option small{color:#667b90;font-size:12px;font-weight:400;line-height:1.4}
-.c23-query-panel form>.c23-rebuild-option:hover{border-color:#7eabc9;background:#f3f9fd}
-.c23-query-panel form>.c23-rebuild-option.is-selected{border-color:#4b91bf;background:#eaf5fc}
-.c23-query-panel form>.c23-rebuild-option:focus-within{outline:2px solid #1769aa;outline-offset:2px}
+.c23-query-panel form>.c23-rebuild-option{grid-column:1}
 .c23-query-panel form>.validation-message{grid-column:1/-1}
-.c23-query-panel form>.form-actions{grid-column:1/-1;justify-self:stretch;width:100%;margin:0;padding-top:14px;border-top:1px solid #e7edf3}
+.c23-query-panel form>.form-actions{grid-column:2;justify-self:end;width:auto;margin:0}
 @media(max-width:900px){.c23-query-panel form{grid-template-columns:minmax(0,1fr)}.c23-query-panel form>.date-row,.c23-query-panel form>.segmented-source-fieldset,.c23-query-panel form>.c23-filter-grid,.c23-query-panel form>.c23-rebuild-option,.c23-query-panel form>.validation-message,.c23-query-panel form>.form-actions{grid-column:1}.c23-query-panel form>.c23-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.c23-query-panel form{gap:16px;padding:16px}.c23-query-panel form>.date-row{flex-direction:column;align-items:stretch}.c23-query-panel form>.date-row .date-arrow{display:none}.c23-query-panel form>.c23-filter-grid{grid-template-columns:minmax(0,1fr);gap:16px}.c23-query-panel form>.c23-rebuild-option{width:100%}}
+@media(max-width:600px){.c23-query-panel form{gap:16px;padding:16px}.c23-query-panel form>.date-row{flex-direction:column;align-items:stretch}.c23-query-panel form>.date-row .date-arrow{display:none}.c23-query-panel form>.c23-filter-grid{grid-template-columns:minmax(0,1fr);gap:16px}.c23-query-panel form>.c23-rebuild-option,.c23-query-panel form>.form-actions{width:100%}}
 
 .c21-title-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}
 .report-preview-overlay:has(.c21-print-document) .report-preview-paper{width:210mm;min-height:297mm;padding:0;font-family:"PMingLiU","Noto Serif TC",serif}

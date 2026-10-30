@@ -10,6 +10,8 @@ public sealed class C23ContractAccountingReportViewModel
     [Description("病歷號")] public string MedicalRecordNumber { get; set; } = string.Empty;
     [Description("病患姓名")] public string PatientName { get; set; } = string.Empty;
     [Description("科別")] public string DepartmentName { get; set; } = string.Empty;
+    public string DoctorName { get; set; } = string.Empty;
+    public string ClerkName { get; set; } = string.Empty;
     [Description("收費代碼")] public string BillingCode { get; set; } = string.Empty;
     [Description("收費名稱")] public string BillingName { get; set; } = string.Empty;
     [Description("原價")] public decimal GrossAmount { get; set; }

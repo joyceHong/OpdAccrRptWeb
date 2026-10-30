@@ -1,0 +1,50 @@
+@model OpdAccrRptWeb.ViewModels.C23ContractAccountingPreviewViewModel
+@using System.Globalization
+@functions {
+    private static string Amount(decimal value) => value.ToString("#,0.##", CultureInfo.InvariantCulture);
+}
+@foreach (var page in Model.Pages)
+{
+    <section class="c23-print-document">
+        <header class="c23-print-header">
+            <div class="c23-print-timestamp">處理日期：@Model.ProcessedAt</div>
+            <div class="c23-print-heading">
+                <h1>亞 東 紀 念 醫 院</h1>
+                <h2>@Model.Title</h2>
+                <p>資料日期：@Model.DateRange　　身份別：@(page.ContractCode)　@(page.ContractName)</p>
+            </div>
+            <div class="c23-print-page">頁數：@(page.PageNumber)</div>
+        </header>
+        <table class="c23-print-table">
+            <thead>
+                <tr>
+                    <th>日期</th><th>病歷號</th><th>姓名</th><th>科別</th><th>醫師</th>
+                    <th>收費科目</th><th>總金額</th><th>折扣額</th><th>應付金額</th><th>記帳員</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in page.Rows)
+                {
+                    <tr class="c23-patient-row">
+                        <td>@row.AccountingDate</td><td>@row.MedicalRecordNumber</td><td>@row.PatientName</td>
+                        <td>@row.DepartmentName</td><td>@row.DoctorName</td><td></td><td></td><td></td><td></td><td>@row.ClerkName</td>
+                    </tr>
+                    <tr class="c23-charge-row">
+                        <td></td><td></td><td></td><td></td><td></td>
+                        <td>@row.BillingCode　@row.BillingName</td>
+                        <td class="amount">@Amount(row.GrossAmount)</td>
+                        <td class="amount">@Amount(row.DiscountAmount)</td>
+                        <td class="amount">@Amount(row.ContractAmount)</td><td></td>
+                    </tr>
+                }
+            </tbody>
+            @if (page.GrossTotal is not null)
+            {
+                <tfoot>
+                    <tr><th colspan="6">合　計：</th><td class="amount">@Amount(page.GrossTotal.Value)</td><td class="amount">@Amount(page.DiscountTotal!.Value)</td><td class="amount">@Amount(page.ContractTotal!.Value)</td><td></td></tr>
+                </tfoot>
+            }
+        </table>
+        <footer class="c23-print-footer">製表人：@Model.GeneratedBy</footer>
+    </section>
+}

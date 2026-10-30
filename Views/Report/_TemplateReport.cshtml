@@ -32,6 +32,7 @@
                 <button class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC22">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
                 <button class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
             </div>
+            <button v-else-if="isC23" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC23">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <template v-else-if="isC141">
                 <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-show="selectedReport.canPrint" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
                 <button v-if="selectedReport.canLineBot" class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
@@ -171,9 +172,9 @@
                         </label>
                         <label><span>收費科目</span><select v-model="form.billingCode"><option value="">全部</option><option v-for="item in c21BillingItems" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
                     </div>
-                    <label v-if="isC21 && selectedReport.canRebuild" class="source-option c21-rebuild-option">
+                    <label v-if="isC21 && selectedReport.canRebuild" class="report-rebuild-option c21-rebuild-option" :class="{ 'is-selected': form.forceRebuild, 'is-disabled': !canForceC21Rebuild }">
                         <input v-model="form.forceRebuild" type="checkbox" :disabled="!canForceC21Rebuild" />
-                        <span>重新計算<small v-if="!canForceC21Rebuild">（限住院單日）</small></span>
+                        <span><strong>重新計算本日資料</strong><small>限住院單日；勾選後按「查詢」，將重新計算當日資料。</small></span>
                     </label>
                     <div v-if="isC141" class="advanced-grid">
                         <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" type="text" maxlength="10" autocomplete="off" v-on:input="currentPage = 1" /></label>
@@ -185,7 +186,7 @@
                         <label><span>合約代碼</span><select v-model="form.contractCode"><option value="">全部</option><option v-for="item in c23Contracts" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
                         <label v-if="form.encounterSource === 'Inpatient' && form.dateMode === 'General'"><span>住院別 <i>*</i></span><select v-model="form.inpatientType" required><option value="" disabled>請選擇</option><option value="Inpatient">住院</option><option value="Discharged">出院</option></select></label>
                     </div>
-                    <label v-if="canForceC23Rebuild" class="c23-rebuild-option" :class="{ 'is-selected': form.forceRebuild }">
+                    <label v-if="canForceC23Rebuild" class="report-rebuild-option c23-rebuild-option" :class="{ 'is-selected': form.forceRebuild }">
                         <input v-model="form.forceRebuild" type="checkbox" />
                         <span><strong>重新產生本日資料</strong><small>勾選後按「查詢」，將重新計算當日資料。</small></span>
                     </label>
@@ -196,8 +197,11 @@
                         <label v-if="isC24"><span>模式 <i>*</i></span><select v-model="form.mode" v-on:change="changeC24Mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
                         <label><span>門急診別 <i>*</i></span><select v-if="isC10" v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="Outpatient">門診</option></select><select v-else v-model="form.roomScope" :disabled="form.source === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="NonEmergency">門診</option></select></label>
                         <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" maxlength="10" /></label>
-                        <label v-if="canForceC24Rebuild" class="source-option"><input v-model="form.forceRebuild" type="checkbox" /><span>重建</span></label>
                     </div>
+                    <label v-if="canForceC24Rebuild" class="report-rebuild-option" :class="{ 'is-selected': form.forceRebuild }">
+                        <input v-model="form.forceRebuild" type="checkbox" />
+                        <span><strong>重建本日資料</strong><small>勾選後按「查詢」，將重新計算當日資料。</small></span>
+                    </label>
                     <button v-if="hasAdvancedConditions" class="advanced-filter-toggle" type="button" :aria-expanded="advancedOpen ? 'true' : 'false'" aria-controls="template-advanced-filters" v-on:click="advancedOpen = !advancedOpen">
                         進階篩選 <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span><span class="chevron" :class="{ open: advancedOpen }">⌄</span>
                     </button>
@@ -319,7 +323,7 @@
                 <div class="c22-filter-actions"><button class="ghost-button" type="button" v-on:click="closeC22Filters">取消</button><button class="primary-button" type="button" v-on:click="applyC22Filters">套用篩選</button></div>
             </section>
         </div>
-        <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">{{ isC21 || isC22 ? '取消' : '關閉預覽' }}</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">{{ isC21 || isC22 ? '確定列印' : '列印' }}</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
+        <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">{{ isC21 || isC22 || isC23 ? '取消' : '關閉預覽' }}</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">{{ isC21 || isC22 || isC23 ? '確定列印' : '列印' }}</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
         <div v-if="c4PreviewOpen && c4Preview" class="c4-preview-overlay" role="dialog" aria-modal="true" aria-label="C4 列印預覽">
             <div class="c4-preview-actions no-print">
                 <button class="ghost-button" type="button" v-on:click="closeC4Preview">關閉預覽</button>

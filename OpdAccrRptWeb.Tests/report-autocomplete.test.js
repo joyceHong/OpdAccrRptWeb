@@ -107,6 +107,31 @@ templateMethods.applyReportFilters.call(c29).then(async () => {
     assert.equal(c29.searchCalls, 1);
     assert.equal(c29.reportFilterOpen, false);
 
+    const c211Filters = {
+        isC22: false, isC29: false, isC211: true,
+        form: { contractCode: "02", billingCode: "", cashierUserId: "", cashierCashSortType: "Cashier" },
+        reportFilterOpen: false, reportFilterContractValid: true,
+        $refs: { reportFilterTitle: { focus() { c211Filters.titleFocused = true; } } },
+        $nextTick(callback) { callback(); },
+        async search() { this.searchCalls = (this.searchCalls ?? 0) + 1; }
+    };
+    templateMethods.openReportFilters.call(c211Filters);
+    assert.equal(c211Filters.reportFilterDraft.contractCode, "02");
+    assert.equal(c211Filters.titleFocused, true);
+    c211Filters.reportFilterDraft.contractCode = "03";
+    templateMethods.closeReportFilters.call(c211Filters);
+    assert.equal(c211Filters.form.contractCode, "02");
+    c211Filters.reportFilterOpen = true;
+    c211Filters.reportFilterContractValid = false;
+    await templateMethods.applyReportFilters.call(c211Filters);
+    assert.equal(c211Filters.form.contractCode, "02");
+    assert.equal(c211Filters.reportFilterOpen, true);
+    c211Filters.reportFilterContractValid = true;
+    await templateMethods.applyReportFilters.call(c211Filters);
+    assert.equal(c211Filters.form.contractCode, "03");
+    assert.equal(c211Filters.searchCalls, 1);
+    assert.equal(c211Filters.reportFilterOpen, false);
+
     const c29Preview = {
         isC29: true, selectedReport: { canPrint: true }, hasResults: true,
         isLoading: false, legacyPreviewLoading: false,

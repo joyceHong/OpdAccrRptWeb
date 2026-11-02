@@ -298,7 +298,7 @@
             return {
                 advancedOpen: false,
                 reportFilterOpen: false,
-                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "" },
+                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "" },
                 reportFilterContractValid: true,
                 validationMessage: "",
                 isLoading: false,
@@ -437,11 +437,12 @@
             },
             activeFilterCount() {
                 const defaults = createInitialForm(this.defaultStartDate, this.defaultEndDate, this.reportConfiguration);
-                return advancedConditionKeys.reduce((count, key) => {
+                const count = advancedConditionKeys.reduce((count, key) => {
                     const formKey = key === "cashierCashSort" ? "cashierCashSortType" : key;
                     if (this.reportConfiguration[key] === undefined || !(formKey in this.form)) return count;
                     return count + (JSON.stringify(this.form[formKey]) !== JSON.stringify(defaults[formKey]) ? 1 : 0);
                 }, 0);
+                return count + (this.isC211 && this.form.contractCode.trim() ? 1 : 0);
             },
             cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
             isEndDateOnly() { return this.reportConfiguration.endDateOnly === true; },
@@ -565,12 +566,13 @@
                 this.reportFilterDraft = {
                     cashierUserId: this.form.cashierUserId,
                     cashierCashSortType: this.form.cashierCashSortType,
-                    billingCode: this.form.billingCode
+                    billingCode: this.form.billingCode,
+                    contractCode: this.form.contractCode
                 };
                 this.reportFilterContractValid = true;
                 this.reportFilterOpen = true;
                 if (this.isC29) this.loadC29Contracts();
-                this.$nextTick?.(() => (this.isC29
+                this.$nextTick?.(() => (this.isC29 || this.isC211
                     ? this.$refs?.reportFilterTitle
                     : this.$refs?.reportFilterInput)?.focus());
             },
@@ -582,6 +584,10 @@
                 } else if (this.isC29) {
                     if (!this.reportFilterContractValid) return;
                     this.form.billingCode = this.reportFilterDraft.billingCode.trim();
+                } else if (this.isC211) {
+                    if (!this.reportFilterContractValid) return;
+                    this.form.contractCode = this.reportFilterDraft.contractCode.trim();
+                    this.c211ContractValid = true;
                 }
                 this.currentPage = 1;
                 this.hasSearched = false;
@@ -589,7 +595,7 @@
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
                 this.reportFilterOpen = false;
-                if (this.isC29) await this.search();
+                if (this.isC29 || this.isC211) await this.search();
             },
             resetForm() {
                 this.stopExportPolling?.();
@@ -600,7 +606,7 @@
                 if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
                 this.reportFilterOpen = false;
-                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "" };
+                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "" };
                 this.reportFilterContractValid = true;
                 this.c211ContractValid = true;
                 this.validationMessage = "";

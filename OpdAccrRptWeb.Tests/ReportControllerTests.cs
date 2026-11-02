@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using OpdAccrRptWeb.Controllers;
+using OpdAccrRptWeb.Help;
+using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
 
@@ -1242,6 +1244,49 @@ public sealed class ReportControllerTests
         Assert.Equal(expectedPageSize, condition.PageSize);
     }
 
+    [Fact]
+    public void PreviewC29_ConvertsDatesAndBuildsCompletePreview()
+    {
+        var repository = new StubC29PreviewRepository();
+        var controller = CreateController(new CountingReportService(),
+            new CapturingLogger<ReportController>(), c29Repository: repository);
+        var condition = new SearchReportCondition
+        {
+            StartDate = "2026-08-01", EndDate = "2026-08-31",
+            EncounterSource = EncounterSources.Emergency, BillingCode = " A01 "
+        };
+
+        var result = Assert.IsType<PartialViewResult>(controller.PreviewC29(condition));
+        var preview = Assert.IsType<C29ContractPaymentPreviewViewModel>(result.Model);
+
+        Assert.Equal("_C29ContractPaymentPreview", result.ViewName);
+        Assert.Equal("115/08/01 - 115/08/31", preview.DateRange);
+        Assert.Equal(2, preview.Pages.Count);
+        Assert.Equal(3, preview.Pages.Sum(page => page.Rows.Count));
+        Assert.Equal(3, preview.Pages.Last().GroupTotal);
+        Assert.Equal("1150801", repository.CountCondition!.StartDate);
+        Assert.Equal("1150831", repository.CountCondition.EndDate);
+        Assert.Equal("A01", repository.CountCondition.BillingCode);
+        Assert.Equal(500, repository.PageSizes.Single());
+    }
+
+    [Fact]
+    public void PreviewC29_InvalidDateDoesNotQueryRepository()
+    {
+        var repository = new StubC29PreviewRepository();
+        var controller = CreateController(new CountingReportService(),
+            new CapturingLogger<ReportController>(), c29Repository: repository);
+
+        var result = controller.PreviewC29(new SearchReportCondition
+        {
+            StartDate = "2026-09-01", EndDate = "2026-08-31",
+            EncounterSource = EncounterSources.Emergency
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Null(repository.CountCondition);
+    }
+
     [Theory]
     [InlineData(null, "2026-08-01", "2026-08-31")]
     [InlineData("Unknown", "2026-08-01", "2026-08-31")]
@@ -1647,17 +1692,48 @@ public sealed class ReportControllerTests
         CapturingLogger<ReportController> logger,
         string traceId = "test-trace",
         IReportExportService? exportService = null,
-        IC211ContractBalanceReportService? c211ReportService = null)
+        IC211ContractBalanceReportService? c211ReportService = null,
+        IContractPaymentDetailRepository? c29Repository = null)
     {
         return new ReportController(new FakeReportCatalogService(), service,
             exportService ?? new FakeReportExportService(), logger,
-            c211ReportService: c211ReportService)
+            c211ReportService: c211ReportService,
+            c29Repository: c29Repository)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { TraceIdentifier = traceId }
             }
         };
+    }
+
+    private sealed class StubC29PreviewRepository : IContractPaymentDetailRepository
+    {
+        public SearchReportCondition? CountCondition { get; private set; }
+        public List<int> PageSizes { get; } = [];
+
+        public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() => [];
+
+        public int GetCount(SearchReportCondition searchCondition)
+        {
+            CountCondition = new SearchReportCondition
+            {
+                StartDate = searchCondition.StartDate,
+                EndDate = searchCondition.EndDate,
+                BillingCode = searchCondition.BillingCode
+            };
+            return 3;
+        }
+
+        public List<ContractPaymentDetailReportViewModel> GetPage(SearchReportCondition searchCondition)
+        {
+            PageSizes.Add(searchCondition.PageSize!.Value);
+            return [
+                new() { ContractCode = "A01", PaymentAmount = 1 },
+                new() { ContractCode = "A01", PaymentAmount = 2 },
+                new() { ContractCode = "B02", PaymentAmount = 3 }
+            ];
+        }
     }
 
     private sealed class StubC211PreviewReportService : IC211ContractBalanceReportService

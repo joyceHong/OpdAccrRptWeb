@@ -104,6 +104,7 @@ public sealed class ReportQueryPermissionFilterTests
     [InlineData("Report", "PreviewC1", "C1")]
     [InlineData("Report", "PreviewC22", "C22")]
     [InlineData("Report", "PreviewC24", "C24")]
+    [InlineData("Report", "PreviewC29", "C29")]
     [InlineData("C141PaymentNotice", "Preview", "C141")]
     [InlineData("C141LineBot", "Send", "C141")]
     [InlineData("OpdPriceQuery", "Receipt", "Q1")]
@@ -124,14 +125,16 @@ public sealed class ReportQueryPermissionFilterTests
         Assert.Equal(403, Assert.IsType<StatusCodeResult>(context.Result).StatusCode);
     }
 
-    [Fact]
-    public async Task C22PreviewRunsOnlyWithPrintGrant()
+    [Theory]
+    [InlineData("C22")]
+    [InlineData("C29")]
+    public async Task PreviewRunsOnlyWithPrintGrant(string code)
     {
-        var context = CreateContext("Report", "PreviewC22", new Dictionary<string, object?>());
-        context.HttpContext.Request.Path = "/Report/C22/Preview";
+        var context = CreateContext("Report", $"Preview{code}", new Dictionary<string, object?>());
+        context.HttpContext.Request.Path = $"/Report/{code}/Preview";
         bool executed = false;
         var filter = CreateFilter(new ReportPermissionSnapshot("E100", false,
-            new Dictionary<string, ReportAction> { ["C22"] = ReportAction.Query | ReportAction.Print }));
+            new Dictionary<string, ReportAction> { [code] = ReportAction.Query | ReportAction.Print }));
 
         await filter.OnActionExecutionAsync(context, () =>
         {

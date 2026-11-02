@@ -1,0 +1,54 @@
+@model OpdAccrRptWeb.ViewModels.C29ContractPaymentPreviewViewModel
+@using System.Globalization
+@functions {
+    private static string Amount(decimal value) => value.ToString("#,0.##", CultureInfo.InvariantCulture);
+}
+@foreach (var page in Model.Pages)
+{
+    <section class="c29-print-document">
+        <header class="c29-print-header">
+            <div class="c29-print-timestamp">處理日期：@Model.RocPrintedAt</div>
+            <div class="c29-print-heading">
+                <h1>亞 東 紀 念 醫 院</h1>
+                <h2>@Model.Title</h2>
+                <p>資料日期：@Model.DateRange　　身份別：@(page.ContractCode)　@(page.ContractName)</p>
+            </div>
+            <div class="c29-print-page">頁數：@(page.PageNumber)</div>
+        </header>
+        <table class="c29-print-table">
+            <thead><tr>
+                <th>日　期</th><th>病歷號</th><th>姓　名</th><th>科　別</th><th>醫　師</th>
+                <th>收費科目</th><th>總金額</th><th>折扣額</th><th>應付金額</th><th>記帳員</th>
+            </tr></thead>
+            <tbody>
+                @foreach (var row in page.Rows)
+                {
+                    <tr class="c29-print-patient-row">
+                        <td>@row.VisitDate</td><td>@row.MedicalRecordNumber</td><td>@row.PatientName</td>
+                        <td>@row.DepartmentName</td><td>@row.DoctorName</td><td></td>
+                        <td></td><td></td><td></td><td>@row.CashierUserId</td>
+                    </tr>
+                    <tr class="c29-print-amount-row">
+                        <td></td><td></td><td></td><td></td><td></td><td></td>
+                        <td class="amount">@Amount(row.PaymentAmount)</td>
+                        <td class="amount">0</td>
+                        <td class="amount">@Amount(row.PaymentAmount)</td><td></td>
+                    </tr>
+                }
+                @if (page.ContractTotal is decimal contractTotal)
+                {
+                    <tr class="c29-print-subtotal"><td colspan="5"></td><th>************</th>
+                        <td class="amount">@Amount(contractTotal)</td><td class="amount">0</td>
+                        <td class="amount">@Amount(contractTotal)</td><td></td></tr>
+                }
+                @if (page.GroupTotal is decimal groupTotal)
+                {
+                    <tr class="c29-print-total"><th colspan="6">合　計：</th>
+                        <td class="amount">@Amount(groupTotal)</td><td class="amount">0</td>
+                        <td class="amount">@Amount(groupTotal)</td><td></td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="c29-print-footer">製表人：@Model.GeneratedBy</footer>
+    </section>
+}

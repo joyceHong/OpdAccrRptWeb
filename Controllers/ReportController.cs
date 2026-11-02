@@ -20,6 +20,7 @@ public sealed class ReportController : Controller
     private readonly ILogger<ReportController> _logger;
     private readonly IC21AccountingSummaryRepository? _c21Repository;
     private readonly ICashierCashRepository? _c22Repository;
+    private readonly IContractPaymentDetailRepository? _c29Repository;
     private readonly IC21AccountingSummaryCalculationService? _c21CalculationService;
     private readonly IC23ContractAccountingRepository? _c23Repository;
     private readonly IC211ContractBalanceRepository? _c211Repository;
@@ -47,7 +48,8 @@ public sealed class ReportController : Controller
         IC211ContractBalanceReportService? c211ReportService = null,
         IC1SurgicalPrintService? c1SurgicalPrintService = null,
         IC21AccountingSummaryCalculationService? c21CalculationService = null,
-        ICashierCashRepository? c22Repository = null)
+        ICashierCashRepository? c22Repository = null,
+        IContractPaymentDetailRepository? c29Repository = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -55,6 +57,7 @@ public sealed class ReportController : Controller
         _logger = logger;
         _c21Repository = c21Repository;
         _c22Repository = c22Repository;
+        _c29Repository = c29Repository;
         _c21CalculationService = c21CalculationService;
         _c23Repository = c23Repository;
         _c211Repository = c211Repository;
@@ -884,6 +887,66 @@ public sealed class ReportController : Controller
             _logger.LogWarning(exception, "C22 preview failed. TraceId={TraceId} ErrorNumber={ErrorNumber}",
                 HttpContext.TraceIdentifier, exception.Number);
             return StatusCode(503, new ProblemDetails { Status = 503, Title = "C22 列印預覽暫時無法取得資料。" });
+        }
+    }
+
+    [HttpPost("Report/C29/Preview")]
+    [Authorize]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC29([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C29";
+        IActionResult? validation = ValidateC29Condition(condition);
+        if (validation is not null) return validation;
+        Response.Headers.CacheControl = "private, no-store";
+        try
+        {
+            var repository = _c29Repository
+                ?? throw new InvalidOperationException("C29 repository 尚未設定。");
+            var repositoryCondition = new SearchReportCondition
+            {
+                StartDate = DateTimeExtensions.ToRocDateString(
+                    DateOnly.ParseExact(condition.StartDate!, "yyyy-MM-dd", CultureInfo.InvariantCulture)
+                        .ToDateTime(TimeOnly.MinValue)),
+                EndDate = DateTimeExtensions.ToRocDateString(
+                    DateOnly.ParseExact(condition.EndDate!, "yyyy-MM-dd", CultureInfo.InvariantCulture)
+                        .ToDateTime(TimeOnly.MinValue)),
+                EncounterSource = condition.EncounterSource,
+                BillingCode = condition.BillingCode
+            };
+            int count = repository.GetCount(repositoryCondition);
+            if (count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無可預覽資料。" });
+            if (count > 5000)
+                return StatusCode(413, new ProblemDetails { Status = 413,
+                    Title = "預覽資料超過 5,000 列，請縮小日期範圍。" });
+
+            const int batchSize = 500;
+            var rows = new List<ContractPaymentDetailReportViewModel>(count);
+            for (int page = 1; rows.Count < count; page++)
+            {
+                repositoryCondition.PageNumber = page;
+                repositoryCondition.PageSize = batchSize;
+                var batch = repository.GetPage(repositoryCondition);
+                if (batch.Count == 0) break;
+                rows.AddRange(batch);
+            }
+            if (rows.Count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無可預覽資料。" });
+
+            var preview = C29ContractPaymentPreviewViewModel.Create(condition, rows,
+                DateTimeOffset.Now, User.Identity?.Name ?? string.Empty);
+            return PartialView("_C29ContractPaymentPreview", preview);
+        }
+        catch (OracleException exception)
+        {
+            _logger.LogWarning(exception, "C29 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(503, new ProblemDetails { Status = 503, Title = "C29 列印預覽暫時無法取得資料。" });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "C29 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(500, new ProblemDetails { Status = 500, Title = "無法建立 C29 列印預覽。" });
         }
     }
 

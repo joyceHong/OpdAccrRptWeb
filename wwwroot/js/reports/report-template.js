@@ -182,6 +182,8 @@
         }),
         C29: Object.freeze({
             serverPaged: true,
+            c29: true,
+            advancedConditions: false,
             billingCode: true,
             encounterSource: Object.freeze({
                 defaultValue: "Emergency",
@@ -292,8 +294,8 @@
         data() {
             return {
                 advancedOpen: false,
-                c22FilterOpen: false,
-                c22FilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier" },
+                reportFilterOpen: false,
+                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "" },
                 validationMessage: "",
                 isLoading: false,
                 hasSearched: false,
@@ -390,6 +392,7 @@
             hasBillingCode() { return this.reportConfiguration.billingCode === true; },
             isC21() { return this.reportConfiguration.c21 === true; },
             isC22() { return this.reportConfiguration.c22 === true; },
+            isC29() { return this.reportConfiguration.c29 === true; },
             isC23() { return this.reportConfiguration.c23 === true; },
             isC24() { return this.reportConfiguration.c24 === true; },
             isC10() { return this.reportConfiguration.c10 === true; },
@@ -557,24 +560,30 @@
             if (typeof document !== "undefined") document.removeEventListener("pointerdown", this.closeC211ContractsFromOutside);
         },
         methods: {
-            openC22Filters() {
-                this.c22FilterDraft = {
+            openReportFilters() {
+                this.reportFilterDraft = {
                     cashierUserId: this.form.cashierUserId,
-                    cashierCashSortType: this.form.cashierCashSortType
+                    cashierCashSortType: this.form.cashierCashSortType,
+                    billingCode: this.form.billingCode
                 };
-                this.c22FilterOpen = true;
-                this.$nextTick?.(() => this.$refs?.c22FilterInput?.focus());
+                this.reportFilterOpen = true;
+                this.$nextTick?.(() => this.$refs?.reportFilterInput?.focus());
             },
-            closeC22Filters() { this.c22FilterOpen = false; },
-            applyC22Filters() {
-                this.form.cashierUserId = this.c22FilterDraft.cashierUserId.trim();
-                this.form.cashierCashSortType = this.c22FilterDraft.cashierCashSortType;
+            closeReportFilters() { this.reportFilterOpen = false; },
+            async applyReportFilters() {
+                if (this.isC22) {
+                    this.form.cashierUserId = this.reportFilterDraft.cashierUserId.trim();
+                    this.form.cashierCashSortType = this.reportFilterDraft.cashierCashSortType;
+                } else if (this.isC29) {
+                    this.form.billingCode = this.reportFilterDraft.billingCode.trim();
+                }
                 this.currentPage = 1;
                 this.hasSearched = false;
                 this.rows = [];
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
-                this.c22FilterOpen = false;
+                this.reportFilterOpen = false;
+                if (this.isC29) await this.search();
             },
             resetForm() {
                 this.stopExportPolling?.();
@@ -584,8 +593,8 @@
                     getReportConfiguration(this.selectedReport.code));
                 if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
-                this.c22FilterOpen = false;
-                this.c22FilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier" };
+                this.reportFilterOpen = false;
+                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "" };
                 this.validationMessage = "";
                 this.hasSearched = false;
                 this.c4Organizations = [];
@@ -1219,6 +1228,17 @@
                     forceRebuild: false
                 }, "無法建立 C23 列印預覽。");
             },
+            async previewC29() {
+                if (!this.isC29 || !this.selectedReport.canPrint || !this.hasResults ||
+                    this.isLoading || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C29/Preview", {
+                    reportCode: "C29",
+                    startDate: this.form.startDate,
+                    endDate: this.form.endDate,
+                    encounterSource: this.form.encounterSource,
+                    billingCode: this.form.billingCode.trim() || undefined
+                }, "無法建立 C29 列印預覽。");
+            },
             async previewC24() {
                 if (!this.isC24 || !this.selectedReport.canPrint || !this.hasResults || this.legacyPreviewLoading) return;
                 await this.openLegacyPreview("/Report/C24/Preview", {
@@ -1274,7 +1294,7 @@
             },
             closeLegacyPreview() { this.legacyPreviewOpen = false; this.legacyPreviewHtml = ""; },
             printLegacyPreview() {
-                if (!this.legacyPreviewOpen) return;
+                if (!this.legacyPreviewOpen || !this.selectedReport.canPrint) return;
                 if (!this.isC23) { window.print(); return; }
                 const printWindow = window.open("", "_blank");
                 if (!printWindow) {

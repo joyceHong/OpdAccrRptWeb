@@ -494,10 +494,33 @@ async function verifiesC29SharedConfigurationPayloadPaginationAndReset() {
     assert.equal(requests[2].pageNumber, 1);
     assert.equal(requests[2].pageSize, 30);
 
+    Object.assign(context, {
+        isC22: false, isC29: true, reportFilterOpen: false,
+        $nextTick: callback => callback(), $refs: { reportFilterInput: { focus: () => {} } },
+        search: async function () { await component.methods.fetchResults.call(this); }
+    });
+    component.methods.openReportFilters.call(context);
+    assert.equal(context.reportFilterDraft.billingCode, "  A01  ");
+    context.reportFilterDraft.billingCode = "  B02  ";
+    component.methods.closeReportFilters.call(context);
+    assert.equal(context.form.billingCode, "  A01  ");
+    component.methods.openReportFilters.call(context);
+    context.reportFilterDraft.billingCode = "  B02  ";
+    await component.methods.applyReportFilters.call(context);
+    assert.equal(context.form.billingCode, "B02");
+    assert.equal(context.reportFilterOpen, false);
+    assert.equal(context.currentPage, 1);
+    assert.equal(context.hasSearched, true);
+    assert.equal(requests.length, 4);
+    assert.equal(requests[3].billingCode, "B02");
+    assert.equal(requests[3].encounterSource, "Inpatient");
+
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
     assert.match(markup, /v-if="hasBillingCode"[^>]*><span>合約代碼/);
     assert.match(markup, /!hasCashierUserId && !hasBillingCode/);
+    assert.match(markup, /v-if="isC22 \|\| isC29" class="c22-source-filter-row"/);
+    assert.match(markup, /v-if="isC29"[^>]*><span>合約代碼<\/span><input ref="reportFilterInput"/);
     assert.match(appSource, /C29:\s*window\.ReportComponents\.ReportTemplate/);
 
     Object.assign(context, {

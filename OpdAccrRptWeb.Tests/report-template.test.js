@@ -287,9 +287,13 @@ async function verifiesC214SharedConfigurationPayloadTypeSwitchAndReset() {
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
-    assert.match(markup, /v-if="hasReceivableBalanceType" class="source-fieldset"/);
+    assert.match(markup, /v-if="hasReceivableBalanceType" class="source-fieldset segmented-source-fieldset c214-balance-fieldset"/);
+    assert.match(markup, /<legend>收費身分類別 <i>\*<\/i><\/legend>/);
     assert.match(markup, /name="receivableBalanceType"/);
     assert.match(markup, /v-on:change="changeReceivableBalanceType"/);
+    const styles = fs.readFileSync("wwwroot/css/site.css", "utf8");
+    assert.match(styles, /\.c214-balance-fieldset \.source-option input:checked\+span/);
+    assert.match(styles, /\.segmented-source-fieldset \.source-option input:focus-visible\+span/);
     assert.match(appSource, /C214:\s*window\.ReportComponents\.ReportTemplate/);
     assert.equal(fs.readdirSync("wwwroot/js/reports").some(file => /c214/i.test(file)), false);
 
@@ -1488,6 +1492,9 @@ async function verifiesC211CutoffSourceContractAndCompletePrintMarkup() {
     assert.match(styles, /size:portrait/);
     const preview = fs.readFileSync("Views/Report/_C211ContractBalancePreview.cshtml", "utf8");
     assert.match(preview, /class="c211-print-document"/);
+    assert.doesNotMatch(preview, /程式編號|報表編號|Model\.Summary\.(?:ProgramNo|ReportNo)/);
+    assert.match(preview, /Model\.Summary\.ProcessDateTime/);
+    assert.match(preview, /Model\.Summary\.EditUser/);
     assert.match(preview, /Model\.Summary\.SelfGrandTotal/);
     assert.match(preview, /Model\.Summary\.ClaimGrandTotal/);
     assert.match(preview, /group\.SelfAmount/);
@@ -1680,10 +1687,11 @@ async function verifiesC212UsesSharedDatesAndPaginatedResults() {
     assert.match(markup, /amount: \(isC212 && column\.key === 'amount'\) \|\| \(isC141 && column\.isAmount\)/);
     assert.match(markup, /v-else-if="isC212"[^>]*v-on:click="openC212Preview">預覽／列印/);
     assert.match(markup, /c212PreviewOpen && c212PreviewSummary[^>]*role="dialog" aria-modal="true"/);
-    assert.match(markup, /c212PreviewSummary\.programNo[\s\S]*c212PreviewSummary\.reportNo[\s\S]*c212PreviewSummary\.processDateTime[\s\S]*c212PreviewSummary\.editUser/);
+    assert.doesNotMatch(markup, /c212PreviewSummary\.(?:programNo|reportNo)/);
+    assert.match(markup, /c212PreviewSummary\.processDateTime[\s\S]*c212PreviewSummary\.editUser/);
     assert.match(markup, /v-for="\(row, index\) in c212PreviewRows"/);
     assert.match(markup, /c212PreviewSummary\.totalAmount/);
-    assert.match(markup, /c212PreviewSummary\.dataStatusMessage/);
+    assert.doesNotMatch(markup, /c212PreviewSummary\.dataStatusMessage|c212-freshness-warning/);
     assert.match(markup, /isC212 \|\| isC211 \? '查無資料！'/);
     assert.match(markup, /v-on:click="printC212Preview">確認列印/);
     assert.doesNotMatch(markup, /printC211|v-on:click="printC212Preview"[^>]*>列印/);

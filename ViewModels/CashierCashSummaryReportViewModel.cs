@@ -10,6 +10,6 @@ public sealed class CashierCashSummaryReportViewModel
     [Description("急診")] public decimal EmergencyAmount { get; set; }
     [Description("住院")] public decimal InpatientAmount { get; set; }
     [Description("HIS 小計")] public decimal HisSubtotalAmount { get; set; }
-    [Description("現金平台")] public decimal CashPlatformAmount { get; set; }
+    [Description("現金儲值")] public decimal CashPlatformAmount { get; set; }
     [Description("合計")] public decimal TotalAmount { get; set; }
 }

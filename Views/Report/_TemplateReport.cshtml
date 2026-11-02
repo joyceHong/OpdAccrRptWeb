@@ -158,8 +158,8 @@
                         <label class="source-option"><input v-model="form.dateMode" type="radio" name="c16DateBasis" value="VisitDate" :disabled="form.encounterSource === 'Inpatient'" required /><span>就診日</span></label>
                         <small v-if="form.encounterSource === 'Inpatient'">住院固定依帳務日查詢</small>
                     </fieldset>
-                    <fieldset v-if="hasReceivableBalanceType" class="source-fieldset">
-                        <legend>餘額類型 <i>*</i></legend>
+                    <fieldset v-if="hasReceivableBalanceType" class="source-fieldset segmented-source-fieldset c214-balance-fieldset">
+                        <legend>收費身分類別 <i>*</i></legend>
                         <label v-for="option in receivableBalanceTypeConfiguration.options" :key="option.value" class="source-option">
                             <input
                                 v-model="form.receivableBalanceType"
@@ -312,12 +312,9 @@
                     <h1>{{ c212PreviewSummary.title }}</h1>
                     <p>{{ c212PreviewSummary.reportDate }}</p>
                     <div class="c212-print-meta">
-                        <span>程式：{{ c212PreviewSummary.programNo }}</span>
-                        <span>報表編號：{{ c212PreviewSummary.reportNo }}</span>
                         <span>處理時間：{{ c212PreviewSummary.processDateTime }}</span>
                         <span>使用者：{{ c212PreviewSummary.editUser }}</span>
                     </div>
-                    <p class="c212-freshness-warning" role="alert">{{ c212PreviewSummary.dataStatusMessage }}</p>
                 </header>
                 <table class="c212-print-table">
                     <thead><tr><th>日期</th><th>病歷號</th><th>姓名</th><th class="amount">金額</th></tr></thead>

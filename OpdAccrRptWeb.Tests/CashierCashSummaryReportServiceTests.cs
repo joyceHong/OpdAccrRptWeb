@@ -22,6 +22,7 @@ public sealed class CashierCashSummaryReportServiceTests
             .ReportDataAndColumns<CashierCashSummaryReportViewModel>(Condition("2026-08-01", "2026-08-31", 1, 10));
 
         Assert.Equal(8, result.Columns!.Count);
+        Assert.Contains(result.Columns, column => column.Key == "cashPlatformAmount" && column.Label == "現金儲值");
         Assert.Equal(10, result.Data!.Count);
         Assert.Equal(24, result.TotalCount);
         Assert.Equal(1, result.PageNumber);

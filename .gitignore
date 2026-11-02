@@ -20,3 +20,6 @@ openspec/.vector-search.db*
 /SECURITY_AUDIT_ISO27001.md
 /DBTEST3-測試資料驗證-202610.md
 /健康中心-DBTEST3-測試資料驗證-202610.md
+/scripts/seed-c22-dbtest3.ps1
+/scripts/seed-c24-emergency-dbtest3.ps1
+/scripts/seed-c29-dbtest3.ps1

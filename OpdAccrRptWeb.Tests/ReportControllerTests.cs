@@ -1245,6 +1245,24 @@ public sealed class ReportControllerTests
     }
 
     [Fact]
+    public void GetC29Contracts_ReturnsReadOnlyContractChoices()
+    {
+        var repository = new FakeContractPaymentDetailRepository
+        {
+            ContractChoices = [new C29ContractChoice("02", "本院員工")]
+        };
+        var controller = CreateController(new CountingReportService(),
+            new CapturingLogger<ReportController>(), c29Repository: repository);
+
+        var result = Assert.IsType<OkObjectResult>(controller.GetC29Contracts());
+
+        Assert.Equal(repository.ContractChoices, result.Value);
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl);
+        Assert.Equal(0, repository.CountCalls);
+        Assert.Equal(0, repository.PageCalls);
+    }
+
+    [Fact]
     public void PreviewC29_ConvertsDatesAndBuildsCompletePreview()
     {
         var repository = new StubC29PreviewRepository();
@@ -1713,6 +1731,7 @@ public sealed class ReportControllerTests
         public List<int> PageSizes { get; } = [];
 
         public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() => [];
+        public IReadOnlyList<C29ContractChoice> GetContractChoices() => [];
 
         public int GetCount(SearchReportCondition searchCondition)
         {

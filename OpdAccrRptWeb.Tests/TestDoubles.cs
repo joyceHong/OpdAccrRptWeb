@@ -284,6 +284,7 @@ internal sealed class FakeSafeNeedleRepository : ISafeNeedleRepository
 
 internal sealed class FakeContractPaymentDetailRepository : IContractPaymentDetailRepository
 {
+    public IReadOnlyList<C29ContractChoice> ContractChoices { get; set; } = [];
     public int CountCalls { get; private set; }
     public int PageCalls { get; private set; }
     public int TotalCount { get; set; }
@@ -294,6 +295,8 @@ internal sealed class FakeContractPaymentDetailRepository : IContractPaymentDeta
 
     public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() =>
         ModelDescriptionsHelper.GetPropertyDescriptions<ContractPaymentDetailReportViewModel>();
+
+    public IReadOnlyList<C29ContractChoice> GetContractChoices() => ContractChoices;
 
     public int GetCount(SearchReportCondition searchCondition)
     {

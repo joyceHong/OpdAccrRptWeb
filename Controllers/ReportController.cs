@@ -708,6 +708,14 @@ public sealed class ReportController : Controller
         return Ok(_c23Repository.GetContracts());
     }
 
+    [HttpGet("Report/C29/Contracts")]
+    public IActionResult GetC29Contracts()
+    {
+        if (_c29Repository is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        Response.Headers.CacheControl = "private, no-store";
+        return Ok(_c29Repository.GetContractChoices());
+    }
+
     [HttpPost("Report/C24/Preview")]
     [Authorize]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]

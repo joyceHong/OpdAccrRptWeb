@@ -199,7 +199,14 @@
                         <span><strong>重新產生本日資料</strong><small>勾選後按「查詢」，將重新計算當日資料。</small></span>
                     </label>
                     <div v-if="isC211" class="advanced-grid c211-contract-input">
-                        <label><span>合約單位</span><div ref="c211Autocomplete" class="report-autocomplete"><input v-model="form.contractCode" autocomplete="off" placeholder="全部／可直接輸入代碼" role="combobox" aria-autocomplete="list" aria-controls="c211-contract-list" :aria-expanded="c211ContractOpen ? 'true' : 'false'" :aria-activedescendant="c211ContractActiveIndex >= 0 ? `c211-contract-option-${c211ContractActiveIndex}` : undefined" v-on:focus="openC211Contracts" v-on:input="openC211Contracts" v-on:keydown="onC211ContractKeydown" /><div v-if="c211ContractOpen && filteredC211Contracts.length" id="c211-contract-list" class="report-autocomplete-panel" role="listbox"><button v-for="(item,index) in filteredC211Contracts" :id="`c211-contract-option-${index}`" :key="item.code" type="button" class="report-autocomplete-option" :class="{ active: index === c211ContractActiveIndex }" role="option" :aria-selected="index === c211ContractActiveIndex ? 'true' : 'false'" v-on:mouseenter="c211ContractActiveIndex=index" v-on:mousedown.prevent="selectC211Contract(item)"><strong>{{ item.code }}</strong><span>{{ item.name }}</span></button></div></div></label>
+                        <label><span>合約單位</span>
+                            <report-contract-autocomplete v-model="form.contractCode" id-prefix="c211-contract"
+                                                          :options="c211Contracts" :loading="c211ContractLoading"
+                                                          placeholder="全部／輸入合約代碼或中文名稱"
+                                                          v-on:validity-change="c211ContractValid = $event" />
+                        </label>
+                        <p v-if="!c211ContractValid" class="validation-message" role="alert">請從建議清單選擇合約名稱，或直接輸入代碼。</p>
+                        <p v-if="c211ContractError" class="validation-message" role="alert">{{ c211ContractError }} <button type="button" v-on:click="loadC211Contracts">重試</button></p>
                     </div>
                     <div v-if="isC24 || isC10" class="advanced-grid" :class="{ 'c24-filter-grid': isC24 }">
                         <label v-if="isC24"><span>作業模式 <i>*</i></span><select v-model="form.mode" v-on:change="changeC24Mode"><option value="Accounting">會計</option><option value="Billing">批價作業</option></select></label>
@@ -331,11 +338,18 @@
         </div>
         <div v-if="reportFilterOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeReportFilters">
             <section id="report-filter-dialog" class="c22-filter-dialog" :class="{ 'c29-filter-dialog': isC29 }" role="dialog" aria-modal="true" aria-labelledby="report-filter-title" v-on:keydown.esc="closeReportFilters">
-                <h2 id="report-filter-title">進階篩選條件</h2>
+                <h2 id="report-filter-title" ref="reportFilterTitle" :tabindex="isC29 ? -1 : undefined">進階篩選條件</h2>
                 <div class="advanced-grid">
                     <label v-if="isC22"><span>批價員代碼</span><input ref="reportFilterInput" v-model.trim="reportFilterDraft.cashierUserId" maxlength="10" placeholder="空白代表全部" /></label>
                     <label v-if="isC22"><span>排序方式</span><select v-model="reportFilterDraft.cashierCashSortType"><option v-for="option in cashierCashSortConfiguration.options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
-                    <label v-if="isC29"><span>合約代碼</span><input ref="reportFilterInput" v-model.trim="reportFilterDraft.billingCode" placeholder="空白代表全部合約" /></label>
+                    <label v-if="isC29"><span>合約代碼／名稱</span>
+                        <report-contract-autocomplete ref="c29ContractSelector" v-model="reportFilterDraft.billingCode"
+                                                      id-prefix="c29-contract" :options="c29Contracts"
+                                                      :loading="c29ContractLoading" placeholder="輸入合約代碼或中文名稱；空白代表全部"
+                                                      v-on:validity-change="reportFilterContractValid = $event" />
+                    </label>
+                    <p v-if="isC29 && !reportFilterContractValid" class="validation-message" role="alert">請從建議清單選擇合約名稱，或直接輸入代碼。</p>
+                    <p v-if="isC29 && c29ContractError" class="validation-message" role="alert">{{ c29ContractError }} <button type="button" v-on:click="loadC29Contracts">重試</button></p>
                 </div>
                 <div class="c22-filter-actions"><button class="ghost-button" type="button" v-on:click="closeReportFilters">取消</button><button class="primary-button" type="button" v-on:click="applyReportFilters">套用篩選</button></div>
             </section>

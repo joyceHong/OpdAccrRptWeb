@@ -39,6 +39,7 @@ public sealed class ReportQueryPermissionFilter(
             ["GetC12SectionOptions"] = "C12",
             ["GetC21BillingItems"] = "C21",
             ["GetC23Contracts"] = "C23",
+            ["GetC29Contracts"] = "C29",
             ["GetC211Contracts"] = "C211"
         };
 

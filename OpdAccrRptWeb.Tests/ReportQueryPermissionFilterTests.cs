@@ -14,6 +14,30 @@ namespace OpdAccrRptWeb.Tests;
 
 public sealed class ReportQueryPermissionFilterTests
 {
+    [Fact]
+    public async Task C29ContractChoicesRequireC29QueryGrant()
+    {
+        var context = CreateContext("Report", "GetC29Contracts", new Dictionary<string, object?>());
+        var denied = CreateFilter(new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction> { ["C211"] = ReportAction.Query }));
+        await denied.OnActionExecutionAsync(context, () =>
+            throw new InvalidOperationException("C29 choices must not run"));
+        Assert.Equal(403, Assert.IsType<StatusCodeResult>(context.Result).StatusCode);
+
+        context.Result = null;
+        bool executed = false;
+        var granted = CreateFilter(new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction> { ["C29"] = ReportAction.Query }));
+        await granted.OnActionExecutionAsync(context, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(
+                new ActionContext(context.HttpContext, context.RouteData, context.ActionDescriptor),
+                [], new object()));
+        });
+        Assert.True(executed);
+    }
+
     [Theory]
     [InlineData("Root")]
     [InlineData("Index")]

@@ -284,7 +284,10 @@
     window.ReportComponents.ReportTemplate = {
         template: "#report-template",
         mixins: [window.ReportDateRangeMixin],
-        components: { ReportAutocomplete: window.ReportComponents.ReportAutocomplete },
+        components: {
+            ReportAutocomplete: window.ReportComponents.ReportAutocomplete,
+            ReportContractAutocomplete: window.ReportComponents.ReportContractAutocomplete
+        },
         props: {
             selectedReport: { type: Object, required: true },
             defaultStartDate: { type: String, required: true },
@@ -296,6 +299,7 @@
                 advancedOpen: false,
                 reportFilterOpen: false,
                 reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "" },
+                reportFilterContractValid: true,
                 validationMessage: "",
                 isLoading: false,
                 hasSearched: false,
@@ -330,9 +334,14 @@
                 columns: []
                 ,c21BillingItems: [],
                 c23Contracts: [],
+                c29Contracts: [],
+                c29ContractsLoaded: false,
+                c29ContractLoading: false,
+                c29ContractError: "",
                 c211Contracts: [],
-                c211ContractOpen: false,
-                c211ContractActiveIndex: -1,
+                c211ContractLoading: false,
+                c211ContractError: "",
+                c211ContractValid: true,
                 summaries: [],
                 c211Summary: null,
                 c212Summary: null,
@@ -526,12 +535,6 @@
                     ...group,
                     rows: this.rows.filter(row => row.contractCode === group.contractCode)
                 }));
-            },
-            filteredC211Contracts() {
-                const query = (this.form.contractCode ?? "").trim().toUpperCase();
-                return this.c211Contracts.filter(item => !query
-                    || item.code.toUpperCase().includes(query)
-                    || item.name.toUpperCase().includes(query));
             }
         },
         watch: {
@@ -550,14 +553,12 @@
             this.loadC21BillingItems();
             this.loadC23Contracts();
             this.loadC211Contracts();
-            if (typeof document !== "undefined") document.addEventListener("pointerdown", this.closeC211ContractsFromOutside);
             if (this.isC141) this.loadC141TodayAndSearch();
         },
         beforeUnmount() {
             this.stopExportPolling();
             window.clearTimeout(this.c142OrganizationSearchTimer);
             this.c142OrganizationSearchGeneration++;
-            if (typeof document !== "undefined") document.removeEventListener("pointerdown", this.closeC211ContractsFromOutside);
         },
         methods: {
             openReportFilters() {
@@ -566,8 +567,12 @@
                     cashierCashSortType: this.form.cashierCashSortType,
                     billingCode: this.form.billingCode
                 };
+                this.reportFilterContractValid = true;
                 this.reportFilterOpen = true;
-                this.$nextTick?.(() => this.$refs?.reportFilterInput?.focus());
+                if (this.isC29) this.loadC29Contracts();
+                this.$nextTick?.(() => (this.isC29
+                    ? this.$refs?.reportFilterTitle
+                    : this.$refs?.reportFilterInput)?.focus());
             },
             closeReportFilters() { this.reportFilterOpen = false; },
             async applyReportFilters() {
@@ -575,6 +580,7 @@
                     this.form.cashierUserId = this.reportFilterDraft.cashierUserId.trim();
                     this.form.cashierCashSortType = this.reportFilterDraft.cashierCashSortType;
                 } else if (this.isC29) {
+                    if (!this.reportFilterContractValid) return;
                     this.form.billingCode = this.reportFilterDraft.billingCode.trim();
                 }
                 this.currentPage = 1;
@@ -595,6 +601,8 @@
                 this.advancedOpen = false;
                 this.reportFilterOpen = false;
                 this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "" };
+                this.reportFilterContractValid = true;
+                this.c211ContractValid = true;
                 this.validationMessage = "";
                 this.hasSearched = false;
                 this.c4Organizations = [];
@@ -619,8 +627,6 @@
                 this.legacyPreviewOpen = false;
                 this.legacyPreviewLoading = false;
                 this.legacyPreviewHtml = "";
-                this.c211ContractOpen = false;
-                this.c211ContractActiveIndex = -1;
                 this.currentPage = 1;
                 this.pageSize = 10;
                 this.serverTotalCount = 0;
@@ -841,54 +847,48 @@
                     this.c23Contracts = [];
                 }
             },
+            async loadC29Contracts() {
+                if (!this.isC29 || this.c29ContractLoading || this.c29ContractsLoaded) return;
+                this.c29ContractLoading = true;
+                this.c29ContractError = "";
+                try {
+                    const response = await fetch("/Report/C29/Contracts", { cache: "no-store" });
+                    if (!response.ok) throw new Error("C29 合約清單載入失敗。");
+                    const choices = await response.json();
+                    if (!Array.isArray(choices)) throw new Error("C29 合約清單格式錯誤。");
+                    if (this.isC29) {
+                        this.c29Contracts = choices;
+                        this.c29ContractsLoaded = true;
+                    }
+                } catch {
+                    if (this.isC29) this.c29ContractError = "合約清單載入失敗，仍可直接輸入代碼。";
+                } finally {
+                    this.c29ContractLoading = false;
+                }
+            },
             async loadC211Contracts() {
                 this.c211Contracts = [];
                 if (!this.isC211) return;
+                this.c211ContractLoading = true;
+                this.c211ContractError = "";
                 try {
                     const response = await fetch("/Report/C211/Contracts", { cache: "no-store" });
-                    if (response.ok) this.c211Contracts = await response.json();
+                    if (!response.ok) throw new Error("C211 合約清單載入失敗。");
+                    const choices = await response.json();
+                    if (!Array.isArray(choices)) throw new Error("C211 合約清單格式錯誤。");
+                    if (this.isC211) this.c211Contracts = choices;
                 } catch {
-                    this.c211Contracts = [];
-                }
-            },
-            openC211Contracts() {
-                this.c211ContractOpen = true;
-                this.c211ContractActiveIndex = -1;
-            },
-            selectC211Contract(item) {
-                this.form.contractCode = item.code;
-                this.c211ContractOpen = false;
-                this.c211ContractActiveIndex = -1;
-            },
-            onC211ContractKeydown(event) {
-                const count = this.filteredC211Contracts.length;
-                if (event.key === "Escape") {
-                    this.c211ContractOpen = false;
-                    this.c211ContractActiveIndex = -1;
-                    return;
-                }
-                if (!count) return;
-                if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    this.c211ContractOpen = true;
-                    this.c211ContractActiveIndex = (this.c211ContractActiveIndex + 1) % count;
-                } else if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    this.c211ContractOpen = true;
-                    this.c211ContractActiveIndex = (this.c211ContractActiveIndex - 1 + count) % count;
-                } else if (event.key === "Enter" && this.c211ContractOpen && this.c211ContractActiveIndex >= 0) {
-                    event.preventDefault();
-                    this.selectC211Contract(this.filteredC211Contracts[this.c211ContractActiveIndex]);
-                }
-            },
-            closeC211ContractsFromOutside(event) {
-                if (!this.$refs.c211Autocomplete?.contains(event.target)) {
-                    this.c211ContractOpen = false;
-                    this.c211ContractActiveIndex = -1;
+                    if (this.isC211) this.c211ContractError = "合約清單載入失敗，仍可直接輸入代碼。";
+                } finally {
+                    this.c211ContractLoading = false;
                 }
             },
             async search() {
                 if (this.isC212) clearC212PreviewState(this);
+                if (this.isC211 && !this.c211ContractValid) {
+                    this.validationMessage = "請從建議清單選擇合約名稱，或直接輸入代碼。";
+                    return;
+                }
                 if (!this.form.endDate || (!this.isEndDateOnly && !this.form.startDate)) {
                     this.validationMessage = this.isEndDateOnly
                         ? "請輸入截止日期。"
@@ -1182,6 +1182,10 @@
             },
             async previewC211() {
                 if (!this.isC211 || !this.hasResults || this.legacyPreviewLoading) return;
+                if (!this.c211ContractValid) {
+                    this.validationMessage = "請從建議清單選擇合約名稱，或直接輸入代碼。";
+                    return;
+                }
                 await this.openLegacyPreview("/Report/C211/Preview", {
                     endDate: this.form.endDate,
                     encounterSource: this.form.encounterSource,

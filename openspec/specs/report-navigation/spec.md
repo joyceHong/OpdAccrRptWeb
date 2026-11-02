@@ -621,3 +621,326 @@ code:
   - .agents/skills/spectra-ingest/SKILL.md
   - .agents/skills/spectra-verify/SKILL.md
 -->
+
+---
+### Requirement: Authorized default landing
+The system SHALL choose the first implemented catalog entry with effective query permission in catalog order when an authenticated user opens / or /Report without a code. It SHALL use that entry's existing route. If no such entry exists, /Report SHALL render a no-permissions empty state without loading report data. Failure to read permissions SHALL be reported as a service failure rather than a no-permissions state. An unauthenticated request SHALL require authentication.
+
+#### Scenario: C1 denied but C21 allowed
+- **WHEN** a signed-in user lacks C1 query permission but has C21 query permission and opens /
+- **THEN** the system SHALL redirect to /Report/C21
+- **AND** C1 SHALL not be selected in the client
+
+#### Scenario: No accessible entries
+- **WHEN** a signed-in user has no query-authorized implemented catalog entry and opens /Report
+- **THEN** the page SHALL show "尚未取得報表權限"
+- **AND** it SHALL not request report data or initialize the first catalog entry
+
+#### Scenario: Permission source fails
+- **WHEN** the permission store cannot be read while resolving /
+- **THEN** the server SHALL return a service failure instead of a no-permissions page
+
+
+<!-- @trace
+source: add-report-action-permissions
+updated: 2026-11-02
+code:
+  - Services/C21RebuildAuthorizationService.cs
+  - wwwroot/js/components/report-date-range.js
+  - Repositories/C23ContractAccountingRepository.cs
+  - wwwroot/js/reports/sap-interface.js
+  - OpdAccrRptWeb.Tests/ReportPermissionManagerFilterTests.cs
+  - scripts/sql/create-opd-accrreport-permission.sql
+  - OpdAccrRptWeb.Tests/ReportQueryPermissionFilterTests.cs
+  - wwwroot/js/reports/c9-report.js
+  - OpdAccrRptWeb.Tests/C21RebuildServiceTests.cs
+  - Models/ReportAction.cs
+  - Models/PermissionBatchRequest.cs
+  - Services/C23RebuildAuthorizationService.cs
+  - package.json
+  - Views/Report/_C24DebtPaymentPreview.cshtml
+  - Controllers/DoctorMonthlyReportController.cs
+  - OpdAccrRptWeb.Tests/CashierCashReportServiceTests.cs
+  - wwwroot/js/reports/report-template.js
+  - appsettings.json
+  - wwwroot/js/reports/c8-report.js
+  - Models/PermissionRevokeRequest.cs
+  - Services/IReportService.cs
+  - Controllers/HomeController.cs
+  - Models/PermissionCopyRequest.cs
+  - Repositories/C24DebtPaymentRepository.cs
+  - Properties/PublishProfiles/FolderProfile.pubxml
+  - ViewModels/C29ContractPaymentPreviewViewModel.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - Views/ReportPermissionManagement/_PermissionPanel.cshtml
+  - OpdAccrRptWeb.Tests/CashierCashRepositoryTests.cs
+  - Services/ReportPermissionAdministrationService.cs
+  - Views/Report/_C9MaterialAccountingMonthlyReport.cshtml
+  - wwwroot/js/reports/c7-report.js
+  - Services/C21AccountingSummaryPreviewBuilder.cs
+  - Services/C21Options.cs
+  - Services/C23ContractAccountingPreviewBuilder.cs
+  - Views/Report/_M3OpdEmergencyDailyReport.cshtml
+  - scripts/seed-c24-inpatient-dbtest3.ps1
+  - wwwroot/css/report-permissions.css
+  - OpdAccrRptWeb.Tests/C24ReportServiceTests.cs
+  - Services/DefaultLoginRebuildUserIdentityProvider.cs
+  - wwwroot/css/c23-preview.css
+  - Services/ReportCatalogService.cs
+  - Services/ReportQueryPermissionFilter.cs
+  - Models/PermissionManagementModels.cs
+  - scripts/sql/add-c141-linebot-permission.sql
+  - OpdAccrRptWeb.Tests/DefaultUserAuthenticationHandlerTests.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - Views/Report/_M1DoctorDailyReport.cshtml
+  - wwwroot/js/reports/c5-report.js
+  - Repositories/C24Sql.cs
+  - ViewModels/ReportDefinitionViewModel.cs
+  - Views/Report/_C23ContractAccountingPreview.cshtml
+  - Repositories/ICashierCashRepository.cs
+  - ViewModels/C24PreviewViewModel.cs
+  - Controllers/OpdEmergencyDailyReportController.cs
+  - Repositories/ReportPermissionRepository.cs
+  - Services/ReportExportService.cs
+  - ViewModels/C23ContractAccountingReportViewModel.cs
+  - OpdAccrRptWeb.Tests/C29ContractPaymentPreviewViewModelTests.cs
+  - OpdAccrRptWeb.Tests/C23ContractAccountingRepositoryTests.cs
+  - Views/Report/_C1SurgicalPrintPreview.cshtml
+  - Views/Report/_C29ContractPaymentPreview.cshtml
+  - Views/Report/_C8PatchBillDetailReport.cshtml
+  - Services/ReportService.cs
+  - OpdAccrRptWeb.Tests/C24DebtPaymentViewModelTests.cs
+  - Models/PermissionChangeRequest.cs
+  - Models/ReportPermissionGrant.cs
+  - Infrastructure/DefaultUserAuthenticationHandler.cs
+  - OpdAccrRptWeb.Tests/C23RebuildServiceTests.cs
+  - Repositories/IUserProfileRepository.cs
+  - Services/C23Options.cs
+  - Services/IUserDisplayNameService.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportControllerTests.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionAdministrationServiceTests.cs
+  - Views/Report/_C11ReceivablesCollectionReport.cshtml
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Repositories/IReportPermissionRepository.cs
+  - Repositories/UserProfileRepository.cs
+  - Models/PermissionDeleteTargetRequest.cs
+  - Repositories/C21RebuildSql.cs
+  - OpdAccrRptWeb.Tests/C23ContractAccountingPreviewBuilderTests.cs
+  - Views/Report/_OpdPriceQuery.cshtml
+  - ViewModels/SearchReportCondition.cs
+  - Views/Shared/_Layout.cshtml
+  - OpdAccrRptWeb.Tests/RegistrationQueryRepositoryTests.cs
+  - Program.cs
+  - ViewModels/C22CashierCashPreviewViewModel.cs
+  - ViewModels/C23ContractAccountingPreviewViewModel.cs
+  - Services/ConfiguredC23UserIdentityProvider.cs
+  - Services/ReportPermissionService.cs
+  - OpdAccrRptWeb.Tests/UserDisplayNameServiceTests.cs
+  - Controllers/DoctorDailyReportController.cs
+  - ViewModels/C21AccountingSummaryPreviewViewModel.cs
+  - Views/Report/_SapInterface.cshtml
+  - Views/Report/_C22CashierCashPreview.cshtml
+  - OpdAccrRptWeb.Tests/C21AccountingSummaryRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/InpatientAdvancePaymentBalanceReportServiceTests.cs
+  - Views/Report/_C21AccountingSummaryPreview.cshtml
+  - ViewModels/CashierCashReportViewModel.cs
+  - OpdAccrRptWeb.Tests/C21AccountingSummaryPreviewBuilderTests.cs
+  - Views/Report/_TemplateReport.cshtml
+  - Controllers/ReportPermissionManagementController.cs
+  - Services/C21RebuildService.cs
+  - wwwroot/css/site.css
+  - Repositories/CashierCashRepository.cs
+  - Views/Report/Index.cshtml
+  - scripts/seed-c24-dbtest3.ps1
+  - Services/ReportNavigationService.cs
+  - wwwroot/js/report-permissions.js
+  - Services/ConfiguredC21UserIdentityProvider.cs
+  - Views/Report/_C7DailyChargeDetailReport.cshtml
+  - ViewModels/ReportIndexViewModel.cs
+  - Views/Report/_C12MedicalReceiptSummary.cshtml
+  - scripts/publish-c24-inpatient-dbtest3.ps1
+  - Services/C24DebtPaymentCalculationService.cs
+  - Controllers/ReportPermissionStatusController.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionServiceTests.cs
+  - Services/C23RebuildService.cs
+  - Services/ReportPermissionManagerFilter.cs
+  - Services/UserDisplayNameService.cs
+  - Services/IReportPermissionService.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionManagementControllerTests.cs
+  - OpdAccrRptWeb.csproj
+  - OpdAccrRptWeb.Tests/ReportNavigationServiceTests.cs
+  - dotnet-tools.json
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/C24DebtPaymentRepositoryTests.cs
+  - Models/PermissionGrantEditRequest.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-permissions.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-date-range.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+  - OpdAccrRptWeb.Tests/c11-report.test.js
+-->
+
+---
+### Requirement: Query-authorized report navigation
+The system SHALL display and open an available report only when the signed-in user has its effective query permission. The left report list SHALL contain only query-authorized reports and SHALL omit groups with no visible reports. The top category menu SHALL contain only categories with at least one visible report. Both menus SHALL use the same effective grants and preserve catalog order. It SHALL preserve the existing unavailable-report treatment for reports without implemented query capability. A user without query permission SHALL not gain access through a direct report URL.
+
+#### Scenario: Report without query grant
+- **WHEN** a signed-in user lacks query permission for C21
+- **THEN** C21 SHALL be absent from that user's report navigation
+- **AND** a direct C21 report URL SHALL return 403
+
+#### Scenario: Report with query grant
+- **WHEN** a signed-in user has query permission for an available report
+- **THEN** its menu entry SHALL appear and its report page SHALL open
+
+#### Scenario: Filter both navigation menus
+- **WHEN** a signed-in user has query permission only for C21 in one category and Q2 in another category
+- **THEN** the left report list SHALL show only C21 or Q2 within the selected category, with no empty groups
+- **AND** the top category menu SHALL show only the two categories containing C21 and Q2, in catalog order
+
+<!-- @trace
+source: add-report-action-permissions
+updated: 2026-11-02
+code:
+  - Services/C21RebuildAuthorizationService.cs
+  - wwwroot/js/components/report-date-range.js
+  - Repositories/C23ContractAccountingRepository.cs
+  - wwwroot/js/reports/sap-interface.js
+  - OpdAccrRptWeb.Tests/ReportPermissionManagerFilterTests.cs
+  - scripts/sql/create-opd-accrreport-permission.sql
+  - OpdAccrRptWeb.Tests/ReportQueryPermissionFilterTests.cs
+  - wwwroot/js/reports/c9-report.js
+  - OpdAccrRptWeb.Tests/C21RebuildServiceTests.cs
+  - Models/ReportAction.cs
+  - Models/PermissionBatchRequest.cs
+  - Services/C23RebuildAuthorizationService.cs
+  - package.json
+  - Views/Report/_C24DebtPaymentPreview.cshtml
+  - Controllers/DoctorMonthlyReportController.cs
+  - OpdAccrRptWeb.Tests/CashierCashReportServiceTests.cs
+  - wwwroot/js/reports/report-template.js
+  - appsettings.json
+  - wwwroot/js/reports/c8-report.js
+  - Models/PermissionRevokeRequest.cs
+  - Services/IReportService.cs
+  - Controllers/HomeController.cs
+  - Models/PermissionCopyRequest.cs
+  - Repositories/C24DebtPaymentRepository.cs
+  - Properties/PublishProfiles/FolderProfile.pubxml
+  - ViewModels/C29ContractPaymentPreviewViewModel.cs
+  - Views/Report/_C5ChargeQuantityReport.cshtml
+  - Views/ReportPermissionManagement/_PermissionPanel.cshtml
+  - OpdAccrRptWeb.Tests/CashierCashRepositoryTests.cs
+  - Services/ReportPermissionAdministrationService.cs
+  - Views/Report/_C9MaterialAccountingMonthlyReport.cshtml
+  - wwwroot/js/reports/c7-report.js
+  - Services/C21AccountingSummaryPreviewBuilder.cs
+  - Services/C21Options.cs
+  - Services/C23ContractAccountingPreviewBuilder.cs
+  - Views/Report/_M3OpdEmergencyDailyReport.cshtml
+  - scripts/seed-c24-inpatient-dbtest3.ps1
+  - wwwroot/css/report-permissions.css
+  - OpdAccrRptWeb.Tests/C24ReportServiceTests.cs
+  - Services/DefaultLoginRebuildUserIdentityProvider.cs
+  - wwwroot/css/c23-preview.css
+  - Services/ReportCatalogService.cs
+  - Services/ReportQueryPermissionFilter.cs
+  - Models/PermissionManagementModels.cs
+  - scripts/sql/add-c141-linebot-permission.sql
+  - OpdAccrRptWeb.Tests/DefaultUserAuthenticationHandlerTests.cs
+  - Views/Report/_M2DoctorMonthlyReport.cshtml
+  - Views/Report/_M1DoctorDailyReport.cshtml
+  - wwwroot/js/reports/c5-report.js
+  - Repositories/C24Sql.cs
+  - ViewModels/ReportDefinitionViewModel.cs
+  - Views/Report/_C23ContractAccountingPreview.cshtml
+  - Repositories/ICashierCashRepository.cs
+  - ViewModels/C24PreviewViewModel.cs
+  - Controllers/OpdEmergencyDailyReportController.cs
+  - Repositories/ReportPermissionRepository.cs
+  - Services/ReportExportService.cs
+  - ViewModels/C23ContractAccountingReportViewModel.cs
+  - OpdAccrRptWeb.Tests/C29ContractPaymentPreviewViewModelTests.cs
+  - OpdAccrRptWeb.Tests/C23ContractAccountingRepositoryTests.cs
+  - Views/Report/_C1SurgicalPrintPreview.cshtml
+  - Views/Report/_C29ContractPaymentPreview.cshtml
+  - Views/Report/_C8PatchBillDetailReport.cshtml
+  - Services/ReportService.cs
+  - OpdAccrRptWeb.Tests/C24DebtPaymentViewModelTests.cs
+  - Models/PermissionChangeRequest.cs
+  - Models/ReportPermissionGrant.cs
+  - Infrastructure/DefaultUserAuthenticationHandler.cs
+  - OpdAccrRptWeb.Tests/C23RebuildServiceTests.cs
+  - Repositories/IUserProfileRepository.cs
+  - Services/C23Options.cs
+  - Services/IUserDisplayNameService.cs
+  - Controllers/ReportController.cs
+  - OpdAccrRptWeb.Tests/C4MaterialReportControllerTests.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionAdministrationServiceTests.cs
+  - Views/Report/_C11ReceivablesCollectionReport.cshtml
+  - OpdAccrRptWeb.Tests/ReportExportServiceTests.cs
+  - Repositories/IReportPermissionRepository.cs
+  - Repositories/UserProfileRepository.cs
+  - Models/PermissionDeleteTargetRequest.cs
+  - Repositories/C21RebuildSql.cs
+  - OpdAccrRptWeb.Tests/C23ContractAccountingPreviewBuilderTests.cs
+  - Views/Report/_OpdPriceQuery.cshtml
+  - ViewModels/SearchReportCondition.cs
+  - Views/Shared/_Layout.cshtml
+  - OpdAccrRptWeb.Tests/RegistrationQueryRepositoryTests.cs
+  - Program.cs
+  - ViewModels/C22CashierCashPreviewViewModel.cs
+  - ViewModels/C23ContractAccountingPreviewViewModel.cs
+  - Services/ConfiguredC23UserIdentityProvider.cs
+  - Services/ReportPermissionService.cs
+  - OpdAccrRptWeb.Tests/UserDisplayNameServiceTests.cs
+  - Controllers/DoctorDailyReportController.cs
+  - ViewModels/C21AccountingSummaryPreviewViewModel.cs
+  - Views/Report/_SapInterface.cshtml
+  - Views/Report/_C22CashierCashPreview.cshtml
+  - OpdAccrRptWeb.Tests/C21AccountingSummaryRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/InpatientAdvancePaymentBalanceReportServiceTests.cs
+  - Views/Report/_C21AccountingSummaryPreview.cshtml
+  - ViewModels/CashierCashReportViewModel.cs
+  - OpdAccrRptWeb.Tests/C21AccountingSummaryPreviewBuilderTests.cs
+  - Views/Report/_TemplateReport.cshtml
+  - Controllers/ReportPermissionManagementController.cs
+  - Services/C21RebuildService.cs
+  - wwwroot/css/site.css
+  - Repositories/CashierCashRepository.cs
+  - Views/Report/Index.cshtml
+  - scripts/seed-c24-dbtest3.ps1
+  - Services/ReportNavigationService.cs
+  - wwwroot/js/report-permissions.js
+  - Services/ConfiguredC21UserIdentityProvider.cs
+  - Views/Report/_C7DailyChargeDetailReport.cshtml
+  - ViewModels/ReportIndexViewModel.cs
+  - Views/Report/_C12MedicalReceiptSummary.cshtml
+  - scripts/publish-c24-inpatient-dbtest3.ps1
+  - Services/C24DebtPaymentCalculationService.cs
+  - Controllers/ReportPermissionStatusController.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionServiceTests.cs
+  - Services/C23RebuildService.cs
+  - Services/ReportPermissionManagerFilter.cs
+  - Services/UserDisplayNameService.cs
+  - Services/IReportPermissionService.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionManagementControllerTests.cs
+  - OpdAccrRptWeb.csproj
+  - OpdAccrRptWeb.Tests/ReportNavigationServiceTests.cs
+  - dotnet-tools.json
+  - wwwroot/js/report-app.js
+  - OpdAccrRptWeb.Tests/C24DebtPaymentRepositoryTests.cs
+  - Models/PermissionGrantEditRequest.cs
+  - OpdAccrRptWeb.Tests/ReportPermissionRepositoryTests.cs
+  - OpdAccrRptWeb.Tests/ReportControllerTests.cs
+tests:
+  - OpdAccrRptWeb.Tests/report-permissions.test.js
+  - OpdAccrRptWeb.Tests/report-template.test.js
+  - OpdAccrRptWeb.Tests/report-date-range.test.js
+  - OpdAccrRptWeb.Tests/report-app-bootstrap.test.js
+  - OpdAccrRptWeb.Tests/c11-report.test.js
+-->

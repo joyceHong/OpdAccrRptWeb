@@ -7,6 +7,20 @@ namespace OpdAccrRptWeb.Tests;
 public sealed class ContractPaymentDetailRepositoryTests
 {
     [Fact]
+    public void ContractChoices_KeepOneNamedChoicePerCodeInCodeOrder()
+    {
+        var choices = ContractPaymentDetailRepository.NormalizeContractChoices([
+            new(" 03 ", " "), new(" 02 ", " 本院員工 "),
+            new("03", "關企員工"), new(" ", "無效")
+        ]);
+
+        Assert.Equal([new C29ContractChoice("02", "本院員工"),
+            new C29ContractChoice("03", "關企員工")], choices);
+        Assert.Contains("FROM GenDctTypeTbl", ContractPaymentDetailRepository.ContractChoicesSql);
+        Assert.DoesNotContain("INSERT", ContractPaymentDetailRepository.ContractChoicesSql);
+    }
+
+    [Fact]
     public void Columns_ExposeNineApprovedFieldsAndDecimalAmount()
     {
         var repository = new ContractPaymentDetailRepository(new FakeConnectionStringProvider());

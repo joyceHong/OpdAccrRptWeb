@@ -74,8 +74,31 @@ public sealed class ContractPaymentDetailRepository : IContractPaymentDetailRepo
         "ContractCode, ContractName, VisitDate, MedicalRecordNumber, EncounterTime, " +
         "EncounterRoom, EncounterNumber, PatientName, DepartmentName, DoctorName, CashierUserId";
 
+    internal const string ContractChoicesSql = """
+        SELECT RTRIM(chDctType) AS Code, MAX(RTRIM(chDctTypeName)) AS Name
+        FROM GenDctTypeTbl
+        WHERE RTRIM(chDctType) IS NOT NULL
+        GROUP BY RTRIM(chDctType)
+        ORDER BY RTRIM(chDctType)
+        """;
+
     public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() =>
         ModelDescriptionsHelper.GetPropertyDescriptions<ContractPaymentDetailReportViewModel>();
+
+    public IReadOnlyList<C29ContractChoice> GetContractChoices()
+    {
+        using IDbConnection connection = CreateConnection();
+        return NormalizeContractChoices(connection.Query<C29ContractChoice>(ContractChoicesSql));
+    }
+
+    internal static IReadOnlyList<C29ContractChoice> NormalizeContractChoices(
+        IEnumerable<C29ContractChoice> choices) =>
+        choices.Select(choice => new C29ContractChoice(choice.Code.Trim(), choice.Name?.Trim() ?? string.Empty))
+            .Where(choice => choice.Code.Length > 0)
+            .GroupBy(choice => choice.Code, StringComparer.Ordinal)
+            .Select(group => group.FirstOrDefault(choice => choice.Name.Length > 0) ?? group.First())
+            .OrderBy(choice => choice.Code, StringComparer.Ordinal)
+            .ToList();
 
     public int GetCount(SearchReportCondition searchCondition)
     {

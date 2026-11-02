@@ -182,7 +182,11 @@ public sealed class C24DebtPaymentCalculationService(ILogger<C24DebtPaymentCalcu
          || condition.RoomScope == C24RoomScopes.Emergency && category == C24RoomCategory.Emergency
          || condition.RoomScope == C24RoomScopes.NonEmergency && category != C24RoomCategory.Emergency)
         && (condition.MedicalRecordNo is null || condition.MedicalRecordNo == mrn);
-    private static string? MapDepartment(string? code) => code is not null && DepartmentMap.TryGetValue(code, out var mapped) ? mapped : code;
+    internal static string? MapDepartment(string? code)
+    {
+        code = code?.Trim();
+        return code is not null && DepartmentMap.TryGetValue(code, out var mapped) ? mapped : code;
+    }
     private static bool SameLegacyDate(string? left, string? right) =>
         !string.IsNullOrWhiteSpace(left) && string.Equals(left.Trim(), right?.Trim(), StringComparison.Ordinal);
     private static bool IsAccountingDate(string? value, DateOnly day)

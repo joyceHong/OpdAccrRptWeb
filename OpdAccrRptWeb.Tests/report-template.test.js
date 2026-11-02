@@ -553,9 +553,12 @@ async function verifiesC22DefaultsResetPayloadAndMarkup() {
 
 async function verifiesC25UsesSharedServerPagedLifecycle() {
     assert.equal(window.ReportConfigurations.C25.serverPaged, true);
+    assert.equal(window.ReportConfigurations.C25.endDateOnly, true);
     assert.equal(component.computed.isServerPaged.call({ selectedReport: { code: "C25" } }), true);
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
     assert.match(appSource, /C25:\s*window\.ReportComponents\.ReportTemplate/);
+    const templateSource = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    assert.match(templateSource, /selectedReport\?\.code === 'C25' \? '設定截止日期/);
 
     const requests = [];
     let resolveResponse;
@@ -581,6 +584,7 @@ async function verifiesC25UsesSharedServerPagedLifecycle() {
         hasCashierCashSort: false,
         hasAdvancedConditions: true,
         isServerPaged: true,
+        isEndDateOnly: true,
         totalPages: 3,
         fetchResults: component.methods.fetchResults
     };
@@ -589,7 +593,6 @@ async function verifiesC25UsesSharedServerPagedLifecycle() {
     assert.equal(context.isLoading, true);
     assert.deepEqual(requests[0], {
         reportCode: "C25",
-        startDate: "2026-08-01",
         endDate: "2026-08-31",
         chop1sec: "",
         pageNumber: 2,
@@ -624,7 +627,7 @@ async function verifiesC25UsesSharedServerPagedLifecycle() {
     context.pageSize = 30;
     await component.methods.changePageSize.call(context);
     assert.equal(context.currentPage, 1);
-    assert.equal(requests[1].startDate, "2026-08-01");
+    assert.equal(Object.hasOwn(requests[1], "startDate"), false);
     assert.equal(requests[1].endDate, "2026-08-31");
     assert.equal(requests[1].pageNumber, 1);
     assert.equal(requests[1].pageSize, 30);
@@ -712,7 +715,7 @@ async function verifiesC27UsesCutoffDateOnlySharedLifecycle() {
     assert.equal(searchCalls, 1);
     assert.match(context.validationMessage, /截止日期/);
 
-    assert.equal(component.computed.isEndDateOnly.call({ reportConfiguration: window.ReportConfigurations.C25 }), false);
+    assert.equal(component.computed.isEndDateOnly.call({ reportConfiguration: window.ReportConfigurations.C25 }), true);
 }
 
 async function verifiesC28UsesCutoffDateOnlySharedLifecycle() {

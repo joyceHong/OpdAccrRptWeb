@@ -20,7 +20,11 @@ public static class C24Sql
         chOp1RoomTypeName AS RoomTypeName, chOp1MrNo AS MedicalRecordNo,
         chOp1MrNo2 AS AlternateMedicalRecordNo, chOp1PName AS PatientName, chOp1PTel AS Phone,
         chOp4PSec AS DepartmentCode, chOp4PFin1 AS PayerClassCode, chOp1InSeq AS CardSequenceNo,
-        chOp1Dct1 AS ChargeItemCode, chOp1DctName1 AS ChargeItemName, rlOp1Sub6 AS SignedAmount,
+        chOp1Dct1 AS ChargeItemCode,
+        COALESCE(TRIM(chOp1DctName1),
+            (SELECT MAX(i.chDctItemName) FROM GenDctItemTbl i
+             WHERE i.chDctItem = RPAD(TRIM(chOp1Dct1), 4, ' ')))
+        AS ChargeItemName, rlOp1Sub6 AS SignedAmount,
         rlOp1Sub3 AS SignedDiscount, rlOp1SubAMT AS AmountDue, chDate AS OtherDate,
         chCUser AS CreatedBy, chCDectUser AS DeletedBy, intFlag AS Flag,
         chDateFlag AS DateFlag, CAST(NULL AS VARCHAR2(2)) AS DischargeFlag

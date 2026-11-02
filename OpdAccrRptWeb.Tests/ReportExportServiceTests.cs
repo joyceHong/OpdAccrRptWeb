@@ -477,6 +477,18 @@ public sealed class ReportExportServiceTests
     }
 
     [Fact]
+    public void NormalizeOutpatientReport_C25_RequiresOnlyEndDate()
+    {
+        SearchReportCondition normalized = ReportExportService.NormalizeOutpatientReport(new SearchReportCondition
+        {
+            ReportCode = "C25", StartDate = "not-a-date", EndDate = "2026-08-31"
+        });
+
+        Assert.Null(normalized.StartDate);
+        Assert.Equal("2026-08-31", normalized.EndDate);
+    }
+
+    [Fact]
     public void NormalizeHealthReport_C19_PreservesRequiredFiltersAndConvertsDates()
     {
         SearchReportCondition normalized = ReportExportService.NormalizeHealthReport(new SearchReportCondition

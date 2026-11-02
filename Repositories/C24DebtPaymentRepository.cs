@@ -223,7 +223,7 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
                 Text(reader, "RoomType") ?? "", Text(reader, "RoomTypeName") ?? "",
                 Text(reader, "MedicalRecordNo") ?? "", Text(reader, "AlternateMedicalRecordNo"),
                 Text(reader, "PatientName") ?? "", Text(reader, "Phone"), Text(reader, "DepartmentCode"),
-                Text(reader, "PayerClassCode"), Text(reader, "CardSequenceNo"), Text(reader, "ChargeItemCode"),
+                Text(reader, "PayerClassCode"), Text(reader, "CardSequenceNo"), ReadChargeItemCode(reader),
                 Text(reader, "ChargeItemName"), Decimal(reader, "SignedAmount"),
                 Decimal(reader, "SignedDiscount"), Decimal(reader, "AmountDue"), Text(reader, "OtherDate"),
                 Text(reader, "CreatedBy"), Text(reader, "DeletedBy"), NullableInt(reader, "Flag"),
@@ -274,10 +274,10 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
             var kind = query.Code[^1] switch { '1' or '4' => C24SourceKind.Drg, '2' or '5' => C24SourceKind.Ord, _ => C24SourceKind.Acc69 };
             var visitKey = JoinVisitKey(reader);
             var businessKey = string.Join('|', visitKey, Text(reader, "IDate"), Text(reader, "DCDate"),
-                Text(reader, "ChargeItemCode"), Text(reader, "CreatedBy"));
+                ReadChargeItemCode(reader), Text(reader, "CreatedBy"));
             yield return new C24Candidate(day, ReadDate(reader, "VisitDate", day), visitKey,
                 businessKey, null, null, Text(reader, "PayerClassCode"),
-                Text(reader, "ChargeItemCode"), Text(reader, "IDate"), Text(reader, "DCDate"),
+                ReadChargeItemCode(reader), Text(reader, "IDate"), Text(reader, "DCDate"),
                 Decimal(reader, "QuerySub6"), Decimal(reader, "QuerySub3"), Decimal(reader, "SourceSub1"), kind,
                 Text(reader, "CreatedBy"));
         }
@@ -316,7 +316,7 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
         using var command = Command(connection, transaction, sql);
         command.Parameters.Add(Parameter("visit_date", OracleDbType.Varchar2, key[0], 7));
         command.Parameters.Add(Parameter("visit_time", OracleDbType.Varchar2, key[1], 4));
-        command.Parameters.Add(Parameter("visit_room", OracleDbType.Varchar2, key[2], 4));
+        command.Parameters.Add(CreateVisitRoomParameter(key[2]));
         command.Parameters.Add(Parameter("visit_no", OracleDbType.Int32, int.Parse(key[3]), 0));
         using var reader = command.ExecuteReader();
         while (reader.Read())
@@ -337,7 +337,7 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
         while (reader.Read())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            yield return new C24ChargeItemEnrichment(Text(reader, "ChargeItemCode")!, Text(reader, "ChargeItemName"));
+            yield return new C24ChargeItemEnrichment(ReadChargeItemCode(reader)!, Text(reader, "ChargeItemName"));
         }
     }
 
@@ -349,6 +349,8 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
                 ? DBNull.Value
                 : medicalRecordNo.PadRight(10, ' '),
             10);
+    internal static OracleParameter CreateVisitRoomParameter(string visitRoom) =>
+        Parameter("visit_room", OracleDbType.Char, visitRoom.TrimEnd().PadRight(6, ' '), 6);
     private static string ToRocDate(DateOnly date) => $"{date.Year - 1911:000}{date:MMdd}";
     private static int RoomScopeValue(string roomScope) => roomScope switch
     {
@@ -357,8 +359,10 @@ public sealed class C24DebtPaymentRepository(IConnectionStringProvider connectio
         C24RoomScopes.NonEmergency => 2,
         _ => throw new ArgumentException("C24 房別範圍不正確。", nameof(roomScope))
     };
-    private static string JoinVisitKey(IDataRecord row) => string.Join('|',
-        Text(row, "VisitDate"), Text(row, "VisitTime"), Text(row, "VisitRoom"), Text(row, "VisitNo"));
+    internal static string JoinVisitKey(IDataRecord row) => string.Join('|',
+        Text(row, "VisitDate"), Text(row, "VisitTime"), Text(row, "VisitRoom")?.TrimEnd(),
+        Text(row, "VisitNo"));
+    internal static string? ReadChargeItemCode(IDataRecord row) => Text(row, "ChargeItemCode")?.TrimEnd();
     private static string? Text(IDataRecord row, string name)
     {
         try { return row[name] is DBNull ? null : Convert.ToString(row[name]); }

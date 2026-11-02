@@ -158,7 +158,7 @@
                 ])
             })
         }),
-        C25: Object.freeze({ serverPaged: true }),
+        C25: Object.freeze({ serverPaged: true, endDateOnly: true }),
         C27: Object.freeze({ serverPaged: true, endDateOnly: true }),
         C28: Object.freeze({ serverPaged: true, endDateOnly: true }),
         C211: Object.freeze({
@@ -1218,6 +1218,19 @@
                     contractCode: this.form.contractCode.trim() || undefined,
                     forceRebuild: false
                 }, "無法建立 C23 列印預覽。");
+            },
+            async previewC24() {
+                if (!this.isC24 || !this.selectedReport.canPrint || !this.hasResults || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C24/Preview", {
+                    reportCode: "C24",
+                    startDate: this.form.startDate,
+                    endDate: this.form.endDate,
+                    source: this.form.encounterSource,
+                    mode: this.form.mode,
+                    roomScope: this.form.roomScope,
+                    medicalRecordNo: this.form.medicalRecordNo.trim() || undefined,
+                    forceRebuild: false
+                }, "無法建立 C24 列印預覽。");
             },
             openC212Preview() {
                 if (!this.isC212 || !this.hasResults || !this.c212Summary) return;

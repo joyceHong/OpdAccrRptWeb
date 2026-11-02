@@ -78,6 +78,29 @@ public sealed class C24ReportServiceTests
     }
 
     [Fact]
+    public void AccountingLegacyRead_TranslatesStoredSectionForQueryAndPreview()
+    {
+        var calculation = new Calculation();
+        var legacy = calculation.Result.LegacyDetails.ToList();
+        legacy[0] = legacy[0] with { DepartmentCode = "0201" };
+        var repository = new Repository
+        {
+            HasLegacy = true,
+            LegacyResult = new(legacy, calculation.Result.LegacySummaries)
+        };
+        var service = CreateService(repository, calculation);
+
+        var query = service.ReportDataAndColumns<C24DebtPaymentDetail>(Condition());
+        var preview = service.CreateC24Preview(Condition());
+
+        Assert.Equal("11910", query.Data![0].DepartmentCode);
+        Assert.Equal("11910", preview.Details[0].DepartmentCode);
+        Assert.Equal(1m, query.Data[0].EventAmount);
+        Assert.Equal(25m, Assert.Single(preview.Summaries).OutstandingAmount);
+        Assert.Equal("0201", legacy[0].DepartmentCode);
+    }
+
+    [Fact]
     public void AccountingSingleDay_ForceRebuildSkipsCacheCheckAndReadsPublishedLegacy()
     {
         var repository = new Repository { HasLegacy = true };

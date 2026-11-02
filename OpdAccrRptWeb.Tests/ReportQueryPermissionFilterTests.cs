@@ -103,6 +103,7 @@ public sealed class ReportQueryPermissionFilterTests
     [Theory]
     [InlineData("Report", "PreviewC1", "C1")]
     [InlineData("Report", "PreviewC22", "C22")]
+    [InlineData("Report", "PreviewC24", "C24")]
     [InlineData("C141PaymentNotice", "Preview", "C141")]
     [InlineData("C141LineBot", "Send", "C141")]
     [InlineData("OpdPriceQuery", "Receipt", "Q1")]

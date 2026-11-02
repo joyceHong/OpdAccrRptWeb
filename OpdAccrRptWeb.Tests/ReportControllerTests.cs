@@ -973,7 +973,6 @@ public sealed class ReportControllerTests
         var condition = new SearchReportCondition
         {
             ReportCode = "C25",
-            StartDate = "2026-08-01",
             EndDate = "2026-08-31"
         };
 
@@ -984,15 +983,13 @@ public sealed class ReportControllerTests
         Assert.Equal(typeof(InpatientAdvancePaymentBalanceReportViewModel), service.LastRequestedType);
         Assert.Equal(1, condition.PageNumber);
         Assert.Equal(10, condition.PageSize);
+        Assert.Null(condition.StartDate);
     }
 
     [Theory]
-    [InlineData(null, "2026-08-31")]
-    [InlineData("not-a-date", "2026-08-31")]
-    [InlineData("2026-08-01", null)]
-    [InlineData("2026-09-01", "2026-08-31")]
-    public void GetReportData_InvalidC25Dates_ReturnsBadRequestWithoutCallingService(
-        string? startDate,
+    [InlineData(null)]
+    [InlineData("not-a-date")]
+    public void GetReportData_InvalidC25EndDate_ReturnsBadRequestWithoutCallingService(
         string? endDate)
     {
         var service = new CountingReportService();
@@ -1001,7 +998,6 @@ public sealed class ReportControllerTests
         var result = controller.GetReportData(new SearchReportCondition
         {
             ReportCode = "C25",
-            StartDate = startDate,
             EndDate = endDate,
             PageNumber = 1,
             PageSize = 10
@@ -1009,6 +1005,37 @@ public sealed class ReportControllerTests
 
         Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal(0, service.Calls);
+    }
+
+    [Fact]
+    public void GetReportData_C25IgnoresLegacyStartDate()
+    {
+        var service = new CountingReportService();
+        var controller = CreateController(service, new CapturingLogger<ReportController>());
+        var condition = new SearchReportCondition
+        {
+            ReportCode = "C25", StartDate = "not-a-date", EndDate = "2026-08-31"
+        };
+
+        Assert.IsType<OkObjectResult>(controller.GetReportData(condition));
+        Assert.Null(condition.StartDate);
+        Assert.Equal(1, service.Calls);
+    }
+
+    [Fact]
+    public void Export_C25_UsesOnlyEndDate()
+    {
+        var exportService = new FakeReportExportService();
+        var controller = CreateController(new CountingReportService(),
+            new CapturingLogger<ReportController>(), exportService: exportService);
+        var condition = new SearchReportCondition
+        {
+            ReportCode = "C25", StartDate = "not-a-date", EndDate = "2026-08-31"
+        };
+
+        Assert.IsType<FileContentResult>(controller.Export(condition));
+        Assert.Null(condition.StartDate);
+        Assert.Equal(1, exportService.DispatchCalls);
     }
 
     [Theory]

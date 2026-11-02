@@ -409,7 +409,6 @@ public class ReportService : IReportService
                     searchCondition.ReportCode,
                     new Dictionary<string, string?>
                     {
-                        [nameof(SearchReportCondition.StartDate)] = searchCondition.StartDate,
                         [nameof(SearchReportCondition.EndDate)] = searchCondition.EndDate
                     },
                     () => inpatientAdvancePaymentBalanceRepository.GetCount(searchCondition));
@@ -723,6 +722,26 @@ public class ReportService : IReportService
 
     private ReportDataAndColumns<T> CreateC24Result<T>(SearchReportCondition condition)
     {
+        C24CanonicalResult canonical = CreateC24Preview(condition);
+        var pageNumber = condition.PageNumber!.Value;
+        var pageSize = condition.PageSize!.Value;
+        var page = canonical.Details.Skip((pageNumber - 1) * pageSize).Take(pageSize).Cast<T>().ToList();
+        return new ReportDataAndColumns<T>
+        {
+            Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C24DebtPaymentDetail>()
+                .Where(x => x.Key is not "sourceBusinessKey" and not "legacyRoomType"
+                    and not "legacyDischargeFlag").ToList(),
+            Data = page,
+            Summary = canonical.Summaries,
+            TotalCount = canonical.Details.Count,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = CalculateTotalPages(canonical.Details.Count, pageSize)
+        };
+    }
+
+    public C24CanonicalResult CreateC24Preview(SearchReportCondition condition)
+    {
         var repository = _c24Repository ?? throw new InvalidOperationException("C24 repository 尚未設定。");
         var calculation = _c24CalculationService ?? throw new InvalidOperationException("C24 calculation service 尚未設定。");
         var start = DateOnly.ParseExact(condition.StartDate!, "yyyy-MM-dd");
@@ -752,21 +771,7 @@ public class ReportService : IReportService
                 () => repository.LoadLegacy(condition.Source!, start, end), "LegacyRead");
             canonical = CreateCanonicalFromLegacy(condition, legacy);
         }
-        var pageNumber = condition.PageNumber!.Value;
-        var pageSize = condition.PageSize!.Value;
-        var page = canonical.Details.Skip((pageNumber - 1) * pageSize).Take(pageSize).Cast<T>().ToList();
-        return new ReportDataAndColumns<T>
-        {
-            Columns = ModelDescriptionsHelper.GetPropertyDescriptions<C24DebtPaymentDetail>()
-                .Where(x => x.Key is not "sourceBusinessKey" and not "legacyRoomType"
-                    and not "legacyDischargeFlag").ToList(),
-            Data = page,
-            Summary = canonical.Summaries,
-            TotalCount = canonical.Details.Count,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalPages = CalculateTotalPages(canonical.Details.Count, pageSize)
-        };
+        return canonical;
     }
 
     private T ExecuteC24ReadWithRetry<T>(Func<T> operation, string stage)
@@ -827,7 +832,8 @@ public class ReportService : IReportService
         {
             AccountingDate = row.AccountingDate, VisitDate = row.VisitDate,
             RoomCategory = RoomCategory(row.RoomType, null), MedicalRecordNo = row.MedicalRecordNo,
-            PatientName = row.PatientName, MaskedPhone = row.Phone, DepartmentCode = row.DepartmentCode,
+            PatientName = row.PatientName, MaskedPhone = row.Phone,
+            DepartmentCode = C24DebtPaymentCalculationService.MapDepartment(row.DepartmentCode),
             PayerClassCode = row.PayerClassCode, CardSequenceNo = row.CardSequenceNo,
             ChargeItemCode = row.ChargeItemCode, ChargeItemName = row.ChargeItemName,
             EventAmount = row.SignedAmount, DiscountAmount = row.SignedDiscount,

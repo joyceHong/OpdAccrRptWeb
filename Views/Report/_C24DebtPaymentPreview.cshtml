@@ -1,0 +1,42 @@
+@model OpdAccrRptWeb.ViewModels.C24PreviewViewModel
+@using System.Globalization
+@functions {
+    private static string Amount(decimal value) => value.ToString("#,0.##", CultureInfo.InvariantCulture);
+    private static string RocDate(DateOnly value) => $"{value.Year - 1911:000}{value.Month:00}{value.Day:00}";
+}
+@foreach (var page in Model.Pages)
+{
+    <section class="c24-print-document">
+        <header class="c24-print-header">
+            <div class="c24-print-timestamp">列印日期：@Model.PrintedAt</div>
+            <div class="c24-print-heading">
+                <h1>亞 東 紀 念 醫 院</h1>
+                <h2>@Model.Title　（@(page.RoomName)）</h2>
+                <p>資料日期：@Model.DateRange</p>
+            </div>
+            <div class="c24-print-page">頁數：@(page.Number) / @Model.Pages.Count</div>
+        </header>
+        <table class="c24-print-table">
+            <thead><tr><th>欠繳日期</th><th>病歷號</th><th>姓名</th><th>電話</th><th>科別</th><th>身份</th><th>卡號</th><th>科目</th><th>科目名稱</th><th>欠繳金額</th><th>折扣金額</th><th>應補繳金額</th><th>建檔人員</th></tr></thead>
+            <tbody>
+                @foreach (var row in page.Rows)
+                {
+                    <tr><td>@RocDate(row.AccountingDate)</td><td>@row.MedicalRecordNo</td><td>@row.PatientName</td><td>@row.MaskedPhone</td><td>@row.DepartmentCode</td><td>@row.PayerClassCode</td><td>@row.CardSequenceNo</td><td>@row.ChargeItemCode</td><td>@row.ChargeItemName</td><td class="amount">@Amount(row.EventAmount)</td><td class="amount">@Amount(row.DiscountAmount)</td><td class="amount">@Amount(row.AmountDue)</td><td>@row.CreatedBy</td></tr>
+                }
+            </tbody>
+            @if (page.Summary is not null)
+            {
+                <tfoot><tr><th colspan="11">欠繳餘額：</th><td class="amount">@Amount(page.Summary.OutstandingAmount)</td><td></td></tr></tfoot>
+            }
+        </table>
+        @if (page.Summary is not null)
+        {
+            <div class="c24-print-summary">
+                <div><span>當期發生</span><strong>@Amount(page.Summary.DebtAmount)</strong><span>@(page.Summary.DebtCount) 筆</span></div>
+                <div><span>當期處理</span><strong>@Amount(page.Summary.PaymentAmount)</strong><span>@(page.Summary.PaymentCount) 筆</span></div>
+                <div><span>當期餘額</span><strong>@Amount(page.Summary.OutstandingAmount)</strong><span>@(page.Summary.OutstandingCount) 筆</span></div>
+            </div>
+        }
+        <footer class="c24-print-footer">製表人：@Model.GeneratedBy</footer>
+    </section>
+}

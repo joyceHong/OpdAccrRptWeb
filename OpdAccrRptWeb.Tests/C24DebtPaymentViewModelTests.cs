@@ -27,4 +27,32 @@ public sealed class C24DebtPaymentViewModelTests
         Assert.Empty(result.Details);
         Assert.Single(result.Summaries);
     }
+
+    [Fact]
+    public void Preview_UsesFullResultAndShowsSummaryOnlyOnFinalRoomPage()
+    {
+        var date = new DateOnly(2026, 9, 1);
+        var result = new C24CanonicalResult
+        {
+            Details = Enumerable.Range(0, 30).Select(_ => new C24DebtPaymentDetail
+            {
+                AccountingDate = date, RoomCategory = C24RoomCategory.Outpatient,
+                EventAmount = 100m
+            }).ToList(),
+            Summaries = [new(C24RoomCategory.Outpatient, 3000m, 30, 300m, 1, 2700m, 29)],
+            RunId = "run", CorrelationId = "trace"
+        };
+        var condition = new SearchReportCondition
+        {
+            StartDate = "2026-09-01", EndDate = "2026-09-01", Mode = C24Modes.Accounting
+        };
+
+        var preview = C24PreviewViewModel.Create(condition, result, "20021", date.ToDateTime(new TimeOnly(12, 0)));
+
+        Assert.Equal(2, preview.Pages.Count);
+        Assert.Equal(28, preview.Pages[0].Rows.Count);
+        Assert.Null(preview.Pages[0].Summary);
+        Assert.Equal(2700m, preview.Pages[1].Summary?.OutstandingAmount);
+        Assert.Equal("115/09/01 - 115/09/01", preview.DateRange);
+    }
 }

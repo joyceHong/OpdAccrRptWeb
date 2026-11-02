@@ -6,6 +6,9 @@ namespace OpdAccrRptWeb.Services
     {
         ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition searchCondition);
 
+        C24CanonicalResult CreateC24Preview(SearchReportCondition condition) =>
+            throw new NotSupportedException("C24 preview service 尚未設定。");
+
         Task<ReportDataAndColumns<C10ReceivableDetailRow>> ReportC10Async(
             SearchReportCondition searchCondition,
             CancellationToken cancellationToken = default) =>

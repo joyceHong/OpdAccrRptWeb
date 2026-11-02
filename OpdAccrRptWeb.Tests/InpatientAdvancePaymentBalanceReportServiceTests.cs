@@ -45,7 +45,7 @@ public sealed class InpatientAdvancePaymentBalanceReportServiceTests
     }
 
     [Fact]
-    public void ReportDataAndColumns_C25_ChangedStartOrEndDate_RecomputesCount()
+    public void ReportDataAndColumns_C25_OnlyChangedEndDate_RecomputesCount()
     {
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
         var repository = new FakeRepository { TotalCount = 73 };
@@ -58,7 +58,7 @@ public sealed class InpatientAdvancePaymentBalanceReportServiceTests
         service.ReportDataAndColumns<InpatientAdvancePaymentBalanceReportViewModel>(
             Condition("2026-08-01", "2026-08-30", 1, 10));
 
-        Assert.Equal(3, repository.CountCalls);
+        Assert.Equal(2, repository.CountCalls);
     }
 
     [Fact]

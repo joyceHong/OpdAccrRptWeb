@@ -103,6 +103,48 @@ public sealed class C24DebtPaymentRepositoryTests
     }
 
     [Theory]
+    [InlineData("EEEE", "EEEE  ")]
+    [InlineData("T24O01", "T24O01")]
+    public void VisitRoomParameter_UsesFullChar6ColumnWidth(string visitRoom, string expected)
+    {
+        OracleParameter parameter = C24DebtPaymentRepository.CreateVisitRoomParameter(visitRoom);
+
+        Assert.Equal("visit_room", parameter.ParameterName);
+        Assert.Equal(OracleDbType.Char, parameter.OracleDbType);
+        Assert.Equal(6, parameter.Size);
+        Assert.Equal(expected, parameter.Value);
+    }
+
+    [Fact]
+    public void JoinVisitKey_TrimsFixedWidthRoomForSpecialRoomRouting()
+    {
+        var table = new DataTable();
+        table.Columns.Add("VisitDate", typeof(string));
+        table.Columns.Add("VisitTime", typeof(string));
+        table.Columns.Add("VisitRoom", typeof(string));
+        table.Columns.Add("VisitNo", typeof(decimal));
+        table.Rows.Add("1151030", "1", "EEEE  ", 9901m);
+        using var reader = table.CreateDataReader();
+        Assert.True(reader.Read());
+
+        Assert.Equal("1151030|1|EEEE|9901", C24DebtPaymentRepository.JoinVisitKey(reader));
+    }
+
+    [Theory]
+    [InlineData("69  ", "69")]
+    [InlineData("01  ", "01")]
+    public void ReadChargeItemCode_RemovesOracleCharPadding(string storedCode, string expected)
+    {
+        var table = new DataTable();
+        table.Columns.Add("ChargeItemCode", typeof(string));
+        table.Rows.Add(storedCode);
+        using var reader = table.CreateDataReader();
+        Assert.True(reader.Read());
+
+        Assert.Equal(expected, C24DebtPaymentRepository.ReadChargeItemCode(reader));
+    }
+
+    [Theory]
     [InlineData(C24Sources.OpdEr, "OpdRecRpt_PDebtDM", "OpdRecRpt_PDebtDM_S", true)]
     [InlineData(C24Sources.Inpatient, "IpdRecRpt_PDebtDM", "IpdRecRpt_PDebtDM_S", false)]
     public void LegacyPublication_UsesFixedSourceSpecificAtomicSql(

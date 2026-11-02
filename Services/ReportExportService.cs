@@ -425,7 +425,7 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             throw new ArgumentException("請輸入有效的起始日期與截止日期。", nameof(condition));
         }
 
-        bool endDateOnly = condition.ReportCode is "C27" or "C28" or "C214";
+        bool endDateOnly = condition.ReportCode is "C25" or "C27" or "C28" or "C214";
         if (!endDateOnly)
         {
             if (!DateOnly.TryParseExact(condition.StartDate, "yyyy-MM-dd", CultureInfo.InvariantCulture,
@@ -436,7 +436,9 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             }
         }
 
-        return CopyCondition(condition, pageNumber: 1, pageSize: 10);
+        SearchReportCondition normalized = CopyCondition(condition, pageNumber: 1, pageSize: 10);
+        if (condition.ReportCode == "C25") normalized.StartDate = null;
+        return normalized;
     }
 
     private static TResult WithReportService<TResult>(

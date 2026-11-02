@@ -705,6 +705,37 @@ public sealed class ReportController : Controller
         return Ok(_c23Repository.GetContracts());
     }
 
+    [HttpPost("Report/C24/Preview")]
+    [Authorize]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC24([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C24";
+        if (condition.ForceRebuild) return BadRequest("預覽不可執行手動重建。");
+        IActionResult? validation = ValidateC24Condition(condition);
+        if (validation is not null) return validation;
+        Response.Headers.CacheControl = "private, no-store";
+        try
+        {
+            var result = _reportService.CreateC24Preview(condition);
+            if (result.Details.Count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+            var preview = C24PreviewViewModel.Create(condition, result,
+                User.Identity?.Name ?? string.Empty, DateTime.Now);
+            return PartialView("_C24DebtPaymentPreview", preview);
+        }
+        catch (OracleException exception)
+        {
+            _logger.LogWarning(exception, "C24 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(503, new ProblemDetails { Status = 503, Title = "資料庫服務暫時無法使用，請稍後再試。" });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "C24 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(500, new ProblemDetails { Status = 500, Title = "建立 C24 預覽時發生錯誤。" });
+        }
+    }
+
     [HttpPost("Report/C23/Preview")]
     [Authorize]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -1155,7 +1186,7 @@ public sealed class ReportController : Controller
         };
         if (outpatientValidation is not null) return outpatientValidation;
 
-        bool endDateOnly = searchCondition.ReportCode is "C27" or "C28" or "C214" or "C141";
+        bool endDateOnly = searchCondition.ReportCode is "C25" or "C27" or "C28" or "C214" or "C141";
         bool supportedReport = searchCondition.ReportCode is
             ("C1" or "C21" or "C22" or "C23" or "C24" or "C25" or "C27" or "C28" or "C29"
                 or "C143" or "C213" or "C214" or "C141" or "C10" or "C144" or "C171" or "C172"
@@ -1439,17 +1470,12 @@ public sealed class ReportController : Controller
 
     private BadRequestObjectResult? ValidateC25Condition(SearchReportCondition searchCondition)
     {
-        if (!TryParseDate(searchCondition.StartDate, out DateOnly startDate)
-            || !TryParseDate(searchCondition.EndDate, out DateOnly endDate))
+        if (!TryParseDate(searchCondition.EndDate, out _))
         {
-            return BadRequest("請輸入有效的 C25 起始日期與截止日期。");
+            return BadRequest("請輸入有效的 C25 截止日期。");
         }
 
-        if (startDate > endDate)
-        {
-            return BadRequest("C25 起始日期不可晚於截止日期。");
-        }
-
+        searchCondition.StartDate = null;
         return null;
     }
 

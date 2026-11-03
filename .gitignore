@@ -5,6 +5,7 @@ obj/
 *.suo
 .DS_Store
 *.log
+/appsettings.Local.json
 logs/
 App_Data/report-exports/
 .spectra/

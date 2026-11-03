@@ -7,6 +7,7 @@ using Serilog;
 using FemhCookieAuthentication;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 Log.Logger = FileLoggingConfiguration.CreateLogger(
     builder.Configuration,
     builder.Environment.ContentRootPath,
@@ -188,6 +189,14 @@ builder.Services.AddSingleton<IReportExportService>(provider => provider.GetRequ
 builder.Services.AddSingleton<IReportWorkbookGenerator>(provider => provider.GetRequiredService<ReportExportService>());
 builder.Services.AddHostedService<BackgroundReportExportService>();
 
+var femhAuthentication = builder.Configuration.GetRequiredSection("FemhAuthentication");
+var clientId = femhAuthentication["ClientId"];
+var clientSecret = femhAuthentication["ClientSecret"];
+if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
+{
+    throw new InvalidOperationException("FemhAuthentication:ClientId and FemhAuthentication:ClientSecret must be configured.");
+}
+
 builder.Services.AddFemhCookieAuthentication(new FemhCookieAuthenticationOptions
 {
     SystemId = "OPDACCRRPT",
@@ -196,8 +205,8 @@ builder.Services.AddFemhCookieAuthentication(new FemhCookieAuthenticationOptions
     AccessDeniedPath = new PathString("/AccessDenied"),
     CallbackPath = new PathString("/Account/Callback"),
     AuthServer = AuthServerType.Intra,
-    ClientId = "dfa41571-a427-418f-9180-606c7a365abf",
-    ClientSecret = "I2qUtaWMgROunoOfvj04IWmN7fLSEgMPaMDO1TND",
+    ClientId = clientId,
+    ClientSecret = clientSecret,
     VerifyIdentityPath = new PathString("/Account/VerifyIdentity"),
 });
 
@@ -217,6 +226,7 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseFemhCookieAuthentication();
+app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",

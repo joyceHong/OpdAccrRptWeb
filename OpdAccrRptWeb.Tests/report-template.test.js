@@ -2033,8 +2033,8 @@ async function verifiesC3ModalPreviewAndPrintContract() {
     assert.match(markup, /class="c3-preview-overlay"[^>]*role="dialog"[^>]*aria-modal="true"/);
     assert.match(markup, /closeC3Preview[\s\S]*printC3Preview[\s\S]*c3PreviewPages/);
     assert.match(markup, /c3Preview\.title[\s\S]*DateB[\s\S]*dateB[\s\S]*DateE[\s\S]*dateE[\s\S]*UserID[\s\S]*userId[\s\S]*Today[\s\S]*today[\s\S]*page\.pageNumber/);
-    assert.match(markup, /診別[\s\S]*領用部門[\s\S]*部門代碼[\s\S]*批價碼[\s\S]*材料碼[\s\S]*材料名稱[\s\S]*庫別[\s\S]*數量/);
-    assert.match(markup, /detailType\) === 1[\s\S]*醫師代碼[\s\S]*病歷號[\s\S]*病患姓名[\s\S]*報表日[\s\S]*醫師姓名[\s\S]*自費/);
+    assert.match(markup, /折扣別[\s\S]*批價碼[\s\S]*材料編號[\s\S]*材料名稱[\s\S]*計價日[\s\S]*醫師[\s\S]*病歷號[\s\S]*病患姓名[\s\S]*費別[\s\S]*總使用量/);
+    assert.match(markup, /row\.dctNo[\s\S]*row\.showInventoryTotal[\s\S]*加總：/);
     assert.match(css, /@page c3-landscape\{size:A4 landscape;margin:0\}/);
     assert.match(css, /\.c3-paper\{[^}]*break-after:page/);
     assert.match(css, /@media print\{body:has\(\.c3-preview-overlay\) \*\{visibility:hidden!important\}/);

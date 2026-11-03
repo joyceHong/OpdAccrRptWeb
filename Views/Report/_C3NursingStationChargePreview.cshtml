@@ -1,37 +1,124 @@
 @model OpdAccrRptWeb.ViewModels.C3PreviewViewModel
+@{
+    bool detail = Model.DetailType == OpdAccrRptWeb.Models.ReportDetailType.Detail;
+    const int rowsPerPage = 20;
+    var reportRows = detail
+        ? Model.Rows.GroupBy(row => new { row.Diagnose, row.Section, row.Dispensary })
+            .OrderBy(station => station.Key.Diagnose, StringComparer.Ordinal)
+            .ThenBy(station => station.Key.Section, StringComparer.Ordinal)
+            .SelectMany(station => station.GroupBy(row => row.InventoryType)
+                .OrderBy(group => group.Key switch { "AK庫" => 0, "AN庫" => 1, "物流" => 2, _ => 3 })
+                .SelectMany(group => group.OrderBy(row => row.ChargeCode, StringComparer.Ordinal)
+                    .ThenBy(row => row.Op1Date, StringComparer.Ordinal)
+                    .ThenBy(row => row.DrName, StringComparer.Ordinal)
+                    .ThenBy(row => row.MrNo, StringComparer.Ordinal))).ToList()
+        : Model.Rows.GroupBy(row => row.InventoryType).SelectMany(group => group).ToList();
+    var pages = detail
+        ? reportRows.GroupBy(row => new { row.Diagnose, row.Section, row.Dispensary })
+            .SelectMany(station => station.Chunk(rowsPerPage).Select(chunk => chunk.ToList())).ToList()
+        : reportRows.Chunk(rowsPerPage).Select(chunk => chunk.ToList()).ToList();
+}
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8" />
     <title>@Model.Title</title>
     <style>
-        @@page { size: A4 landscape; margin: 10mm; }
-        body { font-family: "Microsoft JhengHei", sans-serif; color: #111; }
-        h1 { text-align: center; font-size: 20px; margin: 0 0 6px; }
-        .meta { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; }
-        table { width: 100%; border-collapse: collapse; font-size: 10px; }
-        th, td { border: 1px solid #555; padding: 3px; text-align: left; }
-        td.number { text-align: right; }
-        .actions { margin-bottom: 10px; }
-        @@media print { .actions { display: none; } }
+        @@page { size: A4 landscape; margin: 0; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #ddd; color: #111; font-family: "PMingLiU", "Noto Serif TC", serif; }
+        .actions { padding: 12px; text-align: center; }
+        .paper { width: 297mm; min-height: 210mm; margin: 0 auto 16px; padding: 10mm 12mm; background: #fff; break-after: page; }
+        .paper:last-child { break-after: auto; }
+        h1 { margin: 0 0 7mm; text-align: center; font-size: 18px; }
+        .meta { display: grid; grid-template-columns: minmax(0, 1fr) 70px; gap: 2px 16px; margin-bottom: 7mm; font-size: 11px; }
+        .meta span:nth-child(even) { text-align: right; }
+        table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 11px; }
+        th, td { padding: 3px 4px; text-align: left; vertical-align: top; font-weight: 400; overflow-wrap: break-word; }
+        thead th { border-bottom: 1px dashed #111; white-space: nowrap; }
+        .summary th:nth-child(1), .summary th:nth-child(2) { width: 13%; }
+        .summary th:nth-child(3) { width: 56%; }
+        .summary th:nth-child(4) { width: 18%; }
+        .inventory td { padding-top: 8px; padding-bottom: 2px; }
+        .detail { font-size: 9px; }
+        .detail th, .detail td { padding: 3px 2px; }
+        .detail th:nth-child(1) { width: 6%; }
+        .detail th:nth-child(2) { width: 8%; }
+        .detail th:nth-child(3) { width: 10%; }
+        .detail th:nth-child(4) { width: 29%; }
+        .detail th:nth-child(5) { width: 8%; }
+        .detail th:nth-child(6) { width: 9%; }
+        .detail th:nth-child(7) { width: 9%; }
+        .detail th:nth-child(8) { width: 11%; }
+        .detail th:nth-child(9) { width: 4%; }
+        .detail th:nth-child(10) { width: 6%; }
+        .detail .inventory td { padding-top: 8px; padding-bottom: 2px; }
+        .detail .subtotal td { padding-top: 0; text-align: right; }
+        .detail .subtotal td:first-child { text-align: right; }
+        .detail .code { text-align: center; }
+        .number { text-align: right; }
+        footer { margin-top: 18px; padding-right: 17%; text-align: right; font-size: 11px; }
+        @@media print { body { background: #fff; } .actions { display: none; } .paper { margin: 0; } tr { break-inside: avoid; } }
     </style>
 </head>
 <body>
     <div class="actions"><button type="button" onclick="window.print()">列印</button></div>
-    <h1>@Model.Title</h1>
-    <div class="meta"><span>日期：@Model.DateB ～ @Model.DateE</span><span>製表人：@Model.UserId　製表時間：@Model.Today</span></div>
-    <table>
-        <thead><tr><th>診別</th><th>領用部門</th><th>部門代碼</th><th>批價碼</th><th>材料碼</th><th>材料名稱</th><th>庫別</th><th>數量</th>
-        @if (Model.DetailType == OpdAccrRptWeb.Models.ReportDetailType.Detail) { <th>醫師代碼</th><th>病歷號</th><th>病患姓名</th><th>報表日</th><th>醫師姓名</th><th>自費</th> }
-        </tr></thead>
-        <tbody>
-        @foreach (var row in Model.Rows)
-        {
-            <tr><td>@row.Diagnose</td><td>@row.Dispensary</td><td>@row.Section</td><td>@row.ChargeCode</td><td>@row.MaterialCode</td><td>@row.MaterialName</td><td>@row.InventoryType</td><td class="number">@row.TotalSum</td>
-            @if (Model.DetailType == OpdAccrRptWeb.Models.ReportDetailType.Detail) { <td>@row.DctNo</td><td>@row.MrNo</td><td>@row.PName</td><td>@row.Op1Date</td><td>@row.DrName</td><td>@row.SPay</td> }
-            </tr>
-        }
-        </tbody>
-    </table>
+    @for (int pageIndex = 0; pageIndex < pages.Count; pageIndex++)
+    {
+        var rows = pages[pageIndex];
+        var firstRow = rows[0];
+        <article class="paper">
+            <h1>@Model.Title</h1>
+            @if (detail)
+            {
+                <div class="meta"><span>處理日期：@Model.Today</span><span>頁次：@(pageIndex + 1)</span><span>資料範圍：@Model.DateB　/　@Model.DateE</span><span>@firstRow.Diagnose　@firstRow.Section　@firstRow.Dispensary</span></div>
+            }
+            else
+            {
+                <div class="meta"><span>報表名稱：@Model.Title</span><span>頁次：@(pageIndex + 1)</span><span>製表日期：@Model.Today</span><span>資料範圍：@Model.DateB　/　@Model.DateE</span></div>
+            }
+            <table class="@(detail ? "detail" : "summary")">
+                @if (detail)
+                {
+                    <thead><tr><th>折扣別</th><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th>計價日</th><th>醫師</th><th>病歷號</th><th>病患姓名</th><th>費別</th><th class="number">總使用量</th></tr></thead>
+                    <tbody>
+                    @for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+                    {
+                        var row = rows[rowIndex];
+                        int absoluteIndex = pages.Take(pageIndex).Sum(page => page.Count) + rowIndex;
+                        bool groupStart = rowIndex == 0 || row.InventoryType != rows[rowIndex - 1].InventoryType || row.Section != rows[rowIndex - 1].Section || row.Dispensary != rows[rowIndex - 1].Dispensary;
+                        bool groupEnd = absoluteIndex == reportRows.Count - 1 || row.InventoryType != reportRows[absoluteIndex + 1].InventoryType || row.Section != reportRows[absoluteIndex + 1].Section || row.Dispensary != reportRows[absoluteIndex + 1].Dispensary;
+                        if (groupStart)
+                        {
+                            <tr class="inventory"><td colspan="10">@(string.IsNullOrWhiteSpace(row.InventoryType) ? "未分類" : row.InventoryType)</td></tr>
+                        }
+                        <tr><td class="code">@row.DctNo</td><td>@row.ChargeCode</td><td>@row.MaterialCode</td><td>@row.MaterialName</td><td>@row.Op1Date</td><td>@row.DrName</td><td>@row.MrNo</td><td>@row.PName</td><td>@row.SPay</td><td class="number">@row.TotalSum.ToString("0.00")</td></tr>
+                        if (groupEnd)
+                        {
+                            var subtotal = reportRows.Take(absoluteIndex + 1).Reverse().TakeWhile(item => item.InventoryType == row.InventoryType && item.Section == row.Section && item.Dispensary == row.Dispensary).Sum(item => item.TotalSum);
+                            <tr class="subtotal"><td colspan="9">加總：</td><td class="number">@subtotal.ToString("0.00")</td></tr>
+                        }
+                    }
+                    </tbody>
+                }
+                else
+                {
+                    <thead><tr><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th class="number">使用量</th></tr></thead>
+                    <tbody>
+                    @for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+                    {
+                        var row = rows[rowIndex];
+                        if (rowIndex == 0 || row.InventoryType != rows[rowIndex - 1].InventoryType)
+                        {
+                            <tr class="inventory"><td colspan="4">@(string.IsNullOrWhiteSpace(row.InventoryType) ? "未分類" : row.InventoryType)</td></tr>
+                        }
+                        <tr><td>@row.ChargeCode</td><td>@row.MaterialCode</td><td>@row.MaterialName</td><td class="number">@row.TotalSum</td></tr>
+                    }
+                    </tbody>
+                }
+            </table>
+            <footer>製表人：@Model.UserId</footer>
+        </article>
+    }
 </body>
 </html>

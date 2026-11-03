@@ -36,7 +36,7 @@ public sealed class C3ReportService(
         var rows = new List<C3ReportRow>();
         try
         {
-            for (DateOnly day = validated.Start; day <= validated.End; day = day.AddDays(1))
+            for (DateOnly day = validated.Start; ; day = day.AddDays(1))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string runDate = C3ReportRequest.ToRoc(day);
@@ -50,6 +50,7 @@ public sealed class C3ReportService(
                 }
                 logger.LogInformation("C3 day completed. RunDate={RunDate} Count={Count} DurationMs={DurationMs}",
                     runDate, movements.Count, stopwatch.ElapsedMilliseconds);
+                if (day == validated.End) break;
             }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

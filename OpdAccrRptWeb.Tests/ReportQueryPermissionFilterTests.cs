@@ -78,13 +78,15 @@ public sealed class ReportQueryPermissionFilterTests
         Assert.Equal(403, Assert.IsType<StatusCodeResult>(context.Result).StatusCode);
     }
 
-    [Fact]
-    public async Task QueryEndpointWithoutGrantReturnsForbiddenBeforeDispatch()
+    [Theory]
+    [InlineData("C21")]
+    [InlineData("C3")]
+    public async Task QueryEndpointWithoutGrantReturnsForbiddenBeforeDispatch(string reportCode)
     {
         var context = CreateContext("Report", "GetReportData",
             new Dictionary<string, object?>
             {
-                ["searchCondition"] = new SearchReportCondition { ReportCode = "C21" }
+                ["searchCondition"] = new SearchReportCondition { ReportCode = reportCode }
             });
         var filter = CreateFilter(new ReportPermissionSnapshot(
             "E100", false, new Dictionary<string, ReportAction>()));
@@ -126,6 +128,7 @@ public sealed class ReportQueryPermissionFilterTests
 
     [Theory]
     [InlineData("Report", "PreviewC1", "C1")]
+    [InlineData("Report", "PreviewC3", "C3")]
     [InlineData("Report", "PreviewC22", "C22")]
     [InlineData("Report", "PreviewC24", "C24")]
     [InlineData("Report", "PreviewC29", "C29")]

@@ -18,6 +18,18 @@ dotnet run
 
 Vue runtime 會從 `node_modules` 複製至 `wwwroot/vendor`，執行網站時不依賴 CDN。
 
+登入驗證的 `FemhAuthentication:ClientId` 設於 `appsettings.json`。本機請建立不納入版控的 `appsettings.Local.json`，填入 `FemhAuthentication:ClientSecret`：
+
+```json
+{
+  "FemhAuthentication": {
+    "ClientSecret": "<實際密鑰>"
+  }
+}
+```
+
+部署時可透過環境變數 `FemhAuthentication__ClientId`、`FemhAuthentication__ClientSecret` 提供設定。缺少任一值時，程式會在啟動時報錯。
+
 ## 架構與後續擴充
 
 - `Controllers`：只處理 HTTP 與頁面流程。

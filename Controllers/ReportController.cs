@@ -10,6 +10,7 @@ using OpdAccrRptWeb.Models;
 
 namespace OpdAccrRptWeb.Controllers;
 
+[Authorize]
 public sealed class ReportController : Controller
 {
     private const string DefaultReportPath = "/Report/C1";

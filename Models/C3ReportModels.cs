@@ -35,6 +35,8 @@ public sealed record C3ReportRequest(
                 DateTimeStyles.None, out DateOnly end) || end.Year < 1912)
             throw new ArgumentException("請輸入有效的 C3 截止日期。");
         if (start > end) throw new ArgumentException("C3 起始日期不可晚於截止日期。");
+        if (end.DayNumber - start.DayNumber >= 7)
+            throw new ArgumentException("C3 查詢日期區間最多 7 天（含起訖日）。");
         if (PageNumber < 1 || PageSize is not (10 or 30 or 50))
             throw new ArgumentException("C3 分頁條件不正確。");
         IReadOnlyList<string> rooms = NormalizeCodes(RoomCodes, "診間");

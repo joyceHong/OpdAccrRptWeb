@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpdAccrRptWeb.Controllers;
 using OpdAccrRptWeb.Models;
@@ -9,6 +10,12 @@ namespace OpdAccrRptWeb.Tests;
 
 public sealed class C3ReportControllerTests
 {
+    [Fact]
+    public void Controller_RequiresAuthenticationForC3Apis()
+    {
+        Assert.Single(typeof(ReportController).GetCustomAttributes(typeof(AuthorizeAttribute), true));
+    }
+
     [Fact]
     public void GetReportData_ValidRequestReturnsPageAndNoStore()
     {
@@ -24,6 +31,17 @@ public sealed class C3ReportControllerTests
     public void GetReportData_InvalidSourceDoesNotDispatch()
     {
         var service = new FakeC3Service(); var condition = Condition(); condition.Source = "OpdEr";
+        Assert.IsType<BadRequestObjectResult>(Create(service).GetReportData(condition));
+        Assert.Equal(0, service.QueryCalls);
+    }
+
+    [Fact]
+    public void GetReportData_EightDayRangeDoesNotDispatch()
+    {
+        var service = new FakeC3Service();
+        SearchReportCondition condition = Condition();
+        condition.EndDate = "2026-05-21";
+
         Assert.IsType<BadRequestObjectResult>(Create(service).GetReportData(condition));
         Assert.Equal(0, service.QueryCalls);
     }

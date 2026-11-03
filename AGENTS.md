@@ -65,6 +65,7 @@ For new server-side behavior, add a separate test project such as `OpdAccrRptWeb
 
 - Report query date fields must use the existing Gregorian HTML date-picker experience (`type="date"`), consistent with established reports such as C10. When a legacy repository or Oracle query requires a ROC date, convert `YYYY-MM-DD` to the required ROC representation explicitly at the request boundary; do not expose ROC text entry in the browser unless a report specification explicitly requires it.
 - Pending report queries must use the existing shared table skeleton/shimmer loading pattern. Do not introduce report-specific hourglass, funnel, spinner, or text-only loading indicators unless the user explicitly requests a different loading experience.
+- When a report has an explicit "套用篩選" action in an advanced-filter dialog, applying the filters must immediately run the report query with the applied conditions and show the updated results. Reset pagination to the first page and use the shared loading, empty, and error states; do not require a second click on "查詢". Advanced fields shown directly in the query form continue to use the form's "查詢" action.
 - Reuse the shared report page structure, classes, result-list conventions, empty state, total count, and pagination before adding report-specific presentation. Print-preview layouts may remain report-specific and must be entered through an explicit preview/print action when a normal query result list is required.
 
 ## Commit & Pull Request Guidelines

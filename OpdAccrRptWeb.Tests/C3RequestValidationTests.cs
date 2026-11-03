@@ -37,4 +37,15 @@ public sealed class C3RequestValidationTests
             CareSource.O, RoomCodes: Enumerable.Range(1, 51).Select(x => $"R{x}").ToArray()).Validate());
         Assert.Throws<ArgumentException>(() => C3ReportRequest.ParseCodes("A','B"));
     }
+
+    [Fact]
+    public void Validate_AllowsSevenDaysAndRejectsEightDays()
+    {
+        Assert.Equal(new DateOnly(2026, 5, 20),
+            new C3ReportRequest("2026-05-14", "2026-05-20", CareSource.O).Validate().End);
+
+        ArgumentException exception = Assert.Throws<ArgumentException>(() =>
+            new C3ReportRequest("2026-05-14", "2026-05-21", CareSource.O).Validate());
+        Assert.Contains("最多 7 天", exception.Message);
+    }
 }

@@ -354,15 +354,16 @@
             <article class="c4-paper">
                 <header class="c4-print-header"><h1>門急診材料寄售表</h1></header>
                 <div class="c4-print-meta">
-                    <span>日期：{{ c4Preview.metadata.dateB }} ～ {{ c4Preview.metadata.dateE }}</span>
-                    <span>使用者：{{ c4Preview.metadata.userId }}</span>
-                    <span>產表：{{ c4Preview.metadata.today }}</span>
+                    <span>批價日期： {{ c4Preview.metadata.dateB }}　/　{{ c4Preview.metadata.dateE }}</span>
+                    <span>製表日期： {{ c4Preview.metadata.today }}</span>
                 </div>
                 <p v-if="!c4Preview.rows.length" class="empty-result">查無此筆資料</p>
                 <table v-else class="c4-print-table">
-                    <thead><tr><th>序號</th><th>類別</th><th>材料碼</th><th>健保碼</th><th>品名</th><th>單位</th><th>批價碼</th><th>數量</th><th>科別／部門</th></tr></thead>
-                    <tbody><tr v-for="row in c4Preview.rows" :key="`c4-print-${row.id}`"><td>{{ row.id }}</td><td>{{ row.type }}</td><td>{{ row.materialCode }}</td><td>{{ row.claimCode }}</td><td>{{ row.orderName }}</td><td>{{ row.unit }}</td><td>{{ row.chargeCode }}</td><td>{{ row.total }}</td><td>{{ row.sectionCode }}</td></tr></tbody>
+                    <colgroup><col class="c4-col-id"><col class="c4-col-section"><col class="c4-col-type"><col class="c4-col-material"><col class="c4-col-charge"><col class="c4-col-claim"><col class="c4-col-name"><col class="c4-col-unit"><col class="c4-col-total"></colgroup>
+                    <thead><tr><th>項次</th><th>科別</th><th>寄售品</th><th>材料碼</th><th>批價碼</th><th>健保碼</th><th>品名</th><th>單位</th><th>數量</th></tr></thead>
+                    <tbody><tr v-for="row in c4Preview.rows" :key="`c4-print-${row.id}`"><td>{{ row.id }}</td><td>{{ row.sectionCode }}</td><td>{{ row.type }}</td><td>{{ row.materialCode }}</td><td>{{ row.chargeCode }}</td><td>{{ row.claimCode }}</td><td>{{ row.orderName }}</td><td>{{ row.unit }}</td><td>{{ Number(row.total).toFixed(1) }}</td></tr></tbody>
                 </table>
+                <div class="c4-print-maker">製表人： {{ c4Preview.metadata.userId }}</div>
             </article>
         </div>
         <div v-if="c15PreviewOpen" class="c15-preview-overlay" role="dialog" aria-modal="true" aria-label="C15 列印預覽">

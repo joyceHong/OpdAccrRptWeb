@@ -79,6 +79,32 @@ public sealed class ReportQueryPermissionFilterTests
     }
 
     [Theory]
+    [InlineData("Query", ReportAction.None, false)]
+    [InlineData("Query", ReportAction.Query, true)]
+    [InlineData("Preview", ReportAction.Query, false)]
+    [InlineData("Preview", ReportAction.Query | ReportAction.Print, true)]
+    public async Task C5PatientDetailUsesExistingReportActionGrants(
+        string action, ReportAction grantedActions, bool shouldExecute)
+    {
+        var context = CreateContext("C5Report", action, new Dictionary<string, object?>());
+        var filter = CreateFilter(new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction> { ["C5"] = grantedActions }));
+        bool executed = false;
+
+        await filter.OnActionExecutionAsync(context, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(
+                new ActionContext(context.HttpContext, context.RouteData, context.ActionDescriptor),
+                [], new object()));
+        });
+
+        Assert.Equal(shouldExecute, executed);
+        if (!shouldExecute)
+            Assert.Equal(403, Assert.IsType<StatusCodeResult>(context.Result).StatusCode);
+    }
+
+    [Theory]
     [InlineData("C21")]
     [InlineData("C3")]
     public async Task QueryEndpointWithoutGrantReturnsForbiddenBeforeDispatch(string reportCode)

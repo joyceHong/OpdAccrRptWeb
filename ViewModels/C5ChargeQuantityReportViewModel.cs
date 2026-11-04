@@ -6,12 +6,12 @@ namespace OpdAccrRptWeb.ViewModels;
 
 public sealed class C5ChargeQuantityReportViewModel
 {
-    [Description("診別")] public string RoomType { get; init; } = string.Empty;
-    [Description("科別代碼")] public string SectionCode { get; init; } = string.Empty;
+    [Description("就醫來源")] public string RoomType { get; init; } = string.Empty;
+    [Description("科別代號")] public string SectionCode { get; init; } = string.Empty;
     [Description("科別名稱")] public string? SectionName { get; init; }
     [Description("批價碼")] public string ChargeCode { get; init; } = string.Empty;
-    [Description("名稱")] public string ChargeName { get; init; } = string.Empty;
-    [Description("日期")] public string ServiceDate { get; init; } = string.Empty;
+    [Description("批價名稱")] public string ChargeName { get; init; } = string.Empty;
+    [Description("批價日期")] public string ServiceDate { get; init; } = string.Empty;
     [Description("醫師代碼")] public string? DoctorId { get; init; }
     [Description("醫師姓名")] public string? DoctorName { get; init; }
     [Description("病歷號")] public string? MedicalRecordNo { get; init; }

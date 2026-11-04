@@ -331,6 +331,21 @@ public sealed class OrganizationUnitCodeServiceTests
     }
 
     [Fact]
+    public async Task ResolveNewCodeAsync_EmergencyAliasUsesLegacySectionName()
+    {
+        var repository = new FakeOrganizationUnitMappings
+        {
+            LegacyResults = [new(OrganizationUnitSource.Section, "0201", "99999", "一般內科", true)]
+        };
+
+        OrganizationUnitMapping? actual = await new OrganizationUnitCodeService(repository)
+            .ResolveNewCodeAsync("0201", "E", OrganizationUnitMappingScope.SectionOnly);
+
+        Assert.Equal("11910", actual?.NewCode);
+        Assert.Equal("一般內科", actual?.DisplayName);
+    }
+
+    [Fact]
     public async Task ResolveNewCodeAsync_RejectsDistinctNewCodes()
     {
         var repository = new FakeOrganizationUnitMappings

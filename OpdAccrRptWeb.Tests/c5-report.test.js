@@ -17,7 +17,7 @@ assert.match(c5, /primary-button/);
 assert.match(c5, /ghost-button/);
 assert.doesNotMatch(c5, /skeleton-row/);
 const script = fs.readFileSync(path.join(root, "wwwroot/js/reports/c5-report.js"), "utf8");
-const window = {};
+const window = { clearTimeout };
 vm.runInNewContext(script, { window, document: {} });
 const component = window.ReportComponents.C5Report;
 assert.match(script, /form\.dataSource\s*===\s*1/);
@@ -36,14 +36,69 @@ assert.match(c5, /:disabled="form\.dataSource===1 \|\| selectedReport\.code==='C
 for (const [value, label] of [["01", "一般民眾"], ["030", "健保"], ["035", "健保未帶卡"]]) {
     assert.match(c5, new RegExp(`<option value="${value}">${value} ${label}</option>`));
 }
-assert.equal((c5.match(/<option value="(?:01|030|035)">/g) ?? []).length, 3);
+assert.equal((c5.match(/<option value="(?:01|030|035)">/g) ?? []).length, 6);
 assert.match(script, /newOrganizationUnitCode:\s*selectedCode\s*\|\|\s*directCode/);
 assert.match(script, /organization-units\?query=/);
 assert.match(c5, /report-preview-overlay/);
+assert.match(c5, /\{\{ c\.label \}\}/);
+assert.match(c5, /科別代號/);
+assert.match(c5, /批價名稱/);
+assert.match(c5, /c5-print-subtotal/);
+assert.match(c5, /page\.totals\.quantity/);
+assert.match(c5, /page\.source/);
+assert.match(c5, /page\.lines/);
+assert.match(css, /\.c5-paper\{[^}]*break-after:page/);
+assert.doesNotMatch(c5, /previewRowsJson/);
 assert.match(c5, /role="dialog"/);
 assert.match(script, /closePreview/);
 assert.match(script, /window\.print/);
 assert.doesNotMatch(script, /window\.open|target.?=.?["']_blank/);
+const preview = { detailType: 0, dataSource: 0, rows: [
+    { roomType: "門診", sectionCode: "11910", sectionName: "一般內科", chargeCode: "A", quantity: 2, amount: 20 },
+    { roomType: "門診", sectionCode: "11910", sectionName: "一般內科", chargeCode: "A", quantity: 3, amount: 30 },
+    { roomType: "急診", sectionCode: "11910", sectionName: "一般內科", chargeCode: "B", quantity: 4, amount: 40 }
+] };
+const previewState = { preview };
+const previewPages = component.computed.previewPages.call(previewState);
+assert.equal(previewPages.length, 2);
+assert.equal(previewPages[0].source, "急診");
+assert.equal(previewPages[0].lines.filter(line => line.type === "row").length, 1);
+assert.equal(previewPages[0].totals.quantity, 4);
+assert.equal(previewPages[0].totals.amount, 40);
+assert.equal(previewPages[1].source, "門診");
+assert.equal(previewPages[1].lines.filter(line => line.type === "row").length, 2);
+assert.equal(previewPages[1].lines.find(line => line.type === "subtotal").quantity, 5);
+assert.equal(previewPages[1].totals.quantity, 5);
+assert.equal(previewPages[1].totals.amount, 50);
+assert.ok(previewPages.every(page => page.isLastForSource));
+const inpatientPages = component.computed.previewPages.call({ preview: { dataSource: 1, rows: [
+    { roomType: "住院", sectionCode: "A", quantity: 1, amount: 10 },
+    { roomType: "住0201", sectionCode: "B", quantity: 2, amount: 20 }
+] } });
+assert.equal(inpatientPages.length, 1);
+assert.equal(inpatientPages[0].source, "住院");
+assert.equal(inpatientPages[0].totals.quantity, 3);
+const detailPages = component.computed.previewPages.call({ preview: { detailType: 2, dataSource: 0, rows: [
+    { roomType: "門診", sectionCode: "11910", sectionName: "一般內科", chargeCode: "CSD01", chargeName: "測試藥品", doctorId: "DR01", medicalRecordNo: "M001", quantity: 5, amount: 50 },
+    { roomType: "門診", sectionCode: "11910", sectionName: "一般內科", chargeCode: "CSD01", chargeName: "測試藥品", doctorId: "DR02", medicalRecordNo: "M002", quantity: 2, amount: 20 }
+] } });
+assert.deepEqual(Array.from(detailPages[0].lines, line => line.type), ["section", "charge", "row", "row"]);
+const longDetailPages = component.computed.previewPages.call({ preview: { detailType: 2, dataSource: 0,
+    rows: Array.from({ length: 30 }, (_, index) => ({ roomType: "門診", sectionCode: "11910", chargeCode: "CSD01", medicalRecordNo: String(index) }))
+} });
+assert.equal(longDetailPages.length, 2);
+assert.deepEqual(Array.from(longDetailPages[1].lines.slice(0, 3), line => line.type), ["section", "charge", "row"]);
+assert.match(c5, /醫生代號/);
+assert.match(c5, /病歷號/);
+assert.match(c5, /v-if="preview\.detailType === 2" class="c5-print-table c5-detail-table"/);
+assert.match(script, /沒有 C5 預覽權限/);
+const matchingPayload = JSON.stringify({ detailType: 0 });
+assert.equal(component.computed.previewAvailable.call({ hasResults: true, lastLoadedPayload: matchingPayload,
+    payload: () => ({ detailType: 0 }) }), true);
+assert.equal(component.computed.previewAvailable.call({ hasResults: true, lastLoadedPayload: matchingPayload,
+    payload: () => ({ detailType: 2 }) }), false);
+assert.match(c5, /:disabled="!previewAvailable \|\| isLoading \|\| previewLoading"/);
+assert.equal(component.methods.formatPreviewDate("1151103"), "115/11/03");
 const initial = component.methods.initialForm.call({ defaultStartDate: "2026-09-01", defaultEndDate: "2026-09-02", selectedReport: { code: "C5" } });
 assert.equal(initial.insuranceIdentityCode, "");
 assert.equal(initial.legacySectionCode, undefined);

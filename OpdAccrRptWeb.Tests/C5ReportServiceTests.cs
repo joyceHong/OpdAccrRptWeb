@@ -77,6 +77,30 @@ public sealed class C5ReportServiceTests
     }
 
     [Fact]
+    public async Task QueryAsync_EmergencyAliasKeepsLegacySectionName()
+    {
+        var repository = new FakeRepository
+        {
+            RowsFactory = _ => [Row("R", "0201"), Row("E", "0201")]
+        };
+        var mappings = new FakeOrganizationUnitMappings
+        {
+            LegacyResults = [new(OrganizationUnitSource.Section, "0201", "11910", "一般內科", true)]
+        };
+        C5ReportService service = Create(repository, new OrganizationUnitCodeService(mappings));
+
+        var result = await service.QueryAsync(new("2026-11-03", "2026-11-03"));
+
+        Assert.Equal(2, result.Page.Data!.Count);
+        Assert.All(result.Page.Data, row =>
+        {
+            Assert.Equal("11910", row.SectionCode);
+            Assert.Equal("一般內科", row.SectionName);
+        });
+        Assert.Contains(result.Page.Data, row => row.RoomType == "急診");
+    }
+
+    [Fact]
     public async Task QueryAsync_DoesNotHideMappingFailures()
     {
         var repository = new FakeRepository { RowsFactory = _ => [Row("R", "AMB")] };

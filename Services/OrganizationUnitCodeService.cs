@@ -90,7 +90,13 @@ public sealed class OrganizationUnitCodeService(
         if (code.Length == 0) return null;
         if (string.Equals(roomType.Trim(), "E", StringComparison.OrdinalIgnoreCase)
             && EmergencyMappings.TryGetValue(code, out string? emergencyCode))
-            return new(OrganizationUnitSource.Fixed, code, emergencyCode, string.Empty, true);
+        {
+            IReadOnlyList<OrganizationUnitMapping> sectionMappings =
+                await repository.FindByLegacyCodeAsync(code, OrganizationUnitMappingScope.SectionOnly,
+                    cancellationToken);
+            string sectionName = sectionMappings.FirstOrDefault()?.DisplayName ?? string.Empty;
+            return new(OrganizationUnitSource.Fixed, code, emergencyCode, sectionName, true);
+        }
 
         IReadOnlyList<OrganizationUnitMapping> candidates =
             await repository.FindByLegacyCodeAsync(code, scope, cancellationToken);

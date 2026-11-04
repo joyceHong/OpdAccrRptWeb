@@ -31,3 +31,6 @@ openspec/.vector-search.db*
 /C3_DBTEST3_部門歸屬與分組驗證_20261103.md
 /scripts/seed-c3-departments-dbtest3.ps1
 /scripts/verify-c3-departments-dbtest3.ps1
+/scripts/c5-dbtest3-test-cases.md
+/scripts/seed-c4-dbtest3.ps1
+/scripts/seed-c5-dbtest3.ps1

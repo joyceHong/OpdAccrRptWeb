@@ -9,6 +9,12 @@ public interface IOrganizationUnitCodeService
         bool activePlaceOnly,
         CancellationToken cancellationToken = default);
 
+    Task<OrganizationUnitMapping?> ResolveFirstLegacyCodeAsync(
+        string newCode,
+        bool activePlaceOnly,
+        CancellationToken cancellationToken = default) =>
+        ResolveLegacyCodeAsync(newCode, activePlaceOnly, cancellationToken);
+
     Task<OrganizationUnitMapping?> ResolveLegacySectionCodeAsync(
         string newCode,
         CancellationToken cancellationToken = default) =>
@@ -37,4 +43,12 @@ public interface IOrganizationUnitCodeService
         bool activePlaceOnly,
         int limit = 20,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OrganizationUnitMapping>> BrowseAsync(
+        bool includeSections,
+        bool includePlaces,
+        bool activePlaceOnly,
+        int limit = 20,
+        CancellationToken cancellationToken = default) =>
+        SearchAsync(string.Empty, includeSections, includePlaces, activePlaceOnly, limit, cancellationToken);
 }

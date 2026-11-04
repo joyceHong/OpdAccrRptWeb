@@ -67,7 +67,7 @@
             <a v-else-if="exportJob.status === 'Ready' && exportJob.downloadUrl" :href="exportJob.downloadUrl">下載完成的 Excel</a>
             <span v-else>{{ exportJob.message || '工作已結束，請重新申請匯出。' }}</span>
         </section>
-        <section class="panel query-panel" :class="{ 'c3-query-panel': isC3, 'c21-query-panel': isC21, 'c23-query-panel': isC23, 'c24-query-panel': isC24 }">
+        <section class="panel query-panel" :class="{ 'c3-query-panel': isC3, 'c4-query-panel': isC4, 'c21-query-panel': isC21, 'c23-query-panel': isC23, 'c24-query-panel': isC24 }">
             <div>
                 <div class="panel-title">
                     <span>查詢條件</span>
@@ -129,15 +129,11 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
-                    <div v-if="isC4" class="advanced-grid">
-                        <label><span>科別／部門</span>
-                            <report-autocomplete v-model="form.organizationQuery" id-prefix="c4-organization"
-                                                 placeholder="輸入新碼或名稱" :options="c4OrganizationOptions"
-                                                 :open="c4Organizations.length > 0"
-                                                 v-on:input="onC4OrganizationInput"
-                                                 v-on:select="selectC4OrganizationOption"
-                                                 v-on:update:open="setC4OrganizationOpen" />
-                        </label>
+                    <div v-if="isC4" class="c22-source-filter-row">
+                        <button class="c22-filter-button" type="button" :aria-label="activeFilterCount ? `進階篩選，已套用 ${activeFilterCount} 項` : '進階篩選'" aria-haspopup="dialog" aria-controls="report-filter-dialog" v-on:click="openReportFilters">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="white"/><circle cx="16" cy="17" r="2.5" fill="white"/></svg>
+                            <span>進階篩選</span><span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
+                        </button>
                     </div>
                     <fieldset v-if="isC16" class="source-fieldset">
                         <legend>日期基準 <i>*</i></legend>
@@ -311,9 +307,18 @@
             </article>
         </div>
         <div v-if="reportFilterOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeReportFilters">
-            <section id="report-filter-dialog" class="c22-filter-dialog" :class="{ 'contract-filter-dialog': isC29 || isC211 }" role="dialog" aria-modal="true" aria-labelledby="report-filter-title" v-on:keydown.esc="closeReportFilters">
-                <h2 id="report-filter-title" ref="reportFilterTitle" :tabindex="isC29 || isC211 ? -1 : undefined">進階篩選條件</h2>
+            <section id="report-filter-dialog" class="c22-filter-dialog" :class="{ 'contract-filter-dialog': isC4 || isC29 || isC211 }" role="dialog" aria-modal="true" aria-labelledby="report-filter-title" v-on:keydown.esc="closeReportFilters">
+                <h2 id="report-filter-title" ref="reportFilterTitle" :tabindex="isC4 || isC29 || isC211 ? -1 : undefined">進階篩選條件</h2>
                 <div class="advanced-grid">
+                    <label v-if="isC4"><span>科別／部門</span>
+                        <report-autocomplete v-model="reportFilterDraft.organizationQuery" id-prefix="c4-organization"
+                                             placeholder="輸入新碼或名稱；空白代表全部" :options="c4OrganizationOptions"
+                                             :open="c4OrganizationDropdownOpen && c4Organizations.length > 0"
+                                             v-on:input="onC4OrganizationInput"
+                                             v-on:select="selectC4OrganizationOption"
+                                             v-on:update:open="setC4OrganizationOpen" />
+                    </label>
+                    <p v-if="isC4" class="c4-filter-hint">點選欄位可查看前 20 筆科別／部門；也可輸入代碼或名稱搜尋。</p>
                     <label v-if="isC3"><span>物流類型</span><select ref="reportFilterInput" v-model.number="reportFilterDraft.logisticsType"><option :value="0">全部</option><option :value="1">物流</option><option :value="2">非物流</option></select></label>
                     <label v-if="isC3"><span>領用部門</span><input v-model.trim="reportFilterDraft.departmentCode" maxlength="10" placeholder="空白代表全部" /></label>
                     <label v-if="isC3"><span>診間（逗號分隔）</span><input v-model="reportFilterDraft.roomCodes" placeholder="例如 C3O01；空白代表全部" /></label>
@@ -399,17 +404,18 @@
                             <span>資料範圍：{{ c3Preview.dateB }}　/　{{ c3Preview.dateE }}</span>
                             <span>{{ page.station.diagnose }}　{{ page.station.section }}　{{ page.station.dispensary }}</span>
                         </div>
-                        <div v-else class="c3-print-meta">
-                            <span>報表名稱：{{ c3Preview.title }}</span>
-                            <span>頁次：{{ page.pageNumber }}</span>
-                            <span>製表日期：{{ c3Preview.today }}</span>
-                            <span>資料範圍：{{ c3Preview.dateB }}　/　{{ c3Preview.dateE }}</span>
+                        <div v-else class="c3-print-meta c3-summary-meta">
+                            <span class="c3-summary-diagnose">{{ page.station.diagnose }}</span>
+                            <span class="c3-summary-page">頁次：{{ page.pageNumber }}</span>
+                            <span class="c3-summary-date">處理日期：{{ c3Preview.today }}</span>
+                            <span class="c3-summary-range">資料範圍：{{ c3Preview.dateB }}　/　{{ c3Preview.dateE }}</span>
+                            <span class="c3-summary-department">{{ page.station.section }}　{{ page.station.dispensary }}</span>
                         </div>
                     </header>
                     <table class="c3-print-table" :class="Number(c3Preview.detailType) === 1 ? 'c3-detail-table' : 'c3-summary-table'">
-                        <thead><tr v-if="Number(c3Preview.detailType) === 1"><th>折扣別</th><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th>計價日</th><th>醫師</th><th>病歷號</th><th>病患姓名</th><th>費別</th><th class="number">總使用量</th></tr><tr v-else><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th class="number">使用量</th></tr></thead>
+                        <thead><tr v-if="Number(c3Preview.detailType) === 1"><th>折扣別</th><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th>計價日</th><th>醫師</th><th>病歷號</th><th>病患姓名</th><th>費別</th><th class="number">總使用量</th></tr><tr v-else><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th class="number">總使用量</th><th class="number">領用量</th><th class="number">借用量</th></tr></thead>
                         <tbody v-if="Number(c3Preview.detailType) === 1"><template v-for="(row, rowIndex) in page.rows" :key="`c3-print-${page.pageNumber}-${rowIndex}`"><tr v-if="row.showInventoryHeading" class="c3-inventory-heading"><td colspan="10">{{ row.inventoryType || '未分類' }}</td></tr><tr><td class="code">{{ row.dctNo }}</td><td>{{ row.chargeCode }}</td><td>{{ row.materialCode }}</td><td>{{ row.materialName }}</td><td>{{ row.op1Date }}</td><td>{{ row.drName }}</td><td>{{ row.mrNo }}</td><td>{{ row.pName }}</td><td>{{ row.sPay }}</td><td class="number">{{ Number(row.totalSum).toFixed(2) }}</td></tr><tr v-if="row.showInventoryTotal" class="c3-inventory-total"><td colspan="9">加總：</td><td class="number">{{ row.inventoryTotal }}</td></tr></template></tbody>
-                        <tbody v-else><template v-for="(row, rowIndex) in page.rows" :key="`c3-print-${page.pageNumber}-${rowIndex}`"><tr v-if="row.showInventoryHeading" class="c3-inventory-heading"><td colspan="4">{{ row.inventoryType || '未分類' }}</td></tr><tr><td>{{ row.chargeCode }}</td><td>{{ row.materialCode }}</td><td>{{ row.materialName }}</td><td class="number">{{ row.totalSum }}</td></tr></template></tbody>
+                        <tbody v-else><template v-for="(row, rowIndex) in page.rows" :key="`c3-print-${page.pageNumber}-${rowIndex}`"><tr v-if="row.showInventoryHeading" class="c3-inventory-heading"><td colspan="6">{{ row.inventoryType || '未分類' }}</td></tr><tr><td>{{ row.chargeCode }}</td><td>{{ row.materialCode }}</td><td>{{ row.materialName }}</td><td class="number">{{ Number.isInteger(Number(row.totalSum)) ? Number(row.totalSum).toFixed(1) : row.totalSum }}</td><td></td><td></td></tr></template></tbody>
                     </table>
                     <footer class="c3-print-footer">製表人：{{ c3Preview.userId }}</footer>
                 </article>

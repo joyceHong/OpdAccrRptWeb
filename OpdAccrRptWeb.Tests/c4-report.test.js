@@ -12,7 +12,7 @@ const shell = fs.readFileSync(path.join(root, "Views/Report/Index.cshtml"), "utf
 const styles = fs.readFileSync(path.join(root, "wwwroot/css/site.css"), "utf8");
 
 function getC4Methods() {
-    const window = {};
+    const window = { clearTimeout() {} };
     vm.runInNewContext(script, { window });
     return window.ReportComponents.ReportTemplate.methods;
 }
@@ -47,6 +47,62 @@ test("C4 organization autocomplete uses the shared floating panel", () => {
     assert.match(view, /selectC4OrganizationOption/);
     assert.doesNotMatch(view.match(/<div v-if="isC4" class="advanced-grid">[\s\S]*?<\/div>/)?.[0] ?? "", /<select/);
     assert.match(styles, /\.report-autocomplete-panel\{[^}]*position:absolute[^}]*width:100%/);
+});
+
+test("C4 advanced filter keeps edits in the dialog until apply and queries immediately", async () => {
+    const methods = getC4Methods();
+    const state = {
+        isC4: true, isC3: false, isC22: false, isC29: false, isC211: false,
+        form: { organizationQuery: "11910｜急診", sectionPrefix: "0201", cashierUserId: "",
+            cashierCashSortType: "Cashier", billingCode: "", contractCode: "",
+            logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "" },
+        reportFilterOpen: false, c4Organizations: [], currentPage: 3,
+        $nextTick(callback) { callback(); }, $refs: { reportFilterTitle: { focus() {} } },
+        async search() { this.searchCount = (this.searchCount ?? 0) + 1; }
+    };
+
+    methods.openReportFilters.call(state);
+    assert.equal(state.reportFilterDraft.organizationQuery, "11910｜急診");
+    state.reportFilterDraft.organizationQuery = "12010｜外科";
+    state.reportFilterDraft.sectionPrefix = "0301";
+    assert.equal(state.form.sectionPrefix, "0201");
+    methods.closeReportFilters.call(state);
+    assert.equal(state.form.sectionPrefix, "0201");
+
+    methods.openReportFilters.call(state);
+    state.reportFilterDraft.organizationQuery = "12010｜外科";
+    state.reportFilterDraft.sectionPrefix = "0301";
+    await methods.applyReportFilters.call(state);
+    assert.equal(state.form.sectionPrefix, "0301");
+    assert.equal(state.currentPage, 1);
+    assert.equal(state.searchCount, 1);
+    assert.equal(state.reportFilterOpen, false);
+});
+
+test("C4 organization field loads choices when focused with no text", async () => {
+    const requests = [];
+    let pendingRequest;
+    const window = {
+        clearTimeout() {},
+        setTimeout(callback) { pendingRequest = callback(); return 1; }
+    };
+    vm.runInNewContext(script, { window, fetch: async url => {
+        requests.push(url);
+        return { ok: true, json: async () => [{ legacyCode: "0201", newCode: "11910", displayName: "急診" }] };
+    } });
+    const methods = window.ReportComponents.ReportTemplate.methods;
+    const state = {
+        isC4: true, reportFilterOpen: true, c4OrganizationSearchGeneration: 0,
+        c4Organizations: [], reportFilterDraft: { organizationQuery: "", sectionPrefix: "" }
+    };
+    state.searchC4Organizations = () => methods.searchC4Organizations.call(state);
+
+    methods.setC4OrganizationOpen.call(state, true);
+    await pendingRequest;
+
+    assert.equal(state.c4OrganizationDropdownOpen, true);
+    assert.equal(requests[0], "/reports/c4/organization-units?query=");
+    assert.equal(state.c4Organizations[0]?.legacyCode, "0201");
 });
 
 test("C4 organization filter uses a selected legacy code or normalized direct input", () => {

@@ -82,4 +82,28 @@ assert.equal(detailPages[1].station.section, "15OPD");
 assert.deepEqual(detailPages[1].rows.map(row => row.inventoryType), ["AK庫", "物流", "物流"]);
 assert.deepEqual(detailPages[1].rows.map(row => row.showInventoryTotal), [true, false, true]);
 assert.deepEqual(detailPages[1].rows.map(row => row.inventoryTotal), ["3.00", "2.00", "3.00"]);
+const summaryPages = component.computed.c3PreviewPages.call({
+    isC3: true,
+    c3Preview: { detailType: 0, rows: [
+        { diagnose: "門診", section: "15015", dispensary: "血液透析病房", inventoryType: "物流", chargeCode: "T35F001", totalSum: 6 },
+        { diagnose: "門診", section: "15012", dispensary: "門診護理站", inventoryType: "物流", chargeCode: "T35F001", totalSum: 2 },
+        { diagnose: "門診", section: "15015", dispensary: "血液透析病房", inventoryType: "AK庫", chargeCode: "OTHER", totalSum: 1 }
+    ] }
+});
+assert.deepEqual(summaryPages.map(page => page.station.section), ["15012", "15015"]);
+assert.deepEqual(summaryPages.map(page => page.rows.reduce((total, row) => total + row.totalSum, 0)), [2, 7]);
+assert.deepEqual(summaryPages[1].rows.map(row => row.inventoryType), ["AK庫", "物流"]);
+const modalSummaryMeta = markup.match(/<div v-else class="c3-print-meta c3-summary-meta">[\s\S]*?<\/div>/)[0];
+const standaloneSummaryMeta = preview.match(/<div class="meta summary-meta">[\s\S]*?<\/div>/)[0];
+for (const summaryMeta of [modalSummaryMeta, standaloneSummaryMeta]) {
+    assert.doesNotMatch(summaryMeta, /報表名稱：/);
+    assert.match(summaryMeta, /c3-summary-diagnose[\s\S]*c3-summary-page[\s\S]*c3-summary-date[\s\S]*c3-summary-range[\s\S]*c3-summary-department/);
+}
+assert.match(markup, /總使用量<\/th><th class="number">領用量<\/th><th class="number">借用量<\/th>/);
+assert.match(preview, /總使用量<\/th><th class="number">領用量<\/th><th class="number">借用量<\/th>/);
+assert.match(markup, /Number\.isInteger\(Number\(row\.totalSum\)\)/);
+assert.match(preview, /row\.TotalSum\.ToString\("0\.0#/);
+assert.match(css, /\.c3-summary-meta \.c3-summary-date\{grid-column:1;grid-row:2;padding-left:4px\}/);
+assert.match(css, /\.c3-print-meta\.c3-summary-meta \.c3-summary-diagnose\{grid-column:3;grid-row:1;text-align:right\}/);
+assert.match(preview, /\.summary-meta \.c3-summary-date \{ grid-column: 1; grid-row: 2; padding-left: 4px; \}/);
 console.log("c3 report tests passed");

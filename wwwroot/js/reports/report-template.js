@@ -298,7 +298,7 @@
             return {
                 advancedOpen: false,
                 reportFilterOpen: false,
-                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "" },
+                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "" },
                 reportFilterContractValid: true,
                 validationMessage: "",
                 isLoading: false,
@@ -362,6 +362,8 @@
                 ,legacyPreviewHtml: ""
                 ,c4Organizations: []
                 ,c4OrganizationSearchTimer: null
+                ,c4OrganizationSearchGeneration: 0
+                ,c4OrganizationDropdownOpen: false
                 ,c4PreviewOpen: false
                 ,c4PreviewLoading: false
                 ,c4Preview: null
@@ -442,7 +444,8 @@
                     if (this.reportConfiguration[key] === undefined || !(formKey in this.form)) return count;
                     return count + (JSON.stringify(this.form[formKey]) !== JSON.stringify(defaults[formKey]) ? 1 : 0);
                 }, 0);
-                return count + (this.isC211 && this.form.contractCode.trim() ? 1 : 0)
+                return count + (this.isC4 && this.form.organizationQuery.trim() ? 1 : 0)
+                    + (this.isC211 && this.form.contractCode.trim() ? 1 : 0)
                     + (this.isC3 ? [this.form.logisticsType !== 0, this.form.departmentCode.trim(),
                         this.form.roomCodes.trim(), this.form.chargeCodes.trim()].filter(Boolean).length : 0);
             },
@@ -523,7 +526,7 @@
                 if (!this.isC3 || !Array.isArray(this.c3Preview?.rows)) return [];
                 const detail = Number(this.c3Preview.detailType) === 1;
                 const rowsPerPage = 20;
-                const previewRows = detail ? Array.from(
+                const previewRows = Array.from(
                     this.c3Preview.rows.reduce((stations, row) => {
                         const stationKey = JSON.stringify([row.diagnose, row.section, row.dispensary]);
                         if (!stations.has(stationKey)) stations.set(stationKey, new Map());
@@ -540,30 +543,22 @@
                             return rank(left) - rank(right);
                         })
                         .flatMap(([, rows]) => rows.sort((left, right) =>
-                            ["chargeCode", "op1Date", "drName", "mrNo"]
+                            ["chargeCode", ...(detail ? ["op1Date", "drName", "mrNo"] : [])]
                                 .map(key => String(left[key] || "").localeCompare(String(right[key] || ""), "en"))
-                                .find(result => result !== 0) || 0))) : Array.from(
-                    this.c3Preview.rows.reduce((groups, row) => {
-                        const inventoryType = row.inventoryType || "";
-                        if (!groups.has(inventoryType)) groups.set(inventoryType, []);
-                        groups.get(inventoryType).push(row);
-                        return groups;
-                    }, new Map()).values()).flat();
+                                .find(result => result !== 0) || 0)));
                 const pages = [];
                 for (let start = 0; start < previewRows.length;) {
                     const station = previewRows[start];
                     let end = Math.min(start + rowsPerPage, previewRows.length);
-                    if (detail) {
-                        const stationEnd = previewRows.findIndex((row, index) => index > start &&
-                            (row.diagnose !== station.diagnose || row.section !== station.section || row.dispensary !== station.dispensary));
-                        if (stationEnd !== -1) end = Math.min(end, stationEnd);
-                    }
+                    const stationEnd = previewRows.findIndex((row, index) => index > start &&
+                        (row.diagnose !== station.diagnose || row.section !== station.section || row.dispensary !== station.dispensary));
+                    if (stationEnd !== -1) end = Math.min(end, stationEnd);
                     const rows = previewRows.slice(start, end);
                     pages.push({ station, rows: rows.map((row, index) => {
                         const absoluteIndex = start + index;
                         const next = previewRows[absoluteIndex + 1];
                         const sameGroup = candidate => candidate && candidate.inventoryType === row.inventoryType &&
-                            (!detail || (candidate.diagnose === row.diagnose && candidate.section === row.section && candidate.dispensary === row.dispensary));
+                            candidate.diagnose === row.diagnose && candidate.section === row.section && candidate.dispensary === row.dispensary;
                         let groupStart = absoluteIndex;
                         while (groupStart > 0 && sameGroup(previewRows[groupStart - 1])) groupStart--;
                         return {
@@ -610,6 +605,8 @@
         },
         beforeUnmount() {
             this.stopExportPolling();
+            window.clearTimeout(this.c4OrganizationSearchTimer);
+            this.c4OrganizationSearchGeneration++;
             window.clearTimeout(this.c142OrganizationSearchTimer);
             this.c142OrganizationSearchGeneration++;
         },
@@ -623,22 +620,39 @@
                     logisticsType: this.form.logisticsType,
                     departmentCode: this.form.departmentCode,
                     roomCodes: this.form.roomCodes,
-                    chargeCodes: this.form.chargeCodes
+                    chargeCodes: this.form.chargeCodes,
+                    organizationQuery: this.form.organizationQuery,
+                    sectionPrefix: this.form.sectionPrefix
                 };
                 this.reportFilterContractValid = true;
                 this.reportFilterOpen = true;
                 if (this.isC29) this.loadC29Contracts();
-                this.$nextTick?.(() => (this.isC29 || this.isC211
+                this.$nextTick?.(() => (this.isC4 || this.isC29 || this.isC211
                     ? this.$refs?.reportFilterTitle
                     : this.$refs?.reportFilterInput)?.focus());
             },
-            closeReportFilters() { this.reportFilterOpen = false; },
+            closeReportFilters() {
+                this.reportFilterOpen = false;
+                if (this.isC4) {
+                    window.clearTimeout(this.c4OrganizationSearchTimer);
+                    this.c4OrganizationSearchGeneration++;
+                    this.c4OrganizationDropdownOpen = false;
+                    this.c4Organizations = [];
+                }
+            },
             async applyReportFilters() {
                 if (this.isC3) {
                     this.form.logisticsType = this.reportFilterDraft.logisticsType;
                     this.form.departmentCode = this.reportFilterDraft.departmentCode.trim();
                     this.form.roomCodes = this.reportFilterDraft.roomCodes.trim();
                     this.form.chargeCodes = this.reportFilterDraft.chargeCodes.trim();
+                } else if (this.isC4) {
+                    this.form.organizationQuery = this.reportFilterDraft.organizationQuery.trim();
+                    this.form.sectionPrefix = this.reportFilterDraft.sectionPrefix;
+                    window.clearTimeout(this.c4OrganizationSearchTimer);
+                    this.c4OrganizationSearchGeneration++;
+                    this.c4OrganizationDropdownOpen = false;
+                    this.c4Organizations = [];
                 } else if (this.isC22) {
                     this.form.cashierUserId = this.reportFilterDraft.cashierUserId.trim();
                     this.form.cashierCashSortType = this.reportFilterDraft.cashierCashSortType;
@@ -656,7 +670,7 @@
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
                 this.reportFilterOpen = false;
-                if (this.isC3 || this.isC22 || this.isC29 || this.isC211) await this.search();
+                if (this.isC3 || this.isC4 || this.isC22 || this.isC29 || this.isC211) await this.search();
             },
             resetForm() {
                 this.stopExportPolling?.();
@@ -667,11 +681,14 @@
                 if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
                 this.reportFilterOpen = false;
-                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "" };
+                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "" };
                 this.reportFilterContractValid = true;
                 this.c211ContractValid = true;
                 this.validationMessage = "";
                 this.hasSearched = false;
+                window.clearTimeout(this.c4OrganizationSearchTimer);
+                this.c4OrganizationSearchGeneration++;
+                this.c4OrganizationDropdownOpen = false;
                 this.c4Organizations = [];
                 this.c4PreviewOpen = false;
                 this.c4PreviewLoading = false;
@@ -1129,18 +1146,24 @@
             searchC4Organizations() {
                 if (!this.isC4) return;
                 window.clearTimeout(this.c4OrganizationSearchTimer);
-                const query = this.form.organizationQuery.trim();
-                if (!query) { this.c4Organizations = []; return; }
+                const target = this.reportFilterOpen ? this.reportFilterDraft : this.form;
+                const query = target.sectionPrefix ? "" : target.organizationQuery.trim();
+                const generation = ++this.c4OrganizationSearchGeneration;
+                if (!query && !this.reportFilterOpen) { this.c4Organizations = []; return; }
                 this.c4OrganizationSearchTimer = window.setTimeout(async () => {
                     try {
                         const response = await fetch(`/reports/c4/organization-units?query=${encodeURIComponent(query)}`);
-                        this.c4Organizations = response.ok ? await response.json() : [];
-                    } catch { this.c4Organizations = []; }
-                }, 250);
+                        const organizations = response.ok ? await response.json() : [];
+                        if (generation === this.c4OrganizationSearchGeneration)
+                            this.c4Organizations = organizations;
+                    } catch {
+                        if (generation === this.c4OrganizationSearchGeneration) this.c4Organizations = [];
+                    }
+                }, query ? 250 : 0);
             },
             onC4OrganizationInput() {
-                this.form.sectionPrefix = "";
-                this.currentPage = 1;
+                (this.reportFilterOpen ? this.reportFilterDraft : this.form).sectionPrefix = "";
+                if (!this.reportFilterOpen) this.currentPage = 1;
                 this.searchC4Organizations();
             },
             selectC4Organization(item) {
@@ -1148,13 +1171,23 @@
                 if (!legacyCode) return;
                 const newCode = String(item?.newCode ?? "").trim().toUpperCase();
                 const displayName = String(item?.displayName ?? "").trim();
-                this.form.sectionPrefix = legacyCode;
-                this.form.organizationQuery = displayName ? `${newCode}｜${displayName}` : newCode;
+                const target = this.reportFilterOpen ? this.reportFilterDraft : this.form;
+                target.sectionPrefix = legacyCode;
+                target.organizationQuery = displayName ? `${newCode}｜${displayName}` : newCode;
                 this.c4Organizations = [];
-                this.currentPage = 1;
+                if (!this.reportFilterOpen) this.currentPage = 1;
             },
             selectC4OrganizationOption(option) { this.selectC4Organization(option.raw); },
-            setC4OrganizationOpen(open) { if (!open) this.c4Organizations = []; },
+            setC4OrganizationOpen(open) {
+                this.c4OrganizationDropdownOpen = open;
+                if (open) {
+                    if (!this.c4Organizations.length) this.searchC4Organizations();
+                } else {
+                    window.clearTimeout(this.c4OrganizationSearchTimer);
+                    this.c4OrganizationSearchGeneration++;
+                    this.c4Organizations = [];
+                }
+            },
             getC4SectionPrefix() {
                 return String(this.form.sectionPrefix ?? "").trim().toUpperCase();
             },

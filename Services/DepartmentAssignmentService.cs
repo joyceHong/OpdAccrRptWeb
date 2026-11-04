@@ -82,10 +82,11 @@ public sealed class DepartmentAssignmentService(ISectionMappingRepository mappin
         return null;
     }
 
-    private static bool IsSpecialStation(string station) => SectionMappingRepository.Constants.ContainsKey(station)
+    private static bool IsSpecialStation(string station) => station is
+            "150MI" or "15HD4" or "1013P" or "1510M" or "15HD3" or "15OPD" or "12710" or "15WD1"
         || station.StartsWith("1OR", StringComparison.Ordinal)
-        || station.StartsWith("1CV", StringComparison.Ordinal)
-        || station.StartsWith("1XA", StringComparison.Ordinal);
+        || station is "1CV01" or "1CV02" or "1CV03" or "1CV04"
+            or "1XA01" or "1XA02" or "1XA03" or "1XA04";
 
     private static DepartmentAssignment A(string name, string code) => new(string.Empty, name, code);
 }

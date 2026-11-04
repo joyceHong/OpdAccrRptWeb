@@ -23,7 +23,7 @@ public sealed class C3ReportService(
         DepartmentFilterMode mode = DepartmentFilterMode.None;
         if (validated.DepartmentCode is not null)
         {
-            OrganizationUnitMapping? mapping = await organizationUnitCodeService.ResolveLegacyCodeAsync(
+            OrganizationUnitMapping? mapping = await organizationUnitCodeService.ResolveFirstLegacyCodeAsync(
                 validated.DepartmentCode, activePlaceOnly: true, cancellationToken);
             if (mapping is null) throw new ArgumentException("請輸入正確科別代碼");
             validated = validated with { DepartmentCode = mapping.LegacyCode };

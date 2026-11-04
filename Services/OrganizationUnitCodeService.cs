@@ -15,10 +15,20 @@ public sealed class OrganizationUnitCodeService(
     private static readonly IReadOnlyDictionary<string, OrganizationUnitMapping> FixedMappings =
         BuildFixedMappings();
 
-    public async Task<OrganizationUnitMapping?> ResolveLegacyCodeAsync(
+    public Task<OrganizationUnitMapping?> ResolveLegacyCodeAsync(
         string newCode,
         bool activePlaceOnly,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ResolveLegacyCodeCoreAsync(newCode, activePlaceOnly, useFirstMapping: false, cancellationToken);
+
+    public Task<OrganizationUnitMapping?> ResolveFirstLegacyCodeAsync(
+        string newCode,
+        bool activePlaceOnly,
+        CancellationToken cancellationToken = default) =>
+        ResolveLegacyCodeCoreAsync(newCode, activePlaceOnly, useFirstMapping: true, cancellationToken);
+
+    private async Task<OrganizationUnitMapping?> ResolveLegacyCodeCoreAsync(
+        string newCode, bool activePlaceOnly, bool useFirstMapping, CancellationToken cancellationToken)
     {
         string code = newCode.Trim().ToUpperInvariant();
         if (code.Length == 0) return null;
@@ -33,7 +43,7 @@ public sealed class OrganizationUnitCodeService(
 
         string[] legacyCodes = candidates.Select(mapping => mapping.LegacyCode)
             .Distinct(StringComparer.Ordinal).ToArray();
-        if (legacyCodes.Length > 1)
+        if (legacyCodes.Length > 1 && !useFirstMapping)
             throw new OrganizationUnitMappingAmbiguousException(code);
         return legacyCodes.Length == 0
             ? null
@@ -98,6 +108,25 @@ public sealed class OrganizationUnitCodeService(
         if (limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
         string normalized = Normalize(query);
         if (normalized.Length == 0) return [];
+        return await SearchCoreAsync(normalized, includeSections, includePlaces, activePlaceOnly, limit,
+            cancellationToken);
+    }
+
+    public Task<IReadOnlyList<OrganizationUnitMapping>> BrowseAsync(
+        bool includeSections, bool includePlaces, bool activePlaceOnly, int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!includeSections && !includePlaces)
+            return Task.FromResult<IReadOnlyList<OrganizationUnitMapping>>([]);
+        if (limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
+        return SearchCoreAsync(string.Empty, includeSections, includePlaces, activePlaceOnly, limit,
+            cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<OrganizationUnitMapping>> SearchCoreAsync(
+        string normalized, bool includeSections, bool includePlaces, bool activePlaceOnly, int limit,
+        CancellationToken cancellationToken)
+    {
         IReadOnlyList<OrganizationUnitMapping> values = await repository.SearchAsync(normalized,
             includeSections, includePlaces, activePlaceOnly, limit, cancellationToken);
         return values.GroupBy(item => Normalize(item.LegacyCode), StringComparer.Ordinal)

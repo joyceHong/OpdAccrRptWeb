@@ -26,10 +26,14 @@ public sealed class C4MaterialReportController(IC4MaterialReportService reportSe
     }
 
     [HttpGet("organization-units")]
-    public async Task<IActionResult> SearchOrganizationUnits([FromQuery] string query,
-        CancellationToken cancellationToken) => Ok(await organizationUnitCodeService.SearchAsync(
-            query, includeSections: true, includePlaces: true, activePlaceOnly: true,
-            limit: 20, cancellationToken));
+    public async Task<IActionResult> SearchOrganizationUnits([FromQuery] string? query,
+        CancellationToken cancellationToken) => Ok(string.IsNullOrWhiteSpace(query)
+            ? await organizationUnitCodeService.BrowseAsync(
+                includeSections: true, includePlaces: true, activePlaceOnly: true,
+                limit: 20, cancellationToken)
+            : await organizationUnitCodeService.SearchAsync(
+                query, includeSections: true, includePlaces: true, activePlaceOnly: true,
+                limit: 20, cancellationToken));
 
     [HttpGet("organization-units/resolve")]
     public async Task<IActionResult> ResolveOrganizationUnit([FromQuery] string newCode,

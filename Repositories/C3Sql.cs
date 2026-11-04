@@ -26,6 +26,8 @@ public static class C3Sql
         string departmentPredicate)
     {
         string systemColumn = includeSystem ? "B.chOp4Sys" : "CAST(NULL AS CHAR(2)) AS chOp4Sys";
+        string roomGroupColumn = includeSystem ? "M.chOp1Room"
+            : "CASE WHEN :detail_type=1 THEN NULL ELSE M.chOp1Room END";
         return $"""
             WITH movement_rows AS (
               SELECT 1 movement_type,B.rlOp4OrdTot signed_quantity,C.chOp1Room,B.chStation,
@@ -57,7 +59,7 @@ public static class C3Sql
                AND (:has_room_filter=0 OR RTRIM(M.chOp1Room) IN ({RoomSlots}))
                AND (:has_charge_filter=0 OR RTRIM(M.chOp4OrdNo) IN ({ChargeSlots}))
             )
-            SELECT M.movement_type,M.chOp1Room,M.chStation,M.chOp4OrdNo,M.chOp1Sec,M.chOp4Sys,
+            SELECT M.movement_type,{roomGroupColumn} AS chOp1Room,M.chStation,M.chOp4OrdNo,M.chOp1Sec,M.chOp4Sys,
               CASE WHEN :detail_type=1 THEN M.chOp4Dct END chOp4Dct,
               CASE WHEN :detail_type=1 THEN M.chOp1MrNo END chOp1MrNo,
               CASE WHEN :detail_type=1 THEN M.chOp1PName END chOp1PName,
@@ -66,7 +68,7 @@ public static class C3Sql
               M.chOrdCName,M.chOrdInv,M.chOrdInvAdd,M.chOp4Proj,M.chOp1Clamc,
               SUM(M.signed_quantity) rlOp4OrdTot
             FROM filtered_rows M
-            GROUP BY M.movement_type,M.chOp1Room,M.chStation,M.chOp4OrdNo,M.chOp1Sec,M.chOp4Sys,
+            GROUP BY M.movement_type,{roomGroupColumn},M.chStation,M.chOp4OrdNo,M.chOp1Sec,M.chOp4Sys,
               CASE WHEN :detail_type=1 THEN M.chOp4Dct END,
               CASE WHEN :detail_type=1 THEN M.chOp1MrNo END,
               CASE WHEN :detail_type=1 THEN M.chOp1PName END,

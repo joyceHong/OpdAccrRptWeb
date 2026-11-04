@@ -96,6 +96,18 @@ public sealed class C3ReportRepositoryTests
             "SELECT chSecNo FROM GenSectionTbl WHERE RTRIM(chLocation)=:department_code"));
     }
 
+    [Fact]
+    public void Sql_InpatientDetailGroupsWithoutRoomWhileSummaryAndOutpatientKeepRoom()
+    {
+        const string inpatientRoom = "CASE WHEN :detail_type=1 THEN NULL ELSE M.chOp1Room END";
+        Assert.Contains($"{inpatientRoom} AS chOp1Room", C3Sql.Ipd, StringComparison.Ordinal);
+        Assert.Contains($"GROUP BY M.movement_type,{inpatientRoom},M.chStation", C3Sql.Ipd,
+            StringComparison.Ordinal);
+        Assert.Contains("GROUP BY M.movement_type,M.chOp1Room,M.chStation", C3Sql.Opd,
+            StringComparison.Ordinal);
+        Assert.Contains("RTRIM(M.chOp1Room) IN", C3Sql.Ipd, StringComparison.Ordinal);
+    }
+
     private static int CountOccurrences(string value, string search)
     {
         int count = 0;
@@ -133,6 +145,8 @@ public sealed class DepartmentAssignmentServiceTests
         Assert.Equal(new DepartmentAssignment("門診", "Station Name", "NEW"), opd);
         DepartmentAssignment ipd = await service.AssignAsync(CareSource.I, Row(station: "UNKNOWN"));
         Assert.Equal(new DepartmentAssignment("住院", "全院", "19999"), ipd);
+        DepartmentAssignment emergencyStation = await service.AssignAsync(CareSource.I, Row(station: "1ED20"));
+        Assert.Equal(new DepartmentAssignment("住院", "全院", "19999"), emergencyStation);
     }
 
     [Theory]
@@ -253,6 +267,21 @@ public sealed class OrganizationUnitCodeServiceTests
     }
 
     [Fact]
+    public async Task BrowseAsync_ReturnsInitialOrganizationMappingsForEmptyQuery()
+    {
+        var repository = new FakeOrganizationUnitMappings
+        {
+            SearchResults = [new(OrganizationUnitSource.Section, "0201", "11910", "急診", true)]
+        };
+
+        IReadOnlyList<OrganizationUnitMapping> actual = await new OrganizationUnitCodeService(repository)
+            .BrowseAsync(includeSections: true, includePlaces: true, activePlaceOnly: true);
+
+        Assert.Equal(string.Empty, repository.RequestedSearchQuery);
+        Assert.Single(actual);
+    }
+
+    [Fact]
     public async Task ResolveLegacyCodeAsync_RejectsDifferentLegacyCodes()
     {
         var repository = new FakeOrganizationUnitMappings
@@ -266,6 +295,25 @@ public sealed class OrganizationUnitCodeServiceTests
 
         await Assert.ThrowsAsync<OrganizationUnitMappingAmbiguousException>(() =>
             new OrganizationUnitCodeService(repository).ResolveLegacyCodeAsync("NEW01", activePlaceOnly: true));
+    }
+
+    [Fact]
+    public async Task ResolveFirstLegacyCodeAsync_UsesFirstMappingWhenLegacyCodesDiffer()
+    {
+        var repository = new FakeOrganizationUnitMappings
+        {
+            Results =
+            [
+                new(OrganizationUnitSource.Place, "0999", "19999", "全院", true),
+                new(OrganizationUnitSource.Section, "0000", "19999", "全院", true)
+            ]
+        };
+
+        OrganizationUnitMapping? actual = await new OrganizationUnitCodeService(repository)
+            .ResolveFirstLegacyCodeAsync("19999", activePlaceOnly: true);
+
+        Assert.Equal("0999", actual?.LegacyCode);
+        Assert.True(repository.ActivePlaceOnly);
     }
 
     [Theory]
@@ -458,19 +506,24 @@ public sealed class C3ReportServiceTests
     }
 
     [Fact]
-    public async Task QueryAsync_AmbiguousMappingRejectsBeforeRepositoryQuery()
+    public async Task QueryAsync_AmbiguousMappingUsesFirstLegacyCode()
     {
         var repository = new FakeC3Repository();
-        var codeService = new FakeOrganizationUnitCodeService
+        var mappings = new FakeOrganizationUnitMappings
         {
-            Exception = new OrganizationUnitMappingAmbiguousException("NEW01")
+            Results =
+            [
+                new(OrganizationUnitSource.Place, "0999", "19999", "全院", true),
+                new(OrganizationUnitSource.Section, "0000", "19999", "全院", true)
+            ]
         };
 
-        await Assert.ThrowsAsync<OrganizationUnitMappingAmbiguousException>(() =>
-            Create(repository, new FakeMappings(), codeService).QueryAsync(new(
-                "2026-05-14", "2026-05-14", CareSource.O, DepartmentCode: "NEW01")));
+        await Create(repository, new FakeMappings { ValidLocation = "0999" },
+            new OrganizationUnitCodeService(mappings)).QueryAsync(new(
+                "2026-05-14", "2026-05-14", CareSource.O, DepartmentCode: "19999"));
 
-        Assert.Empty(repository.Dates);
+        Assert.Equal("0999", repository.DepartmentCodes.Single());
+        Assert.Equal(DepartmentFilterMode.GeneralLocation, repository.DepartmentModes.Single());
     }
 
     private static C3ReportService Create(IC3ReportRepository repository, ISectionMappingRepository mappings,
@@ -558,6 +611,7 @@ internal sealed class FakeOrganizationUnitMappings : IOrganizationUnitMappingRep
     public IReadOnlyList<OrganizationUnitMapping> LegacyResults { get; init; } = [];
     public IReadOnlyList<OrganizationUnitMapping> SearchResults { get; init; } = [];
     public string? RequestedCode { get; private set; }
+    public string? RequestedSearchQuery { get; private set; }
     public bool ActivePlaceOnly { get; private set; }
 
     public Task<IReadOnlyList<OrganizationUnitMapping>> FindByNewCodeAsync(string newCode,
@@ -573,8 +627,11 @@ internal sealed class FakeOrganizationUnitMappings : IOrganizationUnitMappingRep
         Task.FromResult(LegacyResults);
 
     public Task<IReadOnlyList<OrganizationUnitMapping>> SearchAsync(string query, bool includeSections,
-        bool includePlaces, bool activePlaceOnly, int limit, CancellationToken cancellationToken = default) =>
-        Task.FromResult(SearchResults);
+        bool includePlaces, bool activePlaceOnly, int limit, CancellationToken cancellationToken = default)
+    {
+        RequestedSearchQuery = query;
+        return Task.FromResult(SearchResults);
+    }
 }
 
 internal sealed class FakeOrganizationUnitCodeService : IOrganizationUnitCodeService

@@ -12,11 +12,14 @@
                     .ThenBy(row => row.Op1Date, StringComparer.Ordinal)
                     .ThenBy(row => row.DrName, StringComparer.Ordinal)
                     .ThenBy(row => row.MrNo, StringComparer.Ordinal))).ToList()
-        : Model.Rows.GroupBy(row => row.InventoryType).SelectMany(group => group).ToList();
-    var pages = detail
-        ? reportRows.GroupBy(row => new { row.Diagnose, row.Section, row.Dispensary })
-            .SelectMany(station => station.Chunk(rowsPerPage).Select(chunk => chunk.ToList())).ToList()
-        : reportRows.Chunk(rowsPerPage).Select(chunk => chunk.ToList()).ToList();
+        : Model.Rows.GroupBy(row => new { row.Diagnose, row.Section, row.Dispensary })
+            .OrderBy(station => station.Key.Diagnose, StringComparer.Ordinal)
+            .ThenBy(station => station.Key.Section, StringComparer.Ordinal)
+            .SelectMany(station => station.GroupBy(row => row.InventoryType)
+                .OrderBy(group => group.Key switch { "AK庫" => 0, "AN庫" => 1, "物流" => 2, _ => 3 })
+                .SelectMany(group => group.OrderBy(row => row.ChargeCode, StringComparer.Ordinal))).ToList();
+    var pages = reportRows.GroupBy(row => new { row.Diagnose, row.Section, row.Dispensary })
+        .SelectMany(station => station.Chunk(rowsPerPage).Select(chunk => chunk.ToList())).ToList();
 }
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -33,12 +36,20 @@
         h1 { margin: 0 0 7mm; text-align: center; font-size: 18px; }
         .meta { display: grid; grid-template-columns: minmax(0, 1fr) 70px; gap: 2px 16px; margin-bottom: 7mm; font-size: 11px; }
         .meta span:nth-child(even) { text-align: right; }
+        .summary-meta { grid-template-columns: 28% 43% minmax(0, 1fr) 72px; gap: 2px 8px; }
+        .meta.summary-meta span { text-align: left; }
+        .meta.summary-meta .c3-summary-diagnose { grid-column: 3; grid-row: 1; text-align: right; }
+        .meta.summary-meta .c3-summary-page { grid-column: 4; grid-row: 1; text-align: right; }
+        .summary-meta .c3-summary-date { grid-column: 1; grid-row: 2; padding-left: 4px; }
+        .summary-meta .c3-summary-range { grid-column: 2; grid-row: 2; }
+        .meta.summary-meta .c3-summary-department { grid-column: 3; grid-row: 2; text-align: right; }
         table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 11px; }
         th, td { padding: 3px 4px; text-align: left; vertical-align: top; font-weight: 400; overflow-wrap: break-word; }
         thead th { border-bottom: 1px dashed #111; white-space: nowrap; }
         .summary th:nth-child(1), .summary th:nth-child(2) { width: 13%; }
-        .summary th:nth-child(3) { width: 56%; }
-        .summary th:nth-child(4) { width: 18%; }
+        .summary th:nth-child(3) { width: 47%; }
+        .summary th:nth-child(4) { width: 9%; }
+        .summary th:nth-child(5), .summary th:nth-child(6) { width: 9%; }
         .inventory td { padding-top: 8px; padding-bottom: 2px; }
         .detail { font-size: 9px; }
         .detail th, .detail td { padding: 3px 2px; }
@@ -75,7 +86,7 @@
             }
             else
             {
-                <div class="meta"><span>報表名稱：@Model.Title</span><span>頁次：@(pageIndex + 1)</span><span>製表日期：@Model.Today</span><span>資料範圍：@Model.DateB　/　@Model.DateE</span></div>
+                <div class="meta summary-meta"><span class="c3-summary-diagnose">@firstRow.Diagnose</span><span class="c3-summary-page">頁次：@(pageIndex + 1)</span><span class="c3-summary-date">處理日期：@Model.Today</span><span class="c3-summary-range">資料範圍：@Model.DateB　/　@Model.DateE</span><span class="c3-summary-department">@firstRow.Section　@firstRow.Dispensary</span></div>
             }
             <table class="@(detail ? "detail" : "summary")">
                 @if (detail)
@@ -103,16 +114,16 @@
                 }
                 else
                 {
-                    <thead><tr><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th class="number">使用量</th></tr></thead>
+                    <thead><tr><th>批價碼</th><th>材料編號</th><th>材料名稱</th><th class="number">總使用量</th><th class="number">領用量</th><th class="number">借用量</th></tr></thead>
                     <tbody>
                     @for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
                     {
                         var row = rows[rowIndex];
                         if (rowIndex == 0 || row.InventoryType != rows[rowIndex - 1].InventoryType)
                         {
-                            <tr class="inventory"><td colspan="4">@(string.IsNullOrWhiteSpace(row.InventoryType) ? "未分類" : row.InventoryType)</td></tr>
+                            <tr class="inventory"><td colspan="6">@(string.IsNullOrWhiteSpace(row.InventoryType) ? "未分類" : row.InventoryType)</td></tr>
                         }
-                        <tr><td>@row.ChargeCode</td><td>@row.MaterialCode</td><td>@row.MaterialName</td><td class="number">@row.TotalSum</td></tr>
+                        <tr><td>@row.ChargeCode</td><td>@row.MaterialCode</td><td>@row.MaterialName</td><td class="number">@row.TotalSum.ToString("0.0############################", System.Globalization.CultureInfo.InvariantCulture)</td><td></td><td></td></tr>
                     }
                     </tbody>
                 }

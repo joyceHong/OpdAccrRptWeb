@@ -27,3 +27,7 @@ openspec/.vector-search.db*
 /scripts/seed-c211-dbtest3.ps1
 /scripts/seed-c212-dbtest3.ps1
 /C28_住院應收帳款餘額明細表_比對結果_20261102.md
+/openspec/specs/report-query/spec.md
+/C3_DBTEST3_部門歸屬與分組驗證_20261103.md
+/scripts/seed-c3-departments-dbtest3.ps1
+/scripts/verify-c3-departments-dbtest3.ps1

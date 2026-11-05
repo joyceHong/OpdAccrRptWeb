@@ -39,3 +39,6 @@ openspec/.vector-search.db*
 /scripts/seed-c8-idate-dcdate-dbtest3.ps1
 /scripts/seed-c8-multiday-dbtest3.ps1
 /scripts/verify-c8-multiday-dbtest3.ps1
+/scripts/seed-c10-cross-day-dbtest3.ps1
+/scripts/seed-c9-cross-day-dbtest3.ps1
+/scripts/seed-c9-dbtest3.ps1

@@ -34,3 +34,8 @@ openspec/.vector-search.db*
 /scripts/c5-dbtest3-test-cases.md
 /scripts/seed-c4-dbtest3.ps1
 /scripts/seed-c5-dbtest3.ps1
+/scripts/seed-c7-dbtest3.ps1
+/scripts/seed-c8-dbtest3.ps1
+/scripts/seed-c8-idate-dcdate-dbtest3.ps1
+/scripts/seed-c8-multiday-dbtest3.ps1
+/scripts/verify-c8-multiday-dbtest3.ps1

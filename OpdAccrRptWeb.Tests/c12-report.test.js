@@ -11,6 +11,12 @@ assert.match(css,/\.c12-visit\{break-inside:avoid/);
 assert.equal((catalog.match(/Report\("C12"/g)||[]).length,1,"C12 must appear once in the menu");
 assert.match(view,/病歷號 <i>\*<\/i>/);assert.doesNotMatch(view,/病歷號／身分證號/);
 assert.match(view,/class="advanced-grid c12-query-grid"/);
+assert.ok(view.indexOf('class="date-row"')<view.indexOf('class="c12-medical-record-field"'));
+assert.ok(view.indexOf('class="c12-medical-record-field"')<view.indexOf('class="source-fieldset segmented-source-fieldset"'));
+assert.ok(view.indexOf('class="c12-medical-record-field"')<view.indexOf('class="c22-filter-button"'));
+assert.match(view,/id="c12-filter-dialog"[^>]*role="dialog"[^>]*aria-modal="true"/);
+assert.match(view,/@@click="applyFilters">套用篩選/);
+assert.match(view,/aria-label="清除新科別碼"/);
 assert.doesNotMatch(view,/舊科別碼/);
 assert.doesNotMatch(view,/chop1sec/);
 assert.doesNotMatch(view,/<datalist/);
@@ -101,14 +107,14 @@ assert.equal(component.methods.formatTaipeiDate.call({},new Date("2026-09-13T16:
         assert.deepEqual(optionContext.sectionOptions,[{code:"11910",name:"心臟內科"}]);
         assert.equal(optionContext.sectionError,"");
 
-        const filterContext={form:{newSection:"11910"},sectionOptions:[{code:"11910",name:"一般內科"},{code:"11920",name:"急診外科"}]};
+        const filterContext={filterDraft:{newSection:"11910"},sectionOptions:[{code:"11910",name:"一般內科"},{code:"11920",name:"急診外科"}]};
         const filtered=component.computed.filteredSectionOptions.call(filterContext);
         assert.deepEqual(filtered,[{code:"11910",name:"一般內科"}]);
-        const keyboardContext={filteredSectionOptions:filtered,sectionOpen:true,sectionActiveIndex:-1,form:{newSection:""},selectSectionOption:component.methods.selectSectionOption};
+        const keyboardContext={filteredSectionOptions:filtered,sectionOpen:true,sectionActiveIndex:-1,filterDraft:{newSection:""},selectSectionOption:component.methods.selectSectionOption};
         component.methods.onSectionKeydown.call(keyboardContext,{key:"ArrowDown",preventDefault(){}});
         assert.equal(keyboardContext.sectionActiveIndex,0);
         component.methods.onSectionKeydown.call(keyboardContext,{key:"Enter",preventDefault(){}});
-        assert.equal(keyboardContext.form.newSection,"11910");
+        assert.equal(keyboardContext.filterDraft.newSection,"11910");
         assert.equal(keyboardContext.sectionOpen,false);
         keyboardContext.sectionOpen=true;
         component.methods.onSectionKeydown.call(keyboardContext,{key:"Escape",preventDefault(){}});
@@ -116,6 +122,21 @@ assert.equal(component.methods.formatTaipeiDate.call({},new Date("2026-09-13T16:
         const outsideContext={$refs:{sectionAutocomplete:{contains:()=>false}},sectionOpen:true,sectionActiveIndex:0};
         component.methods.closeSectionOptionsFromOutside.call(outsideContext,{target:{}});
         assert.equal(outsideContext.sectionOpen,false);
+
+        const draftContext={form:{source:"OpdEr",roomScope:"Emergency",newSection:"11910"},filterDraft:{},filterOpen:false,sectionOpen:false,sectionActiveIndex:-1,$refs:{filterTitle:{focus(){}}},$nextTick(callback){callback()}};
+        component.methods.openFilters.call(draftContext);
+        draftContext.filterDraft.newSection="11920";
+        component.methods.closeFilters.call(draftContext);
+        assert.equal(draftContext.form.newSection,"11910","cancel keeps applied filters");
+        assert.equal(draftContext.filterOpen,false);
+        const escapeContext={sectionOpen:true,sectionActiveIndex:0,filterOpen:true,closeFilters(){this.filterOpen=false}};
+        component.methods.onFilterEscape.call(escapeContext,{preventDefault(){}});
+        assert.equal(escapeContext.sectionOpen,false);
+        assert.equal(escapeContext.filterOpen,true);
+        component.methods.onFilterEscape.call(escapeContext,{preventDefault(){}});
+        assert.equal(escapeContext.filterOpen,false);
+        assert.equal(component.computed.activeFilterCount.call({form:{source:"OpdEr",roomScope:"Emergency",newSection:"11910"}}),2);
+        assert.equal(component.computed.activeFilterCount.call({form:{source:"Inpatient",roomScope:"All",newSection:"11910"}}),1);
 
         global.fetch=async()=>({ok:false,json:async()=>({title:"database details"})});
         await component.methods.loadSectionOptions.call(optionContext);
@@ -130,6 +151,14 @@ assert.equal(component.methods.formatTaipeiDate.call({},new Date("2026-09-13T16:
         assert.equal(submitted.body.newSectionCode,"11910");
         assert.equal(Object.hasOwn(submitted.body,"chop1sec"),false);
         assert.equal(searchContext.currentPage,1);
+
+        let searchedWithFilters=false;
+        const applyContext={form:{source:"OpdEr",roomScope:"All",newSection:""},filterDraft:{roomScope:"Outpatient",newSection:" 11920 "},currentPage:3,$refs:{queryForm:{reportValidity:()=>true}},closeFilters(){},$nextTick:async()=>{},async search(){searchedWithFilters=true}};
+        await component.methods.applyFilters.call(applyContext);
+        assert.equal(applyContext.form.roomScope,"Outpatient");
+        assert.equal(applyContext.form.newSection,"11920");
+        assert.equal(applyContext.currentPage,1);
+        assert.equal(searchedWithFilters,true);
     }finally{global.fetch=originalFetch}
     console.log("C12 report UI contract tests passed.");
 })().catch(error=>{console.error(error);process.exitCode=1});

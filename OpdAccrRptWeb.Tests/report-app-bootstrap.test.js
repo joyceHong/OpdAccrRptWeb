@@ -8,6 +8,7 @@ const routesSeen = [];
 let mounted = false;
 let appOptions;
 let assignedPath;
+const directivesSeen = [];
 const initialState = {
     categories: [{ key: "outpatient", name: "Reports", groups: [{ name: "Group", reports: [{ code: "C1", name: "One" }] }] }],
     defaultStartDate: "2026-09-30",
@@ -31,13 +32,14 @@ const window = {
         MedicalRecordQuery: reportTemplate,
         RegistrationQuery: reportTemplate
     },
+    ReportClearableInputsDirective: { mounted() {}, beforeUnmount() {} },
     clearTimeout() {},
     setTimeout() {},
     location: { assign(path) { assignedPath = path; } }
 };
 const document = { getElementById() { return { textContent: JSON.stringify(initialState) }; } };
 const Vue = { createApp(options) { appOptions = options; return { directive(name, implementation) {
-    assert.equal(name, "report-query-collapse");
+    directivesSeen.push(name);
     assert.equal(typeof implementation.mounted, "function");
     return this;
 }, use() { return this; }, mount() { mounted = true; } }; } };
@@ -53,6 +55,8 @@ const VueRouter = {
 vm.runInNewContext(source, { window, document, Vue, VueRouter });
 
 assert.equal(mounted, true);
+assert.deepEqual(directivesSeen, ["report-query-collapse", "report-clearable-inputs"]);
+assert.match(indexMarkup, /js\/components\/report-clearable-inputs\.js/);
 const navigation = {
     permissionsDirty: true,
     reportPath: appOptions.methods.reportPath

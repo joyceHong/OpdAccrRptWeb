@@ -30,8 +30,14 @@ component.methods.onKeydown.call(context, { key: "ArrowDown", preventDefault() {
 assert.equal(context.activeIndex, 0);
 component.methods.onKeydown.call(context, { key: "Enter", preventDefault() {} });
 assert.deepEqual(emitted.find(item => item[0] === "select")?.[1], options[0]);
-component.methods.onKeydown.call(context, { key: "Escape", preventDefault() {} });
+let escapePropagationStopped = false;
+component.methods.onKeydown.call(context, { key: "Escape", stopPropagation() { escapePropagationStopped = true; } });
 assert.equal(context.activeIndex, -1);
+assert.equal(escapePropagationStopped, true);
+assert.deepEqual(emitted.at(-1), ["update:open", false]);
+escapePropagationStopped = false;
+component.methods.onKeydown.call({ ...context, open: false }, { key: "Escape", stopPropagation() { escapePropagationStopped = true; } });
+assert.equal(escapePropagationStopped, false);
 
 const outsideEvents = [];
 component.methods.closeFromOutside.call({ $el: { contains: () => false }, $emit(...args) { outsideEvents.push(args); } }, { target: {} });

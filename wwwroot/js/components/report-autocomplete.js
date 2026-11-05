@@ -35,7 +35,12 @@
             },
             onKeydown(event) {
                 const count = this.options.length;
-                if (event.key === "Escape") { this.$emit("update:open", false); this.activeIndex = -1; return; }
+                if (event.key === "Escape") {
+                    if (this.open) event.stopPropagation();
+                    this.$emit("update:open", false);
+                    this.activeIndex = -1;
+                    return;
+                }
                 if (!count) return;
                 if (event.key === "ArrowDown") {
                     event.preventDefault(); this.$emit("update:open", true); this.activeIndex = (this.activeIndex + 1) % count;

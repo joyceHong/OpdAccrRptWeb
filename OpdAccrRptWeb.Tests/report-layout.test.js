@@ -248,12 +248,12 @@ queryCollapseDirective.mounted(missingRoot, { value: "C142" });
 const missingObserver = mutationObservers.at(-1);
 queryCollapseDirective.beforeUnmount(missingRoot);
 assert.equal(missingObserver.disconnected, true);
-for (const name of ["_C5ChargeQuantityReport.cshtml", "_M2DoctorMonthlyReport.cshtml", "_TemplateReport.cshtml", "_OpdPriceQuery.cshtml"]) {
+for (const name of ["_M2DoctorMonthlyReport.cshtml", "_TemplateReport.cshtml", "_OpdPriceQuery.cshtml"]) {
     const markup = fs.readFileSync(`${root}/Views/Report/${name}`, "utf8");
     assert.match(markup, /advanced-filter-toggle/);
     assert.match(markup, /advanced-filter-region/);
 }
-for (const name of ["_C5ChargeQuantityReport.cshtml", "_M2DoctorMonthlyReport.cshtml", "_TemplateReport.cshtml"]) {
+for (const name of ["_M2DoctorMonthlyReport.cshtml", "_TemplateReport.cshtml"]) {
     const markup = fs.readFileSync(`${root}/Views/Report/${name}`, "utf8");
     assert.match(markup, /<transition name="advanced-filter">/);
     assert.match(markup, /v-show="advancedOpen"/);

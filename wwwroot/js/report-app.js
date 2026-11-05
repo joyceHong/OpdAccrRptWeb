@@ -403,6 +403,7 @@
     });
 
     app.directive("report-query-collapse", queryCollapseDirective);
+    app.directive("report-clearable-inputs", window.ReportClearableInputsDirective);
     app.use(router);
     app.mount("#report-app");
 })();

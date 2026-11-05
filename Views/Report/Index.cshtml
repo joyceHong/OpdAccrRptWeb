@@ -77,7 +77,7 @@
             </section>
             <div class="breadcrumb">{{ activeCategory.name }} <span>›</span> {{ selectedReport ? selectedReport.name : '請選擇報表' }}</div>
             <router-view v-slot="{ Component }">
-                <div v-if="Component && selectedReport" :key="selectedReport.code" class="report-content" v-report-query-collapse="selectedReport.code">
+                <div v-if="Component && selectedReport" :key="selectedReport.code" class="report-content" v-report-query-collapse="selectedReport.code" v-report-clearable-inputs>
                 <component
                     :is="Component"
                     :selected-report="selectedReport"
@@ -106,6 +106,7 @@
     <script src="~/js/components/report-autocomplete.js" asp-append-version="true"></script>
     <script src="~/js/components/report-contract-autocomplete.js" asp-append-version="true"></script>
     <script src="~/js/components/report-date-range.js" asp-append-version="true"></script>
+    <script src="~/js/components/report-clearable-inputs.js" asp-append-version="true"></script>
     @await Html.PartialAsync("~/Views/Report/_TemplateReport.cshtml")
     @await Html.PartialAsync("~/Views/Report/_C11ReceivablesCollectionReport.cshtml")
     @await Html.PartialAsync("~/Views/Report/_C12MedicalReceiptSummary.cshtml")

@@ -36,8 +36,10 @@ public sealed class C5ReportController(IC5ReportService reportService,
     }
 
     [HttpGet("organization-units")]
-    public async Task<IActionResult> Search([FromQuery] string query, CancellationToken token) =>
-        Ok(await organizationUnitCodeService.SearchAsync(query, true, true, true, 20, token));
+    public async Task<IActionResult> Search([FromQuery] string? query, CancellationToken token) =>
+        Ok(string.IsNullOrWhiteSpace(query)
+            ? await organizationUnitCodeService.BrowseAsync(true, true, true, 20, token)
+            : await organizationUnitCodeService.SearchAsync(query, true, true, true, 20, token));
 
     [HttpPost("preview")]
     [ValidateAntiForgeryToken]

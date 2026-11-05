@@ -1,2 +1,47 @@
 @model OpdAccrRptWeb.ViewModels.C7PreviewViewModel
-<h1>門急診每日批價明細表</h1><div class="report-preview-meta"><span>使用者：@Model.LoginUserId</span><span>@Model.DataTime @Model.DataTime1 ～ @Model.DataTime2 @Model.DataTime3</span><span>列印時間：@Model.NowTime</span></div><table class="report-preview-table"><thead><tr><th>日期</th><th>時段</th><th>科別</th><th>診別</th><th>狀態</th><th>批價碼</th><th>名稱</th><th>單價</th><th>數量</th><th>金額</th><th>病歷號</th><th>身分</th><th>輸入者</th><th>輸入者姓名</th></tr></thead><tbody>@foreach(var r in Model.Rows){<tr><td>@r.VisitDate</td><td>@r.VisitTime</td><td>@r.SectionCode</td><td>@r.EncounterLabel</td><td>@r.Status</td><td>@r.ChargeCode</td><td>@r.ChargeName</td><td>@r.UnitPrice</td><td>@r.Quantity</td><td>@r.Amount</td><td>@r.MedicalRecordNo</td><td>@r.IdentityCode</td><td>@r.InputUserId</td><td>@r.InputUserName</td></tr>}</tbody></table>
+@using System.Globalization
+@{
+    const int rowsPerPage = 35;
+    var pages = Model.Rows.GroupBy(row => row.EncounterLabel)
+        .SelectMany(group => group.Chunk(rowsPerPage).Select(rows => new { EncounterLabel = group.Key, Rows = rows }))
+        .ToArray();
+    var inputUserName = Model.Rows.FirstOrDefault()?.InputUserName ?? string.Empty;
+}
+@for (var pageIndex = 0; pageIndex < pages.Length; pageIndex++)
+{
+    <article class="report-preview-paper c7-paper c7-print-document">
+        <header class="c7-print-header">
+            <div class="c7-print-heading">
+                <div class="c7-print-hospital">亞 東 紀 念 醫 院</div>
+                <div class="c7-print-title">門 急 診 每 日 批 價 明 細 表 <span>@pages[pageIndex].EncounterLabel</span></div>
+            </div>
+            <div class="c7-print-meta">
+                <div>
+                    <div>報表名稱：門急診每日批價明細表.rpt</div>
+                    <div>程式名稱：Module2</div>
+                    <div>處理日期：@Model.NowTime</div>
+                </div>
+                <div>
+                    <div>批價人員：@Model.InputUserId @inputUserName</div>
+                    <div>批價日期：@Model.DataTime @Model.DataTime1 / @Model.DataTime2 @Model.DataTime3</div>
+                </div>
+                <div class="c7-print-page">頁次：@(@pageIndex + 1)</div>
+            </div>
+        </header>
+        <table class="c7-print-table">
+            <colgroup><col class="date" /><col class="record" /><col class="section" /><col class="identity" /><col class="status" /><col class="code" /><col class="name" /><col class="price" /><col class="quantity" /><col class="amount" /></colgroup>
+            <thead><tr><th>看診日期</th><th>病歷號</th><th>科別</th><th>身份別</th><th>刪除註記</th><th>批價碼</th><th>批價名稱</th><th>單價</th><th>數量</th><th>金額</th></tr></thead>
+            <tbody>
+                @foreach (var row in pages[pageIndex].Rows)
+                {
+                    <tr><td>@row.VisitDate</td><td>@row.MedicalRecordNo</td><td>@row.SectionCode</td><td>@row.IdentityCode</td><td>@row.Status</td><td>@row.ChargeCode</td><td>@row.ChargeName</td><td class="number">@row.UnitPrice.ToString("0.0", CultureInfo.InvariantCulture)</td><td class="number">@row.Quantity.ToString("0.0", CultureInfo.InvariantCulture)</td><td class="number">@row.Amount.ToString("0.##", CultureInfo.InvariantCulture)</td></tr>
+                }
+                @if (pageIndex == pages.Length - 1 || pages[pageIndex + 1].EncounterLabel != pages[pageIndex].EncounterLabel)
+                {
+                    <tr class="c7-print-total"><td colspan="9">＊＊＊＊＊＊</td><td class="number">@Model.Rows.Where(row => row.EncounterLabel == pages[pageIndex].EncounterLabel).Sum(row => row.Amount).ToString("0.##", CultureInfo.InvariantCulture)</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="c7-print-footer">製表人：@Model.LoginUserId</footer>
+    </article>
+}

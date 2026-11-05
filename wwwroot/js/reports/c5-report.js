@@ -6,7 +6,7 @@
         mixins: [window.ReportDateRangeMixin],
         props: ["selectedReport", "defaultStartDate", "defaultEndDate"],
         data() {
-            return { isLoading: false, hasSearched: false, validationMessage: "", rows: [], columns: [], totalCount: 0, totalPages: 0, currentPage: 1, pageSize: 10, lastLoadedPayload: null, organizations: [], organizationSearchTimer: null, organizationSearchGeneration: 0, previewOpen: false, previewLoading: false, preview: null, advancedOpen: false, filterOpen: false, filterDraft: null, form: this.initialForm() };
+            return { isLoading: false, hasSearched: false, validationMessage: "", rows: [], columns: [], totalCount: 0, totalPages: 0, currentPage: 1, pageSize: 10, lastLoadedPayload: null, organizations: [], organizationMenuOpen: false, organizationSearchTimer: null, organizationSearchGeneration: 0, previewOpen: false, previewLoading: false, preview: null, filterOpen: false, filterDraft: null, form: this.initialForm() };
         },
         computed: {
             hasResults() { return this.rows.length > 0; },
@@ -106,6 +106,7 @@
                 window.clearTimeout(this.organizationSearchTimer);
                 this.organizationSearchGeneration++;
                 this.organizations = [];
+                this.organizationMenuOpen = false;
                 this.filterDraft = { encounterType: this.form.encounterType, organizationQuery: this.form.organizationQuery, newOrganizationUnitCode: this.form.newOrganizationUnitCode, roomNo: this.form.roomNo, chargeCode: this.form.chargeCode, insuranceIdentityCode: this.form.insuranceIdentityCode };
                 this.filterOpen = true;
                 this.$nextTick(() => this.$refs.filterTitle?.focus());
@@ -113,10 +114,21 @@
             closeFilters() {
                 this.filterOpen = false;
                 this.filterDraft = null;
+                this.dismissOrganizationMenu();
+                this.$nextTick(() => this.$refs.filterButton?.focus());
+            },
+            dismissOrganizationMenu() {
                 window.clearTimeout(this.organizationSearchTimer);
                 this.organizationSearchGeneration++;
                 this.organizations = [];
-                this.$nextTick(() => this.$refs.filterButton?.focus());
+                this.organizationMenuOpen = false;
+            },
+            onFilterEscape() {
+                if (this.organizationMenuOpen) this.dismissOrganizationMenu();
+                else this.closeFilters();
+            },
+            onOrganizationFocusOut(event) {
+                if (!event.currentTarget.contains(event.relatedTarget)) this.dismissOrganizationMenu();
             },
             async applyFilters() {
                 if (!this.filterDraft) return;
@@ -125,20 +137,32 @@
                 this.currentPage = 1;
                 await this.load();
             },
-            searchOrganizations() {
+            clearFilterText(field) {
+                if (!this.filterDraft) return;
+                this.filterDraft[field] = "";
+                if (field === "organizationQuery") {
+                    this.filterDraft.newOrganizationUnitCode = "";
+                    this.dismissOrganizationMenu();
+                }
+                const inputRefs = { organizationQuery: "organizationFilterInput", roomNo: "roomFilterInput", chargeCode: "chargeFilterInput" };
+                this.$nextTick(() => this.$refs[inputRefs[field]]?.focus());
+            },
+            searchOrganizations(showDefaults = false) {
                 window.clearTimeout(this.organizationSearchTimer);
                 const generation = ++this.organizationSearchGeneration;
-                const query = (this.filterOpen ? this.filterDraft.organizationQuery : this.form.organizationQuery).trim();
-                if (!query) { this.organizations = []; return; }
+                const query = showDefaults ? "" : (this.filterOpen ? this.filterDraft.organizationQuery : this.form.organizationQuery).trim();
+                if (!query && !showDefaults) { this.organizations = []; this.organizationMenuOpen = false; return; }
                 this.organizationSearchTimer = window.setTimeout(async () => {
                     try {
                         const response = await fetch(`/reports/c5/organization-units?query=${encodeURIComponent(query)}`);
                         const organizations = response.ok ? await response.json() : [];
                         if (generation === this.organizationSearchGeneration) this.organizations = organizations;
                     } catch { if (generation === this.organizationSearchGeneration) this.organizations = []; }
-                }, 250);
+                }, showDefaults ? 0 : 250);
             },
-            onOrganizationInput() { (this.filterOpen ? this.filterDraft : this.form).newOrganizationUnitCode = ""; if (!this.filterOpen) this.currentPage = 1; this.searchOrganizations(); },
+            onOrganizationFocus() { this.organizationMenuOpen = true; this.searchOrganizations(true); },
+            onOrganizationClick() { if (!this.organizationMenuOpen) this.onOrganizationFocus(); },
+            onOrganizationInput() { (this.filterOpen ? this.filterDraft : this.form).newOrganizationUnitCode = ""; if (!this.filterOpen) this.currentPage = 1; this.organizationMenuOpen = true; this.searchOrganizations(); },
             selectOrganization(item) {
                 const newCode = String(item?.newCode ?? "").trim().toUpperCase();
                 if (!newCode) return;
@@ -148,6 +172,7 @@
                 target.organizationQuery = displayName ? `${newCode}|${displayName}` : newCode;
                 this.organizations = [];
                 this.organizationSearchGeneration++;
+                this.organizationMenuOpen = false;
                 if (!this.filterOpen) this.currentPage = 1;
             },
             payload() {
@@ -160,7 +185,7 @@
             async load() { this.isLoading = true; this.validationMessage = ""; const requestedPayload = JSON.stringify(this.payload()); try { const r = await fetch("/reports/c5/query", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: requestedPayload }); if (!r.ok) throw new Error(await r.text()); const x = await r.json(); this.rows = x.data; this.columns = x.columns; this.totalCount = x.totalCount; this.totalPages = x.totalPages; this.currentPage = x.pageNumber; this.lastLoadedPayload = requestedPayload; this.hasSearched = true; } catch (e) { this.rows = []; this.totalCount = 0; this.totalPages = 0; this.lastLoadedPayload = null; this.validationMessage = e.message; } finally { this.isLoading = false; } },
             async goToPage(p) { if (p < 1 || p > this.totalPages || p === this.currentPage) return; this.currentPage = p; await this.load(); },
             async changePageSize() { this.currentPage = 1; await this.load(); },
-            resetForm() { this.form = this.initialForm(); this.advancedOpen = false; this.filterOpen = false; this.filterDraft = null; window.clearTimeout(this.organizationSearchTimer); this.organizationSearchGeneration++; this.organizations = []; this.rows = []; this.columns = []; this.totalCount = 0; this.totalPages = 0; this.currentPage = 1; this.pageSize = 10; this.lastLoadedPayload = null; this.hasSearched = false; this.validationMessage = ""; this.closePreview(); },
+            resetForm() { this.form = this.initialForm(); this.filterOpen = false; this.filterDraft = null; window.clearTimeout(this.organizationSearchTimer); this.organizationSearchGeneration++; this.organizations = []; this.organizationMenuOpen = false; this.rows = []; this.columns = []; this.totalCount = 0; this.totalPages = 0; this.currentPage = 1; this.pageSize = 10; this.lastLoadedPayload = null; this.hasSearched = false; this.validationMessage = ""; this.closePreview(); },
             async openPreview() { if (!this.previewAvailable || this.previewLoading) return; this.previewLoading = true; this.previewOpen = false; this.preview = null; this.validationMessage = ""; try { const r = await fetch("/reports/c5/preview", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: JSON.stringify(this.payload()) }); if (!r.ok) { const message = await r.text(); throw new Error(r.status === 403 ? (message || "沒有 C5 預覽權限，請聯絡系統管理員。") : r.status === 401 ? "登入已逾時，請重新登入。" : message || `無法建立 C5 預覽（HTTP ${r.status}）。`); } const x = await r.json(); if (!Array.isArray(x?.rows) || x.rows.length === 0) throw new Error("查無此筆資料"); this.preview = x; this.previewOpen = true; } catch (e) { this.preview = null; this.previewOpen = false; this.validationMessage = e instanceof Error ? e.message : "無法建立 C5 預覽。"; } finally { this.previewLoading = false; } },
             closePreview() { this.previewOpen = false; this.preview = null; },
             printPreview() { if (this.previewOpen) window.print(); }

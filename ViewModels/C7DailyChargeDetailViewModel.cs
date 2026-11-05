@@ -24,4 +24,5 @@ public sealed class C7DailyChargeDetailViewModel
 public sealed record C7ReportResult(C7ValidatedRequest Request, IReadOnlyList<C7ReportRow> AllRows,
     ReportDataAndColumns<C7DailyChargeDetailViewModel> Page, IReadOnlyList<string> QueryIds);
 public sealed record C7PreviewViewModel(string LoginUserId, string DataTime, string DataTime1,
-    string DataTime2, string DataTime3, string NowTime, IReadOnlyList<C7ReportRow> Rows);
+    string DataTime2, string DataTime3, string NowTime, IReadOnlyList<C7ReportRow> Rows,
+    string InputUserId);

@@ -42,3 +42,7 @@ openspec/.vector-search.db*
 /scripts/seed-c10-cross-day-dbtest3.ps1
 /scripts/seed-c9-cross-day-dbtest3.ps1
 /scripts/seed-c9-dbtest3.ps1
+/scripts/c12-dbtest3-test-cases.md
+/scripts/seed-c12-dbtest3.ps1
+/scripts/seed-c13-dbtest3.ps1
+/scripts/seed-c141-dbtest3.ps1

@@ -51,6 +51,4 @@ public sealed record C9PreviewViewModel(
     string StartDate,
     string EndDate,
     string PrintedAt,
-    string ProgramNo,
-    string ReportNo,
     IReadOnlyList<C9ReportGroup> Groups);

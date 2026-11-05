@@ -1,0 +1,56 @@
+@model OpdAccrRptWeb.ViewModels.C10PreviewViewModel
+@functions {
+    private static string RocDate(string? value) =>
+        value is { Length: >= 7 }
+            ? $"{value[..3]}/{value.Substring(3, 2)}/{value.Substring(5, 2)}"
+            : value ?? string.Empty;
+
+    private static string Amount(long? value) => value?.ToString("N0") ?? string.Empty;
+}
+@foreach (var sheet in Model.Pages)
+{
+    <section class="c10-print-document">
+        <header class="c10-print-header">
+            <div class="c10-print-system">
+                <div>程式編號：ReportProject1-05</div>
+                <div>報表編號：ReportOpdAcc-05</div>
+                <div>列印日期：@Model.PrintedAt</div>
+            </div>
+            <div class="c10-print-heading">
+                <h1>亞 東 紀 念 醫 院</h1>
+                <h2>@Model.Title　（@sheet.Visit.RoomTypeName）</h2>
+                <p>資料日期：@Model.DateRange</p>
+            </div>
+            <div class="c10-print-page">頁數：@sheet.Number / @Model.Pages.Count</div>
+        </header>
+
+        <table class="c10-patient-table">
+            <tbody>
+                <tr><th>就診日期</th><td>@RocDate(sheet.Visit.VisitDate)</td><th>出院日期</th><td>@RocDate(sheet.Visit.DischargeDate)</td><th>科　別</th><td>@sheet.Visit.DepartmentName</td><th>醫　師</th><td>@sheet.Visit.DoctorName</td></tr>
+                <tr><th>姓　名</th><td>@sheet.Visit.PatientName</td><th>病歷號</th><td>@sheet.Visit.MedicalRecordNumber</td><th>卡　號</th><td>@sheet.Visit.AdmissionSequence</td><th>電　話</th><td>@sheet.Visit.HomePhone</td></tr>
+                <tr><th>通訊地址</th><td colspan="7">@sheet.Visit.Address1</td></tr>
+                <tr><th>戶籍地址</th><td colspan="7">@sheet.Visit.Address2</td></tr>
+                <tr><th>保 證 人</th><td>@sheet.Visit.ContactName</td><th>關　係</th><td>@sheet.Visit.ContactRelation</td><th>電　話</th><td colspan="3">@sheet.Visit.ContactPhone</td></tr>
+                <tr><th>保證人地址</th><td colspan="7"></td></tr>
+            </tbody>
+        </table>
+
+        <table class="c10-charge-table">
+            <thead><tr><th>項　目</th><th>欠 繳 金 額</th><th>項　目</th><th>欠 繳 金 額</th><th>項　目</th><th>欠 繳 金 額</th></tr></thead>
+            <tbody>
+                @foreach (var row in sheet.Rows)
+                {
+                    <tr><td>@row.ItemName1</td><td class="amount">@Amount(row.SelfPayAmount1)</td><td>@row.ItemName2</td><td class="amount">@Amount(row.SelfPayAmount2)</td><td>@row.ItemName3</td><td class="amount">@Amount(row.SelfPayAmount3)</td></tr>
+                }
+                <tr><td colspan="4"></td><th>優待/記帳金額</th><td class="amount">@Amount(sheet.Visit.DiscountAmount)</td></tr>
+                <tr class="c10-charge-totals"><th>應繳金額</th><td class="amount">@Amount(sheet.Visit.AmountDue)</td><th>已繳金額</th><td class="amount">@Amount(sheet.Visit.PaidAmount)</td><th>應補繳金額</th><td class="amount">@Amount(sheet.Visit.DebtAmount)</td></tr>
+            </tbody>
+        </table>
+
+        <div class="c10-process-space">處理經過：</div>
+        <footer class="c10-print-footer">
+            <span>※若項目為其他時，批價查詢功能可查出其他欠款項目明細。</span>
+            <span>製表人：@Model.GeneratedBy</span>
+        </footer>
+    </section>
+}

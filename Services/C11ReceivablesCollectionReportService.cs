@@ -42,31 +42,44 @@ public sealed class C11ReceivablesCollectionReportService(
                 buffer.Add(target);
             }
 
-            C11PatientCountRow? patientCount = await repository.QueryPeriodPatientCountAsync(
-                source, startDate, endDate, period.RoomTypeName, cancellationToken);
             target.PeriodKey = period.Year;
             target.Within30DaysAmount = amount;
             target.Over30DaysAmount = LegacyC11NumberConverter.Subtract(target.OutstandingToEnd, amount);
             target.PeriodDebtAmount = amount;
-            target.PeriodPatientCount = LegacyC11NumberConverter.ToSingle(patientCount?.PatientCount ?? 0m);
             target.RecoveredAmount = 0f;
             target.AdjustmentAmount = 0f;
         }
 
-        IReadOnlyList<C11ReportGroup> groups = buffer
-            .GroupBy(row => new { row.RoomType, row.RoomTypeName })
-            .OrderBy(group => group.Key.RoomTypeName, StringComparer.Ordinal)
-            .Select(group =>
+        var groups = new List<C11ReportGroup>();
+        foreach (var group in buffer.GroupBy(row => new { row.RoomType, row.RoomTypeName })
+                     .OrderBy(group => group.Key.RoomTypeName, StringComparer.Ordinal))
+        {
+            List<C11ReportRow> rows = group.OrderBy(row => row.Year, StringComparer.Ordinal).ToList();
+            List<C11AggregateRow> groupPeriodRows = periodRows
+                .Where(row => row.RoomType == group.Key.RoomType && row.RoomTypeName == group.Key.RoomTypeName)
+                .ToList();
+            float periodAmount = 0f;
+            foreach (C11AggregateRow row in groupPeriodRows)
+                periodAmount += LegacyC11NumberConverter.ToSingle(row.OutstandingAmount);
+
+            float patientCount = 0f;
+            if (groupPeriodRows.Count > 0)
             {
-                List<C11ReportRow> rows = group.OrderBy(row => row.Year, StringComparer.Ordinal).ToList();
-                return new C11ReportGroup
-                {
-                    RoomType = group.Key.RoomType,
-                    RoomTypeName = group.Key.RoomTypeName,
-                    Rows = rows,
-                    Totals = Sum(rows)
-                };
-            }).ToList();
+                C11PatientCountRow? count = await repository.QueryPeriodPatientCountAsync(
+                    source, startDate, endDate, group.Key.RoomTypeName, cancellationToken);
+                patientCount = LegacyC11NumberConverter.ToSingle(count?.PatientCount ?? 0m);
+                C11ReportRow? periodRow = rows.LastOrDefault(row => row.PeriodKey == groupPeriodRows[^1].Year);
+                if (periodRow is not null) periodRow.PeriodPatientCount = patientCount;
+            }
+
+            groups.Add(new C11ReportGroup
+            {
+                RoomType = group.Key.RoomType,
+                RoomTypeName = group.Key.RoomTypeName,
+                Rows = rows,
+                Totals = Sum(rows, patientCount, periodAmount)
+            });
+        }
 
         return new C11ReceivablesCollectionReportViewModel
         {
@@ -97,15 +110,13 @@ public sealed class C11ReceivablesCollectionReportService(
         };
     }
 
-    private static C11ReportTotals Sum(IEnumerable<C11ReportRow> rows)
+    private static C11ReportTotals Sum(IEnumerable<C11ReportRow> rows, float patientCount, float periodAmount)
     {
-        float total = 0, within = 0, patients = 0, debt = 0, recovered = 0, adjustment = 0;
+        float total = 0, within = 0, recovered = 0, adjustment = 0;
         foreach (C11ReportRow row in rows)
         {
             total += row.OutstandingToEnd;
             within += row.Within30DaysAmount;
-            patients += row.PeriodPatientCount;
-            debt += row.PeriodDebtAmount;
             recovered += row.RecoveredAmount;
             adjustment += row.AdjustmentAmount;
         }
@@ -113,8 +124,8 @@ public sealed class C11ReceivablesCollectionReportService(
         {
             OutstandingToEnd = total,
             Within30DaysAmount = within,
-            PeriodPatientCount = patients,
-            PeriodDebtAmount = debt,
+            PeriodPatientCount = patientCount,
+            PeriodDebtAmount = periodAmount,
             RecoveredAmount = recovered,
             AdjustmentAmount = adjustment
         };

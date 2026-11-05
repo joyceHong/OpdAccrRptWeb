@@ -1313,7 +1313,7 @@ async function verifiesC24FormPayloadAndInpatientRoomReset() {
     assert.match(markup, /<option value="All">全部<\/option>/);
     assert.match(markup, /<option value="Emergency">急診<\/option>/);
     assert.match(markup, /<option value="NonEmergency">門診<\/option>/);
-    assert.match(markup, /v-model="form\.roomScope" :disabled="form\.source === 'Inpatient'"/);
+    assert.match(markup, /v-if="form\.source !== 'Inpatient'"[^>]*><span>門急診別/);
     assert.match(appSource, /C24:\s*window\.ReportComponents\.ReportTemplate/);
 }
 
@@ -1351,9 +1351,13 @@ async function verifiesC10UsesSharedQueryAndExportContracts() {
 
     const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
     const appSource = fs.readFileSync("wwwroot/js/report-app.js", "utf8");
-    assert.match(markup, /v-if="isC24 \|\| isC10"/);
-    assert.match(markup, /v-if="isC10"[\s\S]*?<option value="Outpatient">門診<\/option>/);
+    assert.match(markup, /v-if="isC3 \|\| isC10 \|\| isC22 \|\| isC29 \|\| isC211" class="c22-source-filter-row"/);
+    assert.match(markup, /v-model="reportFilterDraft\.roomScope"[^>]*:disabled="form\.encounterSource === 'Inpatient'"/);
+    assert.match(markup, /v-model\.trim="reportFilterDraft\.medicalRecordNo"[^>]*maxlength="10"/);
+    assert.match(markup, /aria-label="清除病歷號"/);
+    assert.doesNotMatch(markup, /v-if="isC24 \|\| isC10" class="advanced-grid"/);
     assert.match(appSource, /C10:\s*window\.ReportComponents\.ReportTemplate/);
+
 }
 
 async function verifiesC23SameMonthValidationOnlyAppliesToEncounterDateMode() {

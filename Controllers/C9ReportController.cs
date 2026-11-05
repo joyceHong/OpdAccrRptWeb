@@ -27,7 +27,7 @@ public sealed class C9ReportController(IC9ReportService service, IC9PatientAcces
     public async Task<IActionResult> Preview([FromForm] C9ReportRequest request, CancellationToken token)
     {
         var timer=Stopwatch.StartNew(); string actor=User.Identity?.Name??string.Empty; C9ReportResult? result=null;
-        try { result=await service.QueryAsync(request with{PageNumber=1},actor,token); if(result.AllRows.Count==0)return NotFound("查無此筆資料"); var now=timeProvider.GetLocalNow(); var model=new C9PreviewViewModel(actor,FormatRoc(result.Request.StartDate),FormatRoc(result.Request.EndDate),$"{now.Year-1911:000}/{now:MM/dd  HH:mm:ss}","OpdAccrRptWeb-25","ReportOpdAcc-25",C9ReportService.Group(result.AllRows)); await WriteAudit(result,actor,timer,"Success","Success","Preview",token); NoStore(); return View("~/Views/C9/Preview.cshtml",model); }
+        try { result=await service.QueryAsync(request with{PageNumber=1},actor,token); if(result.AllRows.Count==0)return NotFound("查無此筆資料"); var now=timeProvider.GetLocalNow(); var model=new C9PreviewViewModel(actor,FormatRoc(result.Request.StartDate),FormatRoc(result.Request.EndDate),$"{now.Year-1911:000}/{now:MM/dd  HH:mm:ss}",C9ReportService.Group(result.AllRows)); await WriteAudit(result,actor,timer,"Success","Success","Preview",token); NoStore(); return View("~/Views/C9/Preview.cshtml",model); }
         catch(ArgumentException e){return BadRequest(e.Message);} catch(OperationCanceledException) when(token.IsCancellationRequested){throw;}
         catch(Exception e){logger.LogError(e,"C9 preview failed. CorrelationId={CorrelationId}",HttpContext.TraceIdentifier);if(result is not null)await WriteAudit(result,actor,timer,"Success","Failed","Incomplete",token);return Failure("C9 報表預覽未完整產生");}
     }

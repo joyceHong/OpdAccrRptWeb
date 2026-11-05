@@ -11,7 +11,10 @@ assert.match(view, /v-on:change="markEndDateChanged"/);
 assert.match(view, /mixins:\s*\[window\.ReportDateRangeMixin\]/);
 assert.match(view, /1～30天/);
 assert.match(view, /30天以上/);
-assert.match(view, /report\.groups\.length === 0/);
+assert.match(view, /!previewPages\.length/);
+assert.match(view, /page\.group\.totals\.periodPatientCount/);
+assert.match(view, /page\.group\.totals\.periodDebtAmount/);
+assert.doesNotMatch(view, /程式編號|報表編號|report\.programNo|report\.reportNo/);
 for (const sharedClass of ["page-title", "panel query-panel", "panel-title", "date-row", "source-fieldset", "form-actions", "panel result-panel", "result-heading", "table-wrap", "pagination", "empty-result"]) {
     assert.ok(view.includes(sharedClass), `missing shared report structure: ${sharedClass}`);
 }

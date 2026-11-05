@@ -104,6 +104,48 @@ public sealed class C10ReportControllerTests
         Assert.Equal(C10RoomScopes.All, export.Condition.RoomScope);
     }
 
+    [Fact]
+    public async Task Preview_GroupsAllRowsByVisitAndIgnoresQueryPagination()
+    {
+        var service = new CountingService
+        {
+            ResultRows =
+            [
+                new() { VisitDate = "1151102", VisitTime = "1", VisitRoom = "T10O01", VisitNumber = 9911, ItemName1 = "處置費" },
+                new() { VisitDate = "1151102", VisitTime = "1", VisitRoom = "T10O01", VisitNumber = 9911, ItemName1 = "藥品費" },
+                new() { VisitDate = "1151104", VisitTime = "1", VisitRoom = "T10O02", VisitNumber = 9913, ItemName1 = "處置費" }
+            ]
+        };
+        SearchReportCondition condition = Valid();
+        condition.StartDate = "2026-11-02";
+        condition.EndDate = "2026-11-04";
+        condition.PageNumber = 2;
+        condition.PageSize = 10;
+
+        var response = Assert.IsType<PartialViewResult>(await Controller(service).PreviewC10(condition));
+        var preview = Assert.IsType<C10PreviewViewModel>(response.Model);
+
+        Assert.Equal("_C10ReceivableDetailPreview", response.ViewName);
+        Assert.Equal(1, service.Calls);
+        Assert.Equal(1, service.LastCondition!.PageNumber);
+        Assert.Equal(int.MaxValue, service.LastCondition.PageSize);
+        Assert.Equal(2, preview.Pages.Count);
+        Assert.Equal(2, preview.Pages[0].Rows.Count);
+        Assert.Single(preview.Pages[1].Rows);
+        Assert.Equal("115/11/02 ～ 115/11/04", preview.DateRange);
+    }
+
+    [Fact]
+    public async Task Preview_RejectsInvalidDatesBeforeReadingPatientData()
+    {
+        var service = new CountingService();
+        SearchReportCondition condition = Valid();
+        condition.EndDate = "2026-08-31";
+
+        Assert.IsType<BadRequestObjectResult>(await Controller(service).PreviewC10(condition));
+        Assert.Equal(0, service.Calls);
+    }
+
     private static SearchReportCondition Valid() => new()
     {
         ReportCode = "C10",
@@ -127,6 +169,8 @@ public sealed class C10ReportControllerTests
     {
         public int Calls { get; private set; }
         public Exception? Failure { get; init; }
+        public List<C10ReceivableDetailRow> ResultRows { get; init; } = [];
+        public SearchReportCondition? LastCondition { get; private set; }
 
         public ReportDataAndColumns<T> ReportDataAndColumns<T>(SearchReportCondition condition)
         {
@@ -139,11 +183,12 @@ public sealed class C10ReportControllerTests
             CancellationToken cancellationToken = default)
         {
             Calls++;
+            LastCondition = condition;
             if (Failure is not null) throw Failure;
             return Task.FromResult(new ReportDataAndColumns<C10ReceivableDetailRow>
             {
-                Data = [],
-                TotalCount = 0,
+                Data = ResultRows,
+                TotalCount = ResultRows.Count,
                 PageNumber = condition.PageNumber,
                 PageSize = condition.PageSize,
                 TotalPages = 0

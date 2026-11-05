@@ -26,8 +26,34 @@ public sealed class C11ReceivablesCollectionReportServiceTests
         Assert.Equal("114", startYear.PeriodKey);
         Assert.Equal(40f, startYear.Within30DaysAmount);
         Assert.Equal(60f, startYear.Over30DaysAmount);
-        Assert.Equal(2, repository.PatientCountCalls);
+        Assert.Equal(1, repository.PatientCountCalls);
+        Assert.Equal(2f, report.Groups.Single().Totals.PeriodPatientCount);
+        Assert.Equal(70f, report.Groups.Single().Totals.PeriodDebtAmount);
         Assert.Equal("OpdAccRpt-06", report.ProgramNo);
+    }
+
+    [Fact]
+    public async Task CreateAsync_OutpatientPeriodSummary_UsesDistinctPatientCountAndPeriodDebtSum()
+    {
+        var repository = new FakeC11Repository
+        {
+            BaseRows = [new("115", "R", "門診", 3_606_595m)],
+            PeriodRows = [new("115", "R", "門診", 500m)],
+            PatientCount = 3m
+        };
+        var service = new C11ReceivablesCollectionReportService(repository, TimeProvider.System);
+
+        C11ReceivablesCollectionReportViewModel report = await service.CreateAsync(new()
+        {
+            StartDate = "1151102", EndDate = "1151104", Source = C10Sources.OpdEr
+        }, "tester");
+
+        C11ReportGroup outpatient = Assert.Single(report.Groups);
+        Assert.Equal("門診", outpatient.RoomTypeName);
+        Assert.Equal(3f, outpatient.Totals.PeriodPatientCount);
+        Assert.Equal(500f, outpatient.Totals.PeriodDebtAmount);
+        Assert.Equal(500f, Assert.Single(outpatient.Rows).Within30DaysAmount);
+        Assert.Equal(1, repository.PatientCountCalls);
     }
 
     [Fact]

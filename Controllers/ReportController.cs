@@ -717,6 +717,45 @@ public sealed class ReportController : Controller
         return Ok(_c29Repository.GetContractChoices());
     }
 
+    [HttpPost("Report/C10/Preview")]
+    [Authorize]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> PreviewC10([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C10";
+        IActionResult? validation = ValidateC10Condition(condition);
+        if (validation is not null) return validation;
+
+        condition.PageNumber = 1;
+        condition.PageSize = int.MaxValue;
+        Response.Headers.CacheControl = "private, no-store";
+        try
+        {
+            ReportDataAndColumns<C10ReceivableDetailRow> result = await _reportService.ReportC10Async(
+                condition, HttpContext.RequestAborted);
+            if (result.Data is not { Count: > 0 })
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無此筆資料" });
+
+            C10PreviewViewModel preview = C10PreviewViewModel.Create(
+                condition, result.Data, User.Identity?.Name ?? string.Empty, DateTime.Now);
+            return PartialView("_C10ReceivableDetailPreview", preview);
+        }
+        catch (OperationCanceledException)
+        {
+            return StatusCode(499);
+        }
+        catch (OracleException exception)
+        {
+            _logger.LogWarning(exception, "C10 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(503, new ProblemDetails { Status = 503, Title = "資料庫服務暫時無法使用，請稍後再試。" });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "C10 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(500, new ProblemDetails { Status = 500, Title = "建立 C10 預覽時發生錯誤。" });
+        }
+    }
+
     [HttpPost("Report/C24/Preview")]
     [Authorize]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]

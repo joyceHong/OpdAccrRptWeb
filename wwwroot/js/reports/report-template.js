@@ -298,7 +298,7 @@
             return {
                 advancedOpen: false,
                 reportFilterOpen: false,
-                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "" },
+                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "" },
                 reportFilterContractValid: true,
                 validationMessage: "",
                 isLoading: false,
@@ -447,7 +447,8 @@
                 return count + (this.isC4 && this.form.organizationQuery.trim() ? 1 : 0)
                     + (this.isC211 && this.form.contractCode.trim() ? 1 : 0)
                     + (this.isC3 ? [this.form.logisticsType !== 0, this.form.departmentCode.trim(),
-                        this.form.roomCodes.trim(), this.form.chargeCodes.trim()].filter(Boolean).length : 0);
+                        this.form.roomCodes.trim(), this.form.chargeCodes.trim()].filter(Boolean).length : 0)
+                    + (this.isC10 ? [this.form.roomScope !== "All", this.form.medicalRecordNo.trim()].filter(Boolean).length : 0);
             },
             cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
             isEndDateOnly() { return this.reportConfiguration.endDateOnly === true; },
@@ -622,7 +623,9 @@
                     roomCodes: this.form.roomCodes,
                     chargeCodes: this.form.chargeCodes,
                     organizationQuery: this.form.organizationQuery,
-                    sectionPrefix: this.form.sectionPrefix
+                    sectionPrefix: this.form.sectionPrefix,
+                    roomScope: this.form.roomScope,
+                    medicalRecordNo: this.form.medicalRecordNo
                 };
                 this.reportFilterContractValid = true;
                 this.reportFilterOpen = true;
@@ -653,6 +656,10 @@
                     this.c4OrganizationSearchGeneration++;
                     this.c4OrganizationDropdownOpen = false;
                     this.c4Organizations = [];
+                } else if (this.isC10) {
+                    this.form.roomScope = this.form.encounterSource === "Inpatient"
+                        ? "All" : this.reportFilterDraft.roomScope;
+                    this.form.medicalRecordNo = this.reportFilterDraft.medicalRecordNo.trim();
                 } else if (this.isC22) {
                     this.form.cashierUserId = this.reportFilterDraft.cashierUserId.trim();
                     this.form.cashierCashSortType = this.reportFilterDraft.cashierCashSortType;
@@ -670,7 +677,7 @@
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
                 this.reportFilterOpen = false;
-                if (this.isC3 || this.isC4 || this.isC22 || this.isC29 || this.isC211) await this.search();
+                if (this.isC3 || this.isC4 || this.isC10 || this.isC22 || this.isC29 || this.isC211) await this.search();
             },
             resetForm() {
                 this.stopExportPolling?.();
@@ -681,7 +688,7 @@
                 if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
                 this.reportFilterOpen = false;
-                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "" };
+                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "" };
                 this.reportFilterContractValid = true;
                 this.c211ContractValid = true;
                 this.validationMessage = "";
@@ -1355,6 +1362,18 @@
                     medicalRecordNo: this.form.medicalRecordNo.trim() || undefined,
                     forceRebuild: false
                 }, "無法建立 C24 列印預覽。");
+            },
+            async previewC10() {
+                if (!this.isC10 || !this.selectedReport.canPrint || !this.hasResults ||
+                    this.isLoading || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C10/Preview", {
+                    reportCode: "C10",
+                    startDate: this.form.startDate,
+                    endDate: this.form.endDate,
+                    source: this.form.encounterSource,
+                    roomScope: this.form.roomScope,
+                    medicalRecordNo: this.form.medicalRecordNo.trim() || undefined
+                }, "無法建立 C10 列印預覽。");
             },
             openC212Preview() {
                 if (!this.isC212 || !this.hasResults || !this.c212Summary) return;

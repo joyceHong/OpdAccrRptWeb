@@ -48,6 +48,8 @@ public static class ReportNavigationService
                                 CanExcel = permissions.Allows(report.Code, ReportAction.Excel),
                                 CanPrint = permissions.Allows(report.Code, ReportAction.Print),
                                 CanLineBot = report.Code == "C141" && permissions.Allows(report.Code, ReportAction.LineBot),
+                                CanC141NoticeHistory = report.Code == "C141" &&
+                                    permissions.Allows(report.Code, ReportAction.C141NoticeHistory),
                                 CanRebuild = report.CanRebuild && permissions.Allows(report.Code, ReportAction.Rebuild)
                             })
                             .ToArray()

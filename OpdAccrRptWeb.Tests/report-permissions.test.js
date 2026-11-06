@@ -79,6 +79,10 @@ for (const [name, method] of Object.entries(component.methods))
     });
     assert.equal(instance.actions.lineBot, true);
     assert.equal(instance.initialLineBotChecked, true);
+    assert.equal(instance.c141Actions.noticePreview, true);
+    assert.equal(instance.c141Actions.noticeHistory, false);
+    assert.equal(instance.c141Actions.printList, true);
+    assert.equal(instance.c141Actions.rerank, false);
     assert.deepEqual(Array.from(instance.selectedCodes), ["C1", "C141"]);
     assert.equal(component.render.call(instance).tag, "div");
 
@@ -93,6 +97,38 @@ for (const [name, method] of Object.entries(component.methods))
         return null;
     };
     assert.equal(findLineBotInput(vnode)?.props.checked, true);
+    const fieldsets = [];
+    const collectFieldsets = node => {
+        if (!node || typeof node !== "object") return;
+        if (node.tag === "fieldset") fieldsets.push(node);
+        for (const child of Array.isArray(node.children) ? node.children : [])
+            collectFieldsets(child);
+    };
+    collectFieldsets(vnode);
+    const c141Fieldset = fieldsets.find(fieldset =>
+        fieldset.children.some(child => child.tag === "legend" &&
+            child.children === "C141 專屬操作"));
+    assert.ok(c141Fieldset);
+    assert.equal(findLineBotInput(c141Fieldset)?.props.checked, true);
+    assert.equal(fieldsets.filter(fieldset => findLineBotInput(fieldset)).length, 1);
+    const findInputByLabel = (node, label) => {
+        if (!node || typeof node !== "object") return null;
+        if (node.tag === "label" && Array.isArray(node.children) &&
+            node.children.includes(label))
+            return node.children.find(child => child.tag === "input");
+        for (const child of Array.isArray(node.children) ? node.children : []) {
+            const found = findInputByLabel(child, label);
+            if (found) return found;
+        }
+        return null;
+    };
+    for (const label of ["通知單預覽／列印", "通知單繳費查詢（含 Excel）",
+        "列印名單（Excel）", "重新排行"])
+        assert.ok(findInputByLabel(vnode, label));
+
+    instance.c141Actions.noticeHistory = true;
+    assert.equal(instance.actionMaskFor("C141", 7), 55);
+    instance.c141Actions.noticeHistory = false;
 
     instance.actions.lineBot = false;
     assert.equal(instance.actionMaskFor("C1", 7), 7);

@@ -11,5 +11,7 @@ public sealed class ReportDefinitionViewModel
     public bool CanPrint { get; init; } = true;
     public bool CanLineBot { get; init; }
 
+    public bool CanC141NoticeHistory { get; init; }
+
     public bool CanRebuild { get; init; } = true;
 }

@@ -62,6 +62,7 @@ builder.Services.AddScoped<IC13HighRiskEmergencyRepository, C13HighRiskEmergency
 builder.Services.AddScoped<IC143AccountingBalanceDebtRepository, C143AccountingBalanceDebtRepository>();
 builder.Services.AddScoped<IC141RankingRepository, C141RankingRepository>();
 builder.Services.AddScoped<IC141RecalculationRepository, C141RecalculationRepository>();
+builder.Services.AddScoped<IC141NoticeHistoryRepository, C141NoticeHistoryRepository>();
 builder.Services.AddScoped<IC141PaymentNoticeRepository, C141PaymentNoticeRepository>();
 builder.Services.AddScoped<IC141LineBotRepository, C141LineBotRepository>();
 builder.Services.AddScoped<IC142DebtReportRepository, C142DebtReportRepository>();

@@ -49,7 +49,10 @@ public sealed record C141PartialPaymentData(
     IReadOnlyList<C141PartialPaymentStay> Stays,
     int PriorChargedDays,
     int PriorFreeDays,
-    decimal FirstBandCap);
+    decimal FirstBandCap)
+{
+    public bool IsExempt { get; init; }
+}
 
 public sealed record C141NoticeCategoryLine(
     string? DepartmentCode,
@@ -77,6 +80,7 @@ public sealed record C141PaymentNoticeDocument(
 {
     public bool PartialPaymentCalculationAvailable { get; init; }
     public DateOnly PrintDate { get; init; }
+    public DateOnly SettlementDate { get; init; }
 }
 
 public sealed record C141NoticePreviewRequest(

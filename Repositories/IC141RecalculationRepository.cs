@@ -11,4 +11,7 @@ public interface IC141RecalculationRepository
         string accountingDateRoc,
         bool isCurrentAccountingDay,
         CancellationToken cancellationToken);
+
+    void UpdateAmounts(C141AdmissionKey key, decimal receivableAmount,
+        decimal insuredReceivableAmount, CancellationToken cancellationToken);
 }

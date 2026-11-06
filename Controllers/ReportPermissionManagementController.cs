@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Oracle.ManagedDataAccess.Client;
 using OpdAccrRptWeb.Models;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
@@ -147,6 +148,13 @@ public sealed class ReportPermissionManagementController(
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
+        }
+        catch (OracleException exception) when (exception.Number == 2290 &&
+            exception.Message.Contains("CK_OPDACCRREPORTPERMMASK", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogError(exception, "Report permission mask constraint is outdated");
+            return StatusCode(503,
+                "權限資料表尚未支援 C141 通知單繳費查詢權限，請先執行資料庫更新腳本。");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

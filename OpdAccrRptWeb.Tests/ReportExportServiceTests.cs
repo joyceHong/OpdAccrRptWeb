@@ -477,6 +477,137 @@ public sealed class ReportExportServiceTests
     }
 
     [Fact]
+    public void GenerateWorkbook_C143OutpatientAll_MatchesLegacyComparisonRows()
+    {
+        // C143 全部帳表的五筆門診比對結果；空白金額與明確的 0 分別保留。
+        var repository = new FakeC143Repository
+        {
+            OutpatientRows =
+            [
+                new() { EncounterType = "門診", VisitDate = "1151030", MedicalRecordNumber = "T24CMP0001",
+                    AccountingGeneralSelfPay = 700m, AccountingInsuranceSelfPay = 0m,
+                    AccountingOutstanding = 700m, Difference = 700m },
+                new() { EncounterType = "門診", VisitDate = "1151102", MedicalRecordNumber = "T10OP0001",
+                    BillingDebt = 150m, BillingOutstanding = 150m, Difference = -150m },
+                new() { EncounterType = "門診", VisitDate = "1151103", MedicalRecordNumber = "T10ER0001",
+                    BillingDebt = 150m, BillingOutstanding = 150m, Difference = -150m },
+                new() { EncounterType = "門診", VisitDate = "1151104", MedicalRecordNumber = "T10OP0002",
+                    BillingDebt = 200m, BillingOutstanding = 200m, Difference = -200m },
+                new() { EncounterType = "門診", VisitDate = "1151105", MedicalRecordNumber = "T142OUT002",
+                    BillingDebt = 120m, BillingOutstanding = 120m, Difference = -120m }
+            ]
+        };
+        var services = new ServiceCollection();
+        services.AddSingleton<IC143AccountingBalanceDebtRepository>(repository);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), new FakeJobStore(), new FakeExportQueue(),
+            Options.Create(new ReportExportOptions { BatchSize = 2 }), TimeProvider.System,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        using var output = new MemoryStream();
+        service.GenerateWorkbook(new SearchReportCondition
+        {
+            ReportCode = "C143", StartDate = "2026-10-30", EndDate = "2026-11-05",
+            Source = C143Sources.OpdEr, ReportType = C143ReportTypes.All
+        }, output);
+
+        output.Position = 0;
+        List<IDictionary<string, object?>> rows = output.Query(useHeaderRow: true)
+            .Cast<IDictionary<string, object?>>().ToList();
+        Assert.Equal(5, rows.Count);
+        string[] columns = ["診別", "就診日", "病歷號", "離院日", "一般身分自費金額_會計",
+            "健保身分自費金額_會計", "尚欠_會計", "欠款_批價", "尚欠_批價",
+            "差額(尚欠_會計-尚欠_批價)"];
+        Assert.Equal(columns, rows[0].Keys);
+
+        string[] visitDates = ["1151030", "1151102", "1151103", "1151104", "1151105"];
+        string[] recordNumbers = ["T24CMP0001", "T10OP0001", "T10ER0001", "T10OP0002", "T142OUT002"];
+        decimal?[] accountingGeneral = [700m, null, null, null, null];
+        decimal?[] accountingInsurance = [0m, null, null, null, null];
+        decimal?[] accountingOutstanding = [700m, null, null, null, null];
+        decimal?[] billingAmounts = [null, 150m, 150m, 200m, 120m];
+        decimal[] differences = [700m, -150m, -150m, -200m, -120m];
+        for (int index = 0; index < rows.Count; index++)
+        {
+            IDictionary<string, object?> row = rows[index];
+            Assert.Equal("門診", row["診別"]);
+            Assert.Equal(visitDates[index], row["就診日"]);
+            Assert.Equal(recordNumbers[index], row["病歷號"]);
+            Assert.Null(row["離院日"]);
+            Assert.Equal(accountingGeneral[index], Amount(row["一般身分自費金額_會計"]));
+            Assert.Equal(accountingInsurance[index], Amount(row["健保身分自費金額_會計"]));
+            Assert.Equal(accountingOutstanding[index], Amount(row["尚欠_會計"]));
+            Assert.Equal(billingAmounts[index], Amount(row["欠款_批價"]));
+            Assert.Equal(billingAmounts[index], Amount(row["尚欠_批價"]));
+            Assert.Equal(differences[index], Amount(row["差額(尚欠_會計-尚欠_批價)"]));
+        }
+
+        static decimal? Amount(object? value) => value is null ? null : Convert.ToDecimal(value);
+    }
+
+    [Fact]
+    public void GenerateWorkbook_C143OutpatientDifference_MatchesLegacyComparisonRows()
+    {
+        // C143 差異帳表的門診比對結果，沒有全部帳表中會計尚欠 700 的那筆。
+        var repository = new FakeC143Repository
+        {
+            OutpatientRows =
+            [
+                new() { EncounterType = "門診", VisitDate = "1151102", MedicalRecordNumber = "T10OP0001",
+                    BillingDebt = 150m, BillingOutstanding = 150m, Difference = -150m },
+                new() { EncounterType = "門診", VisitDate = "1151103", MedicalRecordNumber = "T10ER0001",
+                    BillingDebt = 150m, BillingOutstanding = 150m, Difference = -150m },
+                new() { EncounterType = "門診", VisitDate = "1151104", MedicalRecordNumber = "T10OP0002",
+                    BillingDebt = 200m, BillingOutstanding = 200m, Difference = -200m },
+                new() { EncounterType = "門診", VisitDate = "1151105", MedicalRecordNumber = "T142OUT002",
+                    BillingDebt = 120m, BillingOutstanding = 120m, Difference = -120m }
+            ]
+        };
+        var services = new ServiceCollection();
+        services.AddSingleton<IC143AccountingBalanceDebtRepository>(repository);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), new FakeJobStore(), new FakeExportQueue(),
+            Options.Create(new ReportExportOptions { BatchSize = 2 }), TimeProvider.System,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        using var output = new MemoryStream();
+        service.GenerateWorkbook(new SearchReportCondition
+        {
+            ReportCode = "C143", StartDate = "2026-11-02", EndDate = "2026-11-05",
+            Source = C143Sources.OpdEr, ReportType = C143ReportTypes.Difference
+        }, output);
+
+        output.Position = 0;
+        List<IDictionary<string, object?>> rows = output.Query(useHeaderRow: true)
+            .Cast<IDictionary<string, object?>>().ToList();
+        Assert.Equal(4, rows.Count);
+        Assert.Equal(["診別", "就診日", "病歷號", "離院日", "一般身分自費金額_會計",
+            "健保身分自費金額_會計", "尚欠_會計", "欠款_批價", "尚欠_批價",
+            "差額(尚欠_會計-尚欠_批價)"], rows[0].Keys);
+
+        string[] visitDates = ["1151102", "1151103", "1151104", "1151105"];
+        string[] recordNumbers = ["T10OP0001", "T10ER0001", "T10OP0002", "T142OUT002"];
+        decimal[] billingAmounts = [150m, 150m, 200m, 120m];
+        decimal[] differences = [-150m, -150m, -200m, -120m];
+        for (int index = 0; index < rows.Count; index++)
+        {
+            IDictionary<string, object?> row = rows[index];
+            Assert.Equal("門診", row["診別"]);
+            Assert.Equal(visitDates[index], row["就診日"]);
+            Assert.Equal(recordNumbers[index], row["病歷號"]);
+            Assert.Null(row["離院日"]);
+            Assert.Null(row["一般身分自費金額_會計"]);
+            Assert.Null(row["健保身分自費金額_會計"]);
+            Assert.Null(row["尚欠_會計"]);
+            Assert.Equal(billingAmounts[index], Convert.ToDecimal(row["欠款_批價"]));
+            Assert.Equal(billingAmounts[index], Convert.ToDecimal(row["尚欠_批價"]));
+            Assert.Equal(differences[index], Convert.ToDecimal(row["差額(尚欠_會計-尚欠_批價)"]));
+        }
+    }
+
+    [Fact]
     public void NormalizeOutpatientReport_C25_RequiresOnlyEndDate()
     {
         SearchReportCondition normalized = ReportExportService.NormalizeOutpatientReport(new SearchReportCondition

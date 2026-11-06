@@ -7,6 +7,19 @@ namespace OpdAccrRptWeb.Tests;
 public sealed class C141PaymentNoticeServiceTests
 {
     [Fact]
+    public void CalculatePartialPaymentForRanking_DoesNotRequireNoticeSourceWhenNoStayExists()
+    {
+        var key = new C141AdmissionKey("1150101", "1", "A12", 1m);
+        var data = new C141PartialPaymentData(default, [], 0, 0, 0m);
+        var repository = new FakeRepository([], data);
+
+        decimal amount = new C141PaymentNoticeService(repository)
+            .CalculatePartialPaymentForRanking(key, "C36979", "3J01");
+
+        Assert.Equal(0m, amount);
+    }
+
+    [Fact]
     public void Calculate_ResetsTemporaryAmountForEachCaseAndKeepsItOutOfTotalsAThroughG()
     {
         var firstKey = new C141AdmissionKey("1150101", "1", "A12", 1m);
@@ -32,8 +45,8 @@ public sealed class C141PaymentNoticeServiceTests
         Assert.Equal(424m, first.Totals.AmountDueE);
         Assert.Equal(61.25m, first.Totals.PrepaidAmountF);
         Assert.Equal(362.75m, first.Totals.RemainingAmountG);
-        Assert.Equal("尚未讀取健保卡", first.Note1);
-        Assert.Equal("繳費請攜卡", first.Note2);
+        Assert.Equal("臺端尚未讀取住院健保卡卡號，", first.Note1);
+        Assert.Equal("繳費時請攜帶健保卡。", first.Note2);
         Assert.Contains("14日", first.Note3);
         Assert.Null(second.Note3);
     }
@@ -219,7 +232,7 @@ public sealed class C141PaymentNoticeServiceTests
         decimal partialPaymentAmount = 0m,
         bool isFourteenDayReadmission = false) =>
         new(key,
-            new("C36979", "測試", "01", "內科", "A12", "1150101", "000", "30", "1", "醫師", "1", null),
+            new("C36979", "測試", "01", "內科", "A12", "1150101", "000", "30", "1", "醫師", null, null),
             categories,
             temporaryAmount2,
             payTotal,

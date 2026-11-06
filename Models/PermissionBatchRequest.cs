@@ -10,6 +10,7 @@ public sealed class PermissionBatchRequest
     public bool Print { get; set; } = true;
     public bool Rebuild { get; set; }
     public bool LineBot { get; set; }
+    public bool C141NoticeHistory { get; set; }
 }
 
 public sealed record PermissionBatchPreviewRow(

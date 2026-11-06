@@ -1869,7 +1869,8 @@ async function verifiesC143SharedQueryPagingAndResetContract() {
     assert.match(appSource, /C143:\s*window\.ReportComponents\.ReportTemplate/);
     assert.match(markup, /v-if="hasReportType"/);
     assert.match(markup, /v-model="form\.reportType"/);
-    assert.match(markup, /v-if="isC143"[\s\S]*?改成昨天/);
+    assert.doesNotMatch(markup, /改成昨天/);
+    assert.match(markup, /v-if="hasReportType" class="source-fieldset segmented-source-fieldset"/);
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
 }
 

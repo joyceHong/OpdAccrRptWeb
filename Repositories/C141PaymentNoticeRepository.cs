@@ -65,6 +65,7 @@ public sealed class C141PaymentNoticeRepository(IConnectionStringProvider connec
         connection.Open();
         var stays = new List<C141PartialPaymentStay>();
         string? sameSickDate = null;
+        bool isExempt = false;
         using (var command = CreateCommand(connection, C141PaymentNoticeSql.PartialPaymentStays(isDayCare), key))
         using (OracleDataReader reader = command.ExecuteReader())
         {
@@ -80,9 +81,14 @@ public sealed class C141PaymentNoticeRepository(IConnectionStringProvider connec
                     ReadText(reader, "EmergencyAdmissionDate")?.Trim()));
                 string? identity = ReadText(reader, "InsuranceIdentity")?.Trim();
                 if (identity is "01" or "35")
-                    throw new DataException("C141 部分負擔住院段身分不一致。");
+                    isExempt = true;
             }
         }
+
+        if (isExempt)
+            return new C141PartialPaymentData(default, stays, 0, 0, 0m) { IsExempt = true };
+        if (stays.Count == 0)
+            return new C141PartialPaymentData(default, stays, 0, 0, 0m);
 
         int priorChargedDays = 0;
         int priorFreeDays = 0;
@@ -376,10 +382,7 @@ public sealed class C141PaymentNoticeRepository(IConnectionStringProvider connec
     private static string BuildTransactionMedicalRecordNumber(C141NoticeBasicData basic)
     {
         string medicalRecordNumber = basic.MedicalRecordNumber.Trim();
-        string sequence = basic.InpatientSequence?.Trim() ?? string.Empty;
-        string value = string.IsNullOrEmpty(sequence)
-            ? medicalRecordNumber
-            : string.Concat(medicalRecordNumber, "-", sequence).Replace("-", string.Empty, StringComparison.Ordinal);
+        string value = medicalRecordNumber.Split('-', 2)[0];
         if (value.Length > 10)
             throw new ArgumentException("C141 通知紀錄病歷號超過欄位長度。", nameof(basic));
         return value;

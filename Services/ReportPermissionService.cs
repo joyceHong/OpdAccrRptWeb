@@ -41,8 +41,9 @@ public sealed class ReportPermissionService(
                 logger.LogWarning("Unknown report permission code {ReportCode}", grant.ReportCode);
                 continue;
             }
-            if (grant.ActionMask is < 0 or > 31 ||
-                (grant.ReportCode != "C141" && (grant.ActionMask & (int)ReportAction.LineBot) != 0))
+            if (grant.ActionMask is < 0 or > 63 ||
+                (grant.ReportCode != "C141" &&
+                 (grant.ActionMask & ((int)ReportAction.LineBot | (int)ReportAction.C141NoticeHistory)) != 0))
             {
                 logger.LogWarning("Invalid report permission mask for {ReportCode}", grant.ReportCode);
                 continue;

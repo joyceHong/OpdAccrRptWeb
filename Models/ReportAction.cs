@@ -8,5 +8,6 @@ public enum ReportAction
     Excel = 2,
     Print = 4,
     Rebuild = 8,
-    LineBot = 16
+    LineBot = 16,
+    C141NoticeHistory = 32
 }

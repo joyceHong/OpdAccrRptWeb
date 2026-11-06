@@ -175,6 +175,10 @@ public sealed class C141PaymentNoticeControllerTests
             return document;
         }
 
+        public decimal CalculatePartialPaymentForRanking(C141AdmissionKey key,
+            string? medicalRecordNumber, string? bedNumber,
+            CancellationToken cancellationToken = default) => 0m;
+
         public void RecordBeforeDocument(C141PaymentNoticeDocument notice, string userId, CancellationToken cancellationToken = default)
         {
             events.Add("before");

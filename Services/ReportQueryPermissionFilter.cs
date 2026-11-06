@@ -23,6 +23,7 @@ public sealed class ReportQueryPermissionFilter(
             ["C141Ranking"] = "C141",
             ["C141PaymentNotice"] = "C141",
             ["C141LineBot"] = "C141",
+            ["C141Operations"] = "C141",
             ["C142DebtReport"] = "C142",
             ["DoctorDailyReport"] = "M1",
             ["DoctorMonthlyReport"] = "M2",
@@ -243,6 +244,13 @@ public sealed class ReportQueryPermissionFilter(
         if (string.Equals(controller, "C141LineBot", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(action, "Send", StringComparison.OrdinalIgnoreCase))
             return ReportAction.LineBot;
+        if (string.Equals(controller, "C141Operations", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(action, "Recalculate", StringComparison.OrdinalIgnoreCase))
+            return ReportAction.Rebuild;
+        if (string.Equals(controller, "C141Operations", StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(action, "QueryNoticeHistory", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(action, "ExportNoticeHistory", StringComparison.OrdinalIgnoreCase)))
+            return ReportAction.C141NoticeHistory;
         if (string.Equals(action, "ExportPdf", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(action, "Receipt", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(action, "Receipts", StringComparison.OrdinalIgnoreCase) ||

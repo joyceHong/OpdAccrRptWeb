@@ -24,9 +24,11 @@ public sealed class C141PaymentNoticeService(IC141PaymentNoticeRepository reposi
             bool isDayCare = source.Basic.BedNumber.Trim().StartsWith("01P", StringComparison.Ordinal);
             C141PartialPaymentData data = repository.LoadPartialPaymentData(
                 key, source.Basic.MedicalRecordNumber, isDayCare, cancellationToken);
-            if (data.Stays.Count == 0 && (isDayCare || source.Basic.MedicalRecordNumber.Trim() != "C36979"))
+            if (!data.IsExempt && data.Stays.Count == 0
+                && (isDayCare || source.Basic.MedicalRecordNumber.Trim() != "C36979"))
                 throw new DataException("C141 部分負擔住院段資料不存在。");
-            decimal amount = CalculatePartialPayment(data, key, isDayCare, cancellationToken);
+            decimal amount = data.IsExempt ? 0m
+                : CalculatePartialPayment(data, key, isDayCare, cancellationToken);
             source = source with
             {
                 PartialPaymentAmount = amount,
@@ -35,6 +37,21 @@ public sealed class C141PaymentNoticeService(IC141PaymentNoticeRepository reposi
             };
         }
         return Calculate(source);
+    }
+
+    public decimal CalculatePartialPaymentForRanking(
+        C141AdmissionKey key,
+        string? medicalRecordNumber,
+        string? bedNumber,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        bool isDayCare = bedNumber?.Trim().StartsWith("01P", StringComparison.Ordinal) == true;
+        C141PartialPaymentData data = repository.LoadPartialPaymentData(
+            key, medicalRecordNumber?.Trim() ?? string.Empty, isDayCare, cancellationToken);
+        return data.IsExempt || data.Stays.Count == 0
+            ? 0m
+            : CalculatePartialPayment(data, key, isDayCare, cancellationToken);
     }
 
     public void RecordBeforeDocument(
@@ -76,16 +93,17 @@ public sealed class C141PaymentNoticeService(IC141PaymentNoticeRepository reposi
         decimal amountF = (source.PayTotal ?? 0m) + LegacyInt(source.DiscountAmount);
         decimal amountG = amountE - amountF;
 
-        bool hasNoCard = string.IsNullOrWhiteSpace(source.Basic.HealthCardNumber);
-        bool needsCardNote = source.Basic.InsuranceIdentity != "01" && hasNoCard;
+        bool needsCardNote = source.Basic.InsuranceIdentity != "01"
+            && string.IsNullOrWhiteSpace(source.Basic.InpatientSequence);
         return new C141PaymentNoticeDocument(
             source.Key,
             source.Basic,
             lines,
             new C141NoticeTotals(amountA, amountB, amountC, amountD, amountE, amountF, amountG),
-            needsCardNote ? "尚未讀取健保卡" : null,
-            needsCardNote ? "繳費請攜卡" : null,
-            source.IsFourteenDayReadmission ? "14日再返說明" : null)
+            needsCardNote ? "臺端尚未讀取住院健保卡卡號，" : null,
+            needsCardNote ? "繳費時請攜帶健保卡。" : null,
+            source.IsFourteenDayReadmission
+                ? "14日再返(出院後14天內，經醫師認定同一疾病再度入院治療其部份負擔須與前一段住院天數合併計算)" : null)
         {
             PartialPaymentCalculationAvailable = source.PartialPaymentCalculationAvailable
         };

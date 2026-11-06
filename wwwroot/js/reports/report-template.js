@@ -326,8 +326,23 @@
                 c141LineBotKind: 0,
                 c141ActionLoading: false,
                 c141ActionResults: [],
+                c141HistoryOpen: false,
+                c141HistoryStartDate: this.defaultStartDate,
+                c141HistoryEndDate: this.defaultEndDate,
+                c141HistoryRows: [],
+                c141HistoryLoaded: false,
+                c141HistoryLoading: false,
+                c141HistoryExporting: false,
+                c141HistoryError: "",
+                c141Recalculating: false,
                 c141PreviewOpen: false,
                 c141PreviewHtml: "",
+                c141PreviewPage: 0,
+                c141PreviewPageCount: 0,
+                c141PreviewFrameHeight: 1123,
+                c141PreviewStageWidth: 794,
+                c141PreviewStageHeight: 1123,
+                c141PreviewScale: 1,
                 exportPollTimer: null,
                 form: createInitialForm(
                     this.defaultStartDate,
@@ -461,7 +476,7 @@
             hasResults() { return this.rows.length > 0; },
             canExport() {
                 return ["C1", "C21", "C22", "C23", "C24", "C25", "C27", "C28", "C29",
-                    "C142", "C143", "C213", "C214", "C10", "C144", "C171", "C172", "C173", "C174",
+                    "C141", "C142", "C143", "C213", "C214", "C10", "C144", "C171", "C172", "C173", "C174",
                     "C18", "C19"]
                     .includes(this.selectedReport.code) && this.hasResults && !this.isExporting;
             },
@@ -603,12 +618,14 @@
             }
         },
         mounted() {
+            window.addEventListener("resize", this.resizeC141Preview);
             this.loadC21BillingItems();
             this.loadC23Contracts();
             this.loadC211Contracts();
             if (this.isC141) this.loadC141TodayAndSearch();
         },
         beforeUnmount() {
+            window.removeEventListener("resize", this.resizeC141Preview);
             this.stopExportPolling();
             window.clearTimeout(this.c4OrganizationSearchTimer);
             this.c4OrganizationSearchGeneration++;
@@ -867,10 +884,118 @@
             closeC141Preview() {
                 this.c141PreviewOpen = false;
                 this.c141PreviewHtml = "";
+                this.c141PreviewPage = 0;
+                this.c141PreviewPageCount = 0;
+            },
+            loadC141PreviewFrame() {
+                const frame = this.$refs.c141PreviewFrame;
+                const document = frame?.contentDocument;
+                if (!document?.body) return;
+                document.body.classList.add("c141-embedded");
+                this.c141PreviewPageCount = document.querySelectorAll(
+                    ".c141-preview-results, .c141-payment-notice").length;
+                this.showC141PreviewPage(0);
+            },
+            showC141PreviewPage(pageIndex) {
+                const frame = this.$refs.c141PreviewFrame;
+                const document = frame?.contentDocument;
+                if (!document) return;
+                const pages = Array.from(document.querySelectorAll(
+                    ".c141-preview-results, .c141-payment-notice"));
+                if (pageIndex < 0 || pageIndex >= pages.length) return;
+                pages.forEach((page, index) => { page.hidden = index !== pageIndex; });
+                this.c141PreviewPage = pageIndex;
+                this.resizeC141Preview();
+            },
+            resizeC141Preview() {
+                if (!this.c141PreviewOpen) return;
+                const frame = this.$refs.c141PreviewFrame;
+                const document = frame?.contentDocument;
+                const page = document?.querySelectorAll(
+                    ".c141-preview-results, .c141-payment-notice")[this.c141PreviewPage];
+                if (!frame || !page) return;
+                const frameWidth = frame.clientWidth;
+                const frameHeight = Math.max(1123, page.scrollHeight);
+                const availableWidth = Math.max(280, window.innerWidth - 48);
+                const availableHeight = Math.max(350, window.innerHeight - 92);
+                const scale = Math.min(availableWidth / frameWidth,
+                    Math.max(0.95, availableHeight / frameHeight), 1.12);
+                this.c141PreviewFrameHeight = frameHeight;
+                this.c141PreviewScale = scale;
+                this.c141PreviewStageWidth = Math.ceil(frameWidth * scale);
+                this.c141PreviewStageHeight = Math.ceil(frameHeight * scale);
             },
             printC141Preview() {
                 if (!this.c141PreviewOpen) return;
                 this.$refs.c141PreviewFrame?.contentWindow?.print();
+            },
+            openC141History() {
+                if (!this.isC141 || !this.selectedReport.canC141NoticeHistory) return;
+                this.c141HistoryOpen = true;
+                this.c141HistoryError = "";
+            },
+            closeC141History() {
+                this.c141HistoryOpen = false;
+            },
+            async queryC141History(exportExcel = false) {
+                if (!this.isC141 || !this.selectedReport.canC141NoticeHistory) return;
+                if (!this.c141HistoryStartDate || !this.c141HistoryEndDate
+                    || this.c141HistoryStartDate > this.c141HistoryEndDate) {
+                    this.c141HistoryError = "請輸入有效的通知起迄日期。";
+                    return;
+                }
+                this.c141HistoryError = "";
+                if (exportExcel) this.c141HistoryExporting = true;
+                else {
+                    this.c141HistoryLoading = true;
+                    this.c141HistoryLoaded = false;
+                    this.c141HistoryRows = [];
+                }
+                try {
+                    const response = await fetch(
+                        exportExcel ? "/Report/C141/NoticeHistory/Export" : "/Report/C141/NoticeHistory/Query", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                startDate: this.c141HistoryStartDate,
+                                endDate: this.c141HistoryEndDate
+                            })
+                        });
+                    if (!response.ok) throw new Error(await this.readExportError(response));
+                    if (exportExcel) {
+                        this.downloadBlob(await response.blob(), "C141-繳款通知查詢.xlsx");
+                    } else {
+                        const result = await response.json();
+                        this.c141HistoryRows = result.data || [];
+                        this.c141HistoryLoaded = true;
+                    }
+                } catch (error) {
+                    this.c141HistoryError = error instanceof Error ? error.message : "繳款通知查詢失敗。";
+                } finally {
+                    this.c141HistoryLoading = false;
+                    this.c141HistoryExporting = false;
+                }
+            },
+            async recalculateC141() {
+                if (!this.isC141 || !this.selectedReport.canRebuild || this.c141Recalculating) return;
+                if (!window.confirm("重新排行會重算所有目前住院個案，可能需要數分鐘。要繼續嗎？")) return;
+                this.c141Recalculating = true;
+                this.validationMessage = "";
+                try {
+                    const response = await fetch("/Report/C141/Recalculate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ accountingDate: this.form.endDate })
+                    });
+                    if (!response.ok) throw new Error(await this.readExportError(response, "重新排行失敗"));
+                    const result = await response.json();
+                    await this.search();
+                    this.$emit("show-toast", `重新排行完成：更新 ${result.updatedCount} 筆。`);
+                } catch (error) {
+                    this.validationMessage = error instanceof Error ? error.message : "C141 重新排行失敗。";
+                } finally {
+                    this.c141Recalculating = false;
+                }
             },
             async loadC141TodayAndSearch() {
                 try {
@@ -1532,13 +1657,6 @@
                 this.serverTotalPages = 0;
                 this.validationMessage = "";
             },
-            useYesterday() {
-                const today = new Date();
-                const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-                this.form.endDate = previousDate(localToday);
-                this.markEndDateChanged();
-                this.currentPage = 1;
-            },
             changeC24Source() {
                 this.currentPage = 1;
                 if (this.form.source === "Inpatient") this.form.roomScope = "All";
@@ -1747,9 +1865,9 @@
                 anchor.click();
                 window.URL.revokeObjectURL(url);
             },
-            async readExportError(response) {
+            async readExportError(response, fallback = "匯出失敗") {
                 const problem = await response.json().catch(() => null);
-                return problem?.title ?? problem?.message ?? `匯出失敗（HTTP ${response.status}）`;
+                return problem?.title ?? problem?.message ?? `${fallback}（HTTP ${response.status}）`;
             }
         }
     };

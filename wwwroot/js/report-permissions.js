@@ -2,11 +2,14 @@
     "use strict";
 
     const h = Vue.h;
-    const actionNames = [[1, "查詢"], [2, "Excel"], [4, "列印"], [8, "重建"], [16, "C141 LineBot"]];
+    const actionNames = [[1, "查詢"], [2, "Excel"], [4, "列印"], [8, "重建"]];
+    const c141ActionNames = [[1, "查詢"], [2, "列印名單"], [4, "通知單預覽／列印"],
+        [8, "重新排行"], [16, "LineBot"], [32, "通知單繳費查詢"]];
     const targetNames = { 0: "管理者", 1: "單位", 2: "個人" };
 
-    function actionSummary(mask) {
-        return actionNames.filter(([bit]) => Boolean(mask & bit))
+    function actionSummary(mask, reportCode) {
+        const names = reportCode === "C141" ? c141ActionNames : actionNames;
+        return names.filter(([bit]) => Boolean(mask & bit))
             .map(([, name]) => name).join("、") || "無操作";
     }
 
@@ -44,6 +47,7 @@
                     targetOptions: [], targetSearchRequest: 0,
                     selectedCodes: [], existingGrants: {},
                     actions: { query: true, excel: true, print: true, rebuild: false, lineBot: false },
+                    c141Actions: { noticePreview: false, noticeHistory: false, printList: false, rerank: false },
                     generalActionsChanged: false, initialLineBotChecked: false,
                     copySource: "", copyTarget: "", copySourceGrants: [],
                     copySelectedCodes: [], copyPreviewRows: [], copyPayload: null,
@@ -144,6 +148,9 @@
                     this.actions = {
                         query: true, excel: true, print: true, rebuild: false, lineBot: false
                     };
+                    this.c141Actions = {
+                        noticePreview: false, noticeHistory: false, printList: false, rerank: false
+                    };
                     this.initialLineBotChecked = false;
                 },
                 async openAdd() {
@@ -184,6 +191,13 @@
                         if (first) this.setActionsFromMask(first.actionMask);
                         // LineBot belongs to C141, so another report's mask cannot initialize it.
                         this.actions.lineBot = Boolean((this.existingGrants.C141 ?? 0) & 16);
+                        const c141Mask = this.existingGrants.C141 ?? 0;
+                        this.c141Actions = {
+                            noticePreview: Boolean(c141Mask & 4),
+                            noticeHistory: Boolean(c141Mask & 32),
+                            printList: Boolean(c141Mask & 2),
+                            rerank: Boolean(c141Mask & 8)
+                        };
                         this.initialLineBotChecked = this.actions.lineBot;
                         this.editorLoading = false;
                         this.editorMessage = `${grants.length} 份報表已授權；操作勾選將套用至本次選取的報表。`;
@@ -267,14 +281,21 @@
                 },
                 actionMaskFor(reportCode, baseMask) {
                     const existingMask = this.existingGrants[reportCode];
+                    if (reportCode === "C141") {
+                        const query = this.editingTarget && !this.generalActionsChanged &&
+                            Object.hasOwn(this.existingGrants, reportCode)
+                            ? existingMask & 1 : baseMask & 1;
+                        return query | (this.c141Actions.printList ? 2 : 0) |
+                            (this.c141Actions.noticePreview ? 4 : 0) |
+                            (this.c141Actions.rerank ? 8 : 0) |
+                            (this.actions.lineBot ? 16 : 0) |
+                            (this.c141Actions.noticeHistory ? 32 : 0);
+                    }
                     if (this.editingTarget && !this.generalActionsChanged &&
                         Object.hasOwn(this.existingGrants, reportCode)) {
-                        return reportCode === "C141" &&
-                            this.actions.lineBot !== this.initialLineBotChecked
-                            ? (existingMask & ~16) | (this.actions.lineBot ? 16 : 0)
-                            : existingMask;
+                        return existingMask;
                     }
-                    return baseMask | (reportCode === "C141" && this.actions.lineBot ? 16 : 0);
+                    return baseMask;
                 },
                 async saveEditor(event) {
                     event.preventDefault();
@@ -720,8 +741,27 @@
                                 actionCheck("excel", "Excel 匯出"),
                                 actionCheck("print", "列印"),
                                 actionCheck("rebuild", "重建"),
-                                actionCheck("lineBot", "C141 LineBot 發送"),
-                                h("small", "C21、C23、C24 等有重建作業的報表適用；C22 櫃員現金表由來源資料即時計算。")
+                                h("small", "Excel、列印、重建套用至其他報表；C141 請使用下方專屬操作。")
+                            ]),
+                            h("fieldset", { class: "permission-actions" }, [
+                                h("legend", "C141 專屬操作"),
+                                ...[
+                                    ["noticePreview", "通知單預覽／列印"],
+                                    ["noticeHistory", "通知單繳費查詢（含 Excel）"],
+                                    ["printList", "列印名單（Excel）"],
+                                    ["rerank", "重新排行"]
+                                ].map(([key, label]) => h("label", [
+                                    checkbox(this.c141Actions[key], checked => {
+                                        this.c141Actions[key] = checked;
+                                    }, { disabled: this.editorLoading || !this.selectedCodes.includes("C141") }),
+                                    label
+                                ])),
+                                h("label", [
+                                    checkbox(this.actions.lineBot, checked => {
+                                        this.actions.lineBot = checked;
+                                    }, { disabled: this.editorLoading || !this.selectedCodes.includes("C141") }),
+                                    " C141 LineBot 發送"
+                                ])
                             ]),
                             h("div", { class: "permission-editor-actions" }, [
                                 button("僅讀取範例", () => this.setPreset(1),
@@ -767,7 +807,7 @@
                                 h("label", { key: grant.reportCode }, [
                                     checkbox(this.copySelectedCodes.includes(grant.reportCode),
                                         checked => this.toggleCopyCode(grant.reportCode, checked)),
-                                    ` ${definitions.get(grant.reportCode)?.name || grant.reportCode} (${grant.reportCode}) · ${actionSummary(grant.actionMask)}`
+                                    ` ${definitions.get(grant.reportCode)?.name || grant.reportCode} (${grant.reportCode}) · ${actionSummary(grant.actionMask, grant.reportCode)}`
                                 ]))),
                         h("div", { class: "permission-fields" }, [
                             button("預覽複製", () => this.previewCopy()),
@@ -776,7 +816,7 @@
                         ]),
                         h("ul", this.copyPreviewRows.map(row =>
                             h("li", { key: row.reportCode },
-                                `${row.reportCode}：${row.operation}。新增 ${actionSummary(row.addedMask)}；移除 ${actionSummary(row.removedMask)}。`))),
+                                `${row.reportCode}：${row.operation}。新增 ${actionSummary(row.addedMask, row.reportCode)}；移除 ${actionSummary(row.removedMask, row.reportCode)}。`))),
                         h("p", { role: "status", "aria-live": "polite" }, this.copyMessage)
                     ]);
                 },

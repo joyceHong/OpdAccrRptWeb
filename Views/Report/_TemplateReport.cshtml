@@ -45,10 +45,13 @@
                 <button class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC10">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
                 <button class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
             </div>
-            <template v-else-if="isC141">
+            <div v-else-if="isC141" class="c141-title-actions no-print">
                 <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-show="selectedReport.canPrint" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
+                <button v-if="selectedReport.canC141NoticeHistory" class="outline-button no-print" type="button" v-on:click="openC141History">通知單繳費查詢</button>
+                <button class="outline-button no-print" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '列印名單（Excel）' }}</button>
+                <button class="outline-button no-print" type="button" :disabled="c141Recalculating || isLoading || c141ActionLoading" v-show="selectedReport.canRebuild" v-on:click="recalculateC141">{{ c141Recalculating ? '重新排行中…' : '重新排行' }}</button>
                 <button v-if="selectedReport.canLineBot" class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-on:click="sendC141LineBot">{{ c141ActionLoading ? '處理中…' : `送出 LineBot（${c141SelectedCount}）` }}</button>
-            </template>
+            </div>
             <button v-else class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">
                 {{ isExporting ? '⌛ 匯出處理中…' : '⇩ 匯出 Excel' }}
             </button>
@@ -82,7 +85,6 @@
                         <label v-if="!isEndDateOnly"><span>起始日期 <i>*</i></span><input v-model="form.startDate" type="date" required v-on:change="syncDefaultEndDate(); currentPage = 1" /></label>
                         <span v-if="!isEndDateOnly" class="date-arrow">→</span>
                         <label><span>{{ isC141 ? '帳務日' : '截止日期' }} <i>*</i></span><input v-model="form.endDate" type="date" required :min="isC141 ? '1912-01-01' : undefined" :max="isC141 && c141OracleToday ? c141OracleToday : undefined" v-on:change="markEndDateChanged(); currentPage = 1" /></label>
-                        <button v-if="isC143" class="ghost-button" type="button" v-on:click="useYesterday">改成昨天</button>
                     </div>
                     <div v-if="isC3 || isC10 || isC22 || isC29 || isC211" class="c22-source-filter-row">
                         <fieldset class="source-fieldset segmented-source-fieldset">
@@ -115,7 +117,7 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
-                    <fieldset v-if="hasReportType" class="source-fieldset">
+                    <fieldset v-if="hasReportType" class="source-fieldset segmented-source-fieldset">
                         <legend>報表類型 <i>*</i></legend>
                         <label v-for="option in reportTypeConfiguration.options" :key="option.value" class="source-option">
                             <input v-model="form.reportType" type="radio" name="reportType" :value="option.value"
@@ -209,9 +211,6 @@
             <div v-if="isC142 && c142Summary" class="result-heading">
                 <span>尚欠合計：{{ c142Summary.totalAmount }}</span>
                 <span v-if="c142Summary.errors?.length">資料異常 {{ c142Summary.errors.length }} 筆（不計入合計與 Excel）</span>
-            </div>
-            <div v-if="isC142 && c142Summary?.errors?.length" class="validation-message" role="status">
-                <div v-for="error in c142Summary.errors" :key="error.encounterKey">{{ error.encounterKey }}：{{ error.message }}</div>
             </div>
             <div v-if="isC24 && summaries.length" class="c24-summary-grid" aria-label="欠繳補繳摘要">
                 <section v-for="item in summaries" :key="item.roomCategory" class="c24-summary-card">
@@ -348,9 +347,37 @@
                 <div class="c22-filter-actions"><button class="ghost-button" type="button" v-on:click="closeReportFilters">取消</button><button class="primary-button" type="button" v-on:click="applyReportFilters">套用篩選</button></div>
             </section>
         </div>
+        <div v-if="c141HistoryOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeC141History">
+            <section class="c22-filter-dialog c141-history-dialog" role="dialog" aria-modal="true" aria-label="通知單繳費查詢" v-on:keydown.esc="closeC141History">
+                <h2>通知單繳費查詢</h2>
+                <div class="advanced-grid">
+                    <label><span>通知起日</span><input v-model="c141HistoryStartDate" type="date" /></label>
+                    <label><span>通知迄日</span><input v-model="c141HistoryEndDate" type="date" /></label>
+                </div>
+                <p v-if="c141HistoryError" class="validation-message" role="alert">{{ c141HistoryError }}</p>
+                <div v-if="c141HistoryLoading" class="table-skeleton" aria-label="查詢中"><table><tbody><tr v-for="row in 3" :key="row"><td v-for="column in 7" :key="column"><span class="skeleton-line"></span></td></tr></tbody></table></div>
+                <p v-if="c141HistoryLoaded" role="status">共 {{ c141HistoryRows.length }} 筆通知紀錄。</p>
+                <div v-if="c141HistoryRows.length" class="table-wrap c141-history-table">
+                    <table><thead><tr><th>病歷號</th><th>通知日期</th><th>通知方式</th><th>繳款日期</th><th>通知金額</th><th>現金金額</th><th>信用卡金額</th></tr></thead>
+                    <tbody><tr v-for="(row, index) in c141HistoryRows.slice(0, 100)" :key="index"><td>{{ row.medicalRecordNumber }}</td><td>{{ row.noticeDate }}</td><td>{{ row.noticeMethod }}</td><td>{{ row.paymentDate }}</td><td class="amount">{{ row.noticeAmount }}</td><td class="amount">{{ row.cashAmount }}</td><td class="amount">{{ row.creditCardAmount }}</td></tr></tbody></table>
+                </div>
+                <p v-if="c141HistoryRows.length > 100">畫面顯示前 100 筆；Excel 包含完整查詢結果。</p>
+                <div class="c22-filter-actions"><button class="ghost-button" type="button" v-on:click="closeC141History">關閉</button><button class="outline-button" type="button" :disabled="c141HistoryLoading || c141HistoryExporting" v-on:click="queryC141History(true)">{{ c141HistoryExporting ? '下載中…' : '下載 Excel' }}</button><button class="primary-button" type="button" :disabled="c141HistoryLoading || c141HistoryExporting" v-on:click="queryC141History(false)">{{ c141HistoryLoading ? '查詢中…' : '查詢' }}</button></div>
+            </section>
+        </div>
         <div v-if="c141PreviewOpen && c141PreviewHtml" class="report-preview-overlay c141-preview-overlay" role="dialog" aria-modal="true" aria-label="C141 通知單列印預覽">
-            <div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeC141Preview">關閉預覽</button><button class="primary-button" type="button" v-on:click="printC141Preview">列印</button></div>
-            <iframe ref="c141PreviewFrame" class="c141-preview-frame" :srcdoc="c141PreviewHtml" title="C141 通知單預覽"></iframe>
+            <div class="report-preview-actions no-print">
+                <button class="ghost-button" type="button" v-on:click="closeC141Preview">關閉預覽</button>
+                <div v-if="c141PreviewPageCount > 1" class="c141-preview-pager">
+                    <button class="ghost-button" type="button" :disabled="c141PreviewPage === 0" v-on:click="showC141PreviewPage(c141PreviewPage - 1)">上一張</button>
+                    <span>{{ c141PreviewPage + 1 }} / {{ c141PreviewPageCount }}</span>
+                    <button class="ghost-button" type="button" :disabled="c141PreviewPage >= c141PreviewPageCount - 1" v-on:click="showC141PreviewPage(c141PreviewPage + 1)">下一張</button>
+                </div>
+                <button class="primary-button" type="button" v-on:click="printC141Preview">列印</button>
+            </div>
+            <div class="c141-preview-stage" :style="{ width: c141PreviewStageWidth + 'px', height: c141PreviewStageHeight + 'px' }">
+                <iframe ref="c141PreviewFrame" class="c141-preview-frame" :srcdoc="c141PreviewHtml" title="C141 通知單預覽" :style="{ height: c141PreviewFrameHeight + 'px', transform: 'scale(' + c141PreviewScale + ')' }" v-on:load="loadC141PreviewFrame"></iframe>
+            </div>
         </div>
         <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">{{ isC10 || isC21 || isC22 || isC23 || isC24 || isC29 ? '取消' : '關閉預覽' }}</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">{{ isC10 || isC21 || isC22 || isC23 || isC24 || isC29 ? '確認列印' : '列印' }}</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
         <div v-if="c4PreviewOpen && c4Preview" class="c4-preview-overlay" role="dialog" aria-modal="true" aria-label="C4 列印預覽">

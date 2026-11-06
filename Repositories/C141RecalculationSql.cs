@@ -2,11 +2,17 @@ namespace OpdAccrRptWeb.Repositories;
 
 internal static class C141RecalculationSql
 {
+    internal const string UpdateAmounts = """
+        UPDATE IPDBasic2Tbl SET rlAMT=:receivableAmount, rlAMT2=:insuredReceivableAmount
+        WHERE chOp1Date=:opDate AND chOp1Time=:opTime
+          AND chOp1Room=:opRoom AND intOp1No=:opNo
+        """;
     internal const string ClaimFlaggedCases = """
         SELECT chOp1Date AS AdmissionDate,
                chOp1Time AS AdmissionTime,
                chOp1Room AS AdmissionRoom,
                intOp1No AS AdmissionNumber,
+               chOp1MrNo AS MedicalRecordNumber,
                chOp1PFin1 AS InsuranceIdentity,
                chOp1PPay AS PartialPaymentCode,
                chOp1Ebid AS BedNumber

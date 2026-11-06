@@ -14,6 +14,33 @@ namespace OpdAccrRptWeb.Tests;
 
 public sealed class ReportQueryPermissionFilterTests
 {
+    [Theory]
+    [InlineData("QueryNoticeHistory", ReportAction.Query, false)]
+    [InlineData("QueryNoticeHistory", ReportAction.Query | ReportAction.C141NoticeHistory, true)]
+    [InlineData("ExportNoticeHistory", ReportAction.Query, false)]
+    [InlineData("ExportNoticeHistory", ReportAction.Query | ReportAction.Excel, false)]
+    [InlineData("ExportNoticeHistory", ReportAction.Query | ReportAction.C141NoticeHistory, true)]
+    [InlineData("Recalculate", ReportAction.Query, false)]
+    [InlineData("Recalculate", ReportAction.Query | ReportAction.Rebuild, true)]
+    public async Task C141OperationsRequireMatchingPermission(
+        string action, ReportAction grantedActions, bool shouldExecute)
+    {
+        var context = CreateContext("C141Operations", action, new Dictionary<string, object?>());
+        var filter = CreateFilter(new ReportPermissionSnapshot("E100", false,
+            new Dictionary<string, ReportAction> { ["C141"] = grantedActions }));
+        bool executed = false;
+
+        await filter.OnActionExecutionAsync(context, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(
+                new ActionContext(context.HttpContext, context.RouteData, context.ActionDescriptor),
+                [], new object()));
+        });
+
+        Assert.Equal(shouldExecute, executed);
+    }
+
     [Fact]
     public async Task C29ContractChoicesRequireC29QueryGrant()
     {

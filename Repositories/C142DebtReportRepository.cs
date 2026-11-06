@@ -115,7 +115,7 @@ public sealed class C142DebtReportRepository(IConnectionStringProvider connectio
             while (reader.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                keys.Add((Value(reader, 0), Value(reader, 1), Value(reader, 2),
+                keys.Add((Value(reader, 0).Trim(), Value(reader, 1).Trim(), Value(reader, 2).Trim(),
                     Number(reader, 3), Number(reader, 4), Text(reader, 5)));
             }
         }
@@ -138,7 +138,8 @@ public sealed class C142DebtReportRepository(IConnectionStringProvider connectio
             reader.Close();
             string? sectionName = ScalarText(connection,
                 "SELECT chsecname FROM gensectiontbl WHERE chsecno=:secNoFromBasic",
-                command => Add(command, "secNoFromBasic", section ?? ""));
+                command => command.Parameters.Add(new OracleParameter("secNoFromBasic", OracleDbType.Char,
+                    section?.Trim() ?? "", System.Data.ParameterDirection.Input)));
             string? bed = source == "Inpatient" ? null : ScalarText(connection,
                 "SELECT chbedno FROM OpdSoapInHLicenseTbl WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND chOp1Room=:opRoom AND intOp1No=:opNo",
                 command => AddKey(command, key.Date, key.Time, key.Room, key.Number));
@@ -184,11 +185,11 @@ public sealed class C142DebtReportRepository(IConnectionStringProvider connectio
     {
         string sql = source == "Inpatient" ? """
             SELECT CHIPDTYPE,CHIPDTDATETIME,CHIPDTUSER,CHIPDTNOTE FROM IPDAccTranTbl
-            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND RTRIM(chOp1Room)=RTRIM(:opRoom) AND intOp1No=:opNo
+            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND chOp1Room=:opRoom AND intOp1No=:opNo
             ORDER BY CHIPDTDATETIME
             """ : """
             SELECT CHOPDTTYPE,CHOPDTDATETIME,CHOPDTUSER,CHOPDTNOTE FROM OPDTRANTBL
-            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND RTRIM(chOp1Room)=RTRIM(:opRoom) AND intOp1No=:opNo
+            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND chOp1Room=:opRoom AND intOp1No=:opNo
             ORDER BY CHOPDTDATETIME
             """;
         using var connection = Open();
@@ -229,7 +230,13 @@ public sealed class C142DebtReportRepository(IConnectionStringProvider connectio
     }
 
     private static void AddKey(OracleCommand command, string date, string time, string room, decimal number)
-    { Add(command, "opDate", date); Add(command, "opTime", time); Add(command, "opRoom", room); Add(command, "opNo", number); }
+    {
+        Add(command, "opDate", date);
+        Add(command, "opTime", time);
+        command.Parameters.Add(new OracleParameter("opRoom", OracleDbType.Char, room,
+            System.Data.ParameterDirection.Input));
+        Add(command, "opNo", number);
+    }
     private static string Value(OracleDataReader reader, int ordinal) => Text(reader, ordinal) ?? "";
     private static string? Text(OracleDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : Convert.ToString(reader.GetValue(ordinal), CultureInfo.InvariantCulture);
     private static decimal Number(OracleDataReader reader, int ordinal) => NullableNumber(reader, ordinal) ?? 0;

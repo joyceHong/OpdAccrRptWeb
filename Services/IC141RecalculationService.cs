@@ -8,4 +8,7 @@ public interface IC141RecalculationService
         string accountingDateRoc,
         string oracleTodayRoc,
         CancellationToken cancellationToken = default);
+
+    C141RecalculationResult Recalculate(string accountingDateRoc,
+        string oracleTodayRoc, CancellationToken cancellationToken = default);
 }

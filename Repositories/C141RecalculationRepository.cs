@@ -32,7 +32,10 @@ public sealed class C141RecalculationRepository(IConnectionStringProvider connec
                     ReadDecimal(reader, "AdmissionNumber") ?? 0m),
                 ReadText(reader, "InsuranceIdentity"),
                 ReadText(reader, "PartialPaymentCode"),
-                ReadText(reader, "BedNumber")));
+                ReadText(reader, "BedNumber"))
+            {
+                MedicalRecordNumber = ReadText(reader, "MedicalRecordNumber")
+            });
         }
 
         return cases;
@@ -73,6 +76,24 @@ public sealed class C141RecalculationRepository(IConnectionStringProvider connec
             ReadDecimal(reader, "AllTot1"),
             ReadDecimal(reader, "AllTot2"),
             ReadDecimal(reader, "AllTot3"));
+    }
+
+    public void UpdateAmounts(C141AdmissionKey key, decimal receivableAmount,
+        decimal insuredReceivableAmount, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = new OracleConnection(connectionStringProvider.GetConnectionString());
+        using var command = new OracleCommand(C141RecalculationSql.UpdateAmounts, connection)
+        {
+            BindByName = true
+        };
+        AddAdmissionKeyParameters(command, key);
+        C141OracleParameters.AddAdmissionNumber(command, "receivableAmount", receivableAmount);
+        C141OracleParameters.AddAdmissionNumber(command, "insuredReceivableAmount", insuredReceivableAmount);
+        connection.Open();
+        int affectedRows = command.ExecuteNonQuery();
+        if (affectedRows != 1)
+            throw new DataException($"C141 重新排行更新筆數不符，實際更新 {affectedRows} 筆。");
     }
 
     internal static void AddAdmissionKeyParameters(OracleCommand command, C141AdmissionKey key)

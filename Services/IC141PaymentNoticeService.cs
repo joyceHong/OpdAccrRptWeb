@@ -10,6 +10,12 @@ public interface IC141PaymentNoticeService
         C141AdmissionKey key,
         CancellationToken cancellationToken = default);
 
+    decimal CalculatePartialPaymentForRanking(
+        C141AdmissionKey key,
+        string? medicalRecordNumber,
+        string? bedNumber,
+        CancellationToken cancellationToken = default);
+
     void RecordBeforeDocument(
         C141PaymentNoticeDocument document,
         string userId,

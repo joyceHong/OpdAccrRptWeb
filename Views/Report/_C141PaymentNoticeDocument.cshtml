@@ -14,10 +14,10 @@
     </header>
     <table class="c141-notice-patient">
         <tbody>
-            <tr><th>病歷號</th><td>@Model.Basic.MedicalRecordNumber</td><th>病床號</th><td>@Model.Basic.BedNumber</td><th>卡號</th><td>@Model.Basic.HealthCardNumber</td></tr>
+            <tr><th>病歷號</th><td>@Model.Basic.MedicalRecordNumber</td><th>病床號</th><td>@Model.Basic.BedNumber</td><th>卡號</th><td>@Model.Basic.InpatientSequence</td></tr>
             <tr><th>姓名</th><td>@Model.Basic.PatientName</td><th>主治醫師</th><td colspan="3">@Model.Basic.DoctorName</td></tr>
             <tr><th>科別</th><td>@Model.Basic.SectionName</td><th>出表日期</th><td colspan="3">@Model.PrintDate.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)</td></tr>
-            <tr><th>住院日</th><td>@Model.Basic.InpatientAdmissionDate</td><th>結算日期</th><td colspan="3"></td></tr>
+            <tr><th>住院日</th><td>@Model.Basic.InpatientAdmissionDate</td><th>結算日期</th><td colspan="3">@Model.SettlementDate.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)</td></tr>
         </tbody>
     </table>
     <table class="c141-notice-details">

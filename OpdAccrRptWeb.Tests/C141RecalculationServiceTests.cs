@@ -1,6 +1,7 @@
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace OpdAccrRptWeb.Tests;
 
@@ -16,7 +17,7 @@ public sealed class C141RecalculationServiceTests
         var repository = new FakeRepository(
             [first, second],
             new C141RecalculationTotals(100.4m, 5m, 80.6m));
-        var service = new C141RecalculationService(repository);
+        var service = new C141RecalculationService(repository, NullLogger<C141RecalculationService>.Instance);
 
         IReadOnlyList<C141CalculatedCase> results =
             service.CalculateClaimFlaggedCases("1151013", "1151013");
@@ -40,7 +41,7 @@ public sealed class C141RecalculationServiceTests
         var item = new C141RecalculationCase(
             new("1150101", "1", "A12", 7m), "30", "000", "01P01");
         var repository = new FakeRepository([item], new C141RecalculationTotals(null, 2m, null));
-        var service = new C141RecalculationService(repository);
+        var service = new C141RecalculationService(repository, NullLogger<C141RecalculationService>.Instance);
 
         C141CalculatedCase result = Assert.Single(
             service.CalculateClaimFlaggedCases("1151012", "1151013"));
@@ -50,6 +51,60 @@ public sealed class C141RecalculationServiceTests
         Assert.Equal(2m, result.Totals.AllTot2);
         Assert.Equal("1151012", Assert.Single(repository.TotalQueries).AccountingDateRoc);
         Assert.False(repository.TotalQueries[0].IsCurrentAccountingDay);
+    }
+
+    [Fact]
+    public void Recalculate_UpdatesOnlyWhenFirstOrSecondTotalIsPositive()
+    {
+        var item = new C141RecalculationCase(
+            new("1150101", "1", "A12", 7m), "20", "000", "3J01");
+        var repository = new FakeRepository([item], new C141RecalculationTotals(100.4m, 0m, 80.6m));
+        var service = new C141RecalculationService(repository, NullLogger<C141RecalculationService>.Instance);
+
+        C141RecalculationResult result = service.Recalculate("1151012", "1151013");
+
+        Assert.Equal(new C141RecalculationResult(1, 1, 0, 0), result);
+        Assert.Equal((100m, 81m), Assert.Single(repository.Updates));
+    }
+
+    [Fact]
+    public void Recalculate_LeavesOldAmountsWhenOnlyThirdTotalIsPositive()
+    {
+        var item = new C141RecalculationCase(
+            new("1150101", "1", "A12", 7m), "20", "000", "3J01");
+        var repository = new FakeRepository([item], new C141RecalculationTotals(0m, 0m, 900m));
+        var service = new C141RecalculationService(repository, NullLogger<C141RecalculationService>.Instance);
+
+        C141RecalculationResult result = service.Recalculate("1151012", "1151013");
+
+        Assert.Equal(new C141RecalculationResult(1, 0, 1, 0), result);
+        Assert.Empty(repository.Updates);
+    }
+
+    [Fact]
+    public void Recalculate_ContinuesAfterOneCaseFailsAndReportsFailure()
+    {
+        var failedCase = new C141RecalculationCase(
+            new("1150101", "1", "A12", 7m), "20", "000", "3J01");
+        var nextCase = new C141RecalculationCase(
+            new("1150102", "2", "B34", 8m), "20", "000", "3J02");
+        var repository = new FakeRepository(
+            [failedCase, nextCase], new C141RecalculationTotals(100m, 0m, 80m))
+        {
+            FailingKey = failedCase.Key
+        };
+        var logger = new CapturingLogger<C141RecalculationService>();
+        var service = new C141RecalculationService(repository, logger);
+
+        C141RecalculationResult result = service.Recalculate("1151012", "1151013");
+
+        Assert.Equal(new C141RecalculationResult(2, 1, 0, 1), result);
+        Assert.Equal((100m, 80m), Assert.Single(repository.Updates));
+        Assert.Equal(2, repository.TotalQueries.Count);
+        CapturedLog entry = Assert.Single(logger.Entries);
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Error, entry.Level);
+        Assert.IsType<System.Data.DataException>(entry.Exception);
+        Assert.DoesNotContain(failedCase.Key.AdmissionDate, entry.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -105,6 +160,8 @@ public sealed class C141RecalculationServiceTests
         C141RecalculationTotals totals) : IC141RecalculationRepository
     {
         public List<(string AccountingDateRoc, bool IsCurrentAccountingDay)> TotalQueries { get; } = [];
+        public List<(decimal Receivable, decimal Insured)> Updates { get; } = [];
+        public C141AdmissionKey? FailingKey { get; init; }
 
         public IReadOnlyList<C141RecalculationCase> GetClaimFlaggedCases(CancellationToken cancellationToken) =>
             cases;
@@ -116,7 +173,13 @@ public sealed class C141RecalculationServiceTests
             CancellationToken cancellationToken)
         {
             TotalQueries.Add((accountingDateRoc, isCurrentAccountingDay));
+            if (key == FailingKey)
+                throw new System.Data.DataException("個案計算失敗。");
             return totals;
         }
+
+        public void UpdateAmounts(C141AdmissionKey key, decimal receivableAmount,
+            decimal insuredReceivableAmount, CancellationToken cancellationToken) =>
+            Updates.Add((receivableAmount, insuredReceivableAmount));
     }
 }

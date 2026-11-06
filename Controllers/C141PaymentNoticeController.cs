@@ -52,6 +52,12 @@ public sealed class C141PaymentNoticeController(
             try
             {
                 document = service.Calculate(key, cancellationToken);
+                if (document is not null)
+                    document = document with
+                    {
+                        PrintDate = DateOnly.FromDateTime(service.GetOracleNow(cancellationToken).DateTime),
+                        SettlementDate = entryDate
+                    };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -74,8 +80,6 @@ public sealed class C141PaymentNoticeController(
                 results.Add(Failure(key, "健保身分 30 的部分負擔計算尚未完成，未產生通知單。"));
                 continue;
             }
-
-            document = document with { PrintDate = entryDate };
 
             try
             {

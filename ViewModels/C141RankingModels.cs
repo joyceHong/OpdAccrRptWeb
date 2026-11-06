@@ -95,7 +95,10 @@ public sealed record C141RecalculationCase(
     C141AdmissionKey Key,
     string? InsuranceIdentity,
     string? PartialPaymentCode,
-    string? BedNumber);
+    string? BedNumber)
+{
+    public string? MedicalRecordNumber { get; init; }
+}
 
 public sealed record C141RecalculationTotals(
     decimal? AllTot1,
@@ -106,3 +109,7 @@ public sealed record C141CalculatedCase(
     C141RecalculationCase Case,
     C141RecalculationTotals Totals,
     bool IsCurrentAccountingDay);
+
+public sealed record C141RecalculationResult(int CaseCount, int UpdatedCount, int SkippedCount, int FailedCount);
+
+public sealed record C141RecalculationRequest(string? AccountingDate);

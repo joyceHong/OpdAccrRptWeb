@@ -183,7 +183,8 @@ public sealed class ReportPermissionAdministrationService(
             throw new ArgumentException("操作者帳號無效。", nameof(actor));
 
         int mask = ActionMask(request.Query, request.Excel, request.Print, request.Rebuild,
-            request.ReportCode == "C141" && request.LineBot);
+            request.ReportCode == "C141" && request.LineBot,
+            request.ReportCode == "C141" && request.C141NoticeHistory);
         await repository.SaveGrantsAsync(
             request.TargetType, target,
             new Dictionary<string, int> { [request.ReportCode] = mask },
@@ -203,7 +204,8 @@ public sealed class ReportPermissionAdministrationService(
         return codes.Select(code => new PermissionBatchPreviewRow(
             code, existingCodes.Contains(code) ? "更新" : "新增",
             ActionMask(request.Query, request.Excel, request.Print, request.Rebuild,
-                code == "C141" && request.LineBot))).ToArray();
+                code == "C141" && request.LineBot,
+                code == "C141" && request.C141NoticeHistory))).ToArray();
     }
 
     public async Task ApplyBatchAsync(
@@ -218,7 +220,8 @@ public sealed class ReportPermissionAdministrationService(
             request.TargetType, target,
             codes.ToDictionary(code => code,
                 code => ActionMask(request.Query, request.Excel, request.Print, request.Rebuild,
-                    code == "C141" && request.LineBot), StringComparer.Ordinal),
+                    code == "C141" && request.LineBot,
+                    code == "C141" && request.C141NoticeHistory), StringComparer.Ordinal),
             actor, cancellationToken);
     }
 
@@ -290,13 +293,15 @@ public sealed class ReportPermissionAdministrationService(
         return reportCodes.Distinct(StringComparer.Ordinal).ToArray();
     }
 
-    private static int ActionMask(bool query, bool excel, bool print, bool rebuild, bool lineBot) =>
+    private static int ActionMask(bool query, bool excel, bool print, bool rebuild,
+        bool lineBot, bool c141NoticeHistory) =>
         (query ? 1 : 0) | (excel ? 2 : 0) | (print ? 4 : 0) | (rebuild ? 8 : 0) |
-        (lineBot ? 16 : 0);
+        (lineBot ? 16 : 0) | (c141NoticeHistory ? 32 : 0);
 
     private static bool IsValidMask(string reportCode, int mask) =>
-        mask is >= 0 and <= 31 &&
-        (reportCode == "C141" || (mask & (int)ReportAction.LineBot) == 0);
+        mask is >= 0 and <= 63 &&
+        (reportCode == "C141" ||
+         (mask & ((int)ReportAction.LineBot | (int)ReportAction.C141NoticeHistory)) == 0);
 
     private async Task<string> ValidateTargetAsync(
         int targetType, string target, CancellationToken cancellationToken)

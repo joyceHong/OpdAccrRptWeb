@@ -48,3 +48,5 @@ openspec/.vector-search.db*
 /scripts/seed-c141-dbtest3.ps1
 /scripts/c142-dbtest3-test-cases.md
 /scripts/seed-c142-dbtest3.ps1
+/scripts/sql/add-c141-notice-history-permission.sql
+/scripts/sql/create-opd-accrreport-permission.sql

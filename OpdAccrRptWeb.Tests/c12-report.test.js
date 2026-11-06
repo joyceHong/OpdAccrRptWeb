@@ -17,6 +17,7 @@ assert.ok(view.indexOf('class="c12-medical-record-field"')<view.indexOf('class="
 assert.match(view,/id="c12-filter-dialog"[^>]*role="dialog"[^>]*aria-modal="true"/);
 assert.match(view,/@@click="applyFilters">套用篩選/);
 assert.match(view,/aria-label="清除新科別碼"/);
+assert.match(view,/v-model\.trim="filterDraft\.sectionDisplay"/);
 assert.doesNotMatch(view,/舊科別碼/);
 assert.doesNotMatch(view,/chop1sec/);
 assert.doesNotMatch(view,/<datalist/);
@@ -107,15 +108,23 @@ assert.equal(component.methods.formatTaipeiDate.call({},new Date("2026-09-13T16:
         assert.deepEqual(optionContext.sectionOptions,[{code:"11910",name:"心臟內科"}]);
         assert.equal(optionContext.sectionError,"");
 
-        const filterContext={filterDraft:{newSection:"11910"},sectionOptions:[{code:"11910",name:"一般內科"},{code:"11920",name:"急診外科"}]};
+        const filterContext={filterDraft:{newSection:"11910",sectionDisplay:"11910"},sectionOptions:[{code:"11910",name:"一般內科"},{code:"11920",name:"急診外科"}]};
         const filtered=component.computed.filteredSectionOptions.call(filterContext);
         assert.deepEqual(filtered,[{code:"11910",name:"一般內科"}]);
-        const keyboardContext={filteredSectionOptions:filtered,sectionOpen:true,sectionActiveIndex:-1,filterDraft:{newSection:""},selectSectionOption:component.methods.selectSectionOption};
+        const keyboardContext={filteredSectionOptions:filtered,sectionOpen:true,sectionActiveIndex:-1,filterDraft:{newSection:"",sectionDisplay:""},selectSectionOption:component.methods.selectSectionOption};
         component.methods.onSectionKeydown.call(keyboardContext,{key:"ArrowDown",preventDefault(){}});
         assert.equal(keyboardContext.sectionActiveIndex,0);
         component.methods.onSectionKeydown.call(keyboardContext,{key:"Enter",preventDefault(){}});
         assert.equal(keyboardContext.filterDraft.newSection,"11910");
+        assert.equal(keyboardContext.filterDraft.sectionDisplay,"11910｜一般內科");
         assert.equal(keyboardContext.sectionOpen,false);
+        assert.deepEqual(component.computed.filteredSectionOptions.call({filterDraft:keyboardContext.filterDraft,sectionOptions:filterContext.sectionOptions}),[filterContext.sectionOptions[0]]);
+        keyboardContext.filterDraft.sectionDisplay="11920";
+        component.methods.onSectionInput.call(keyboardContext,{target:{value:"11920"}});
+        assert.equal(keyboardContext.filterDraft.newSection,"11920","manual code remains available");
+        component.methods.clearSection.call(keyboardContext);
+        assert.equal(keyboardContext.filterDraft.newSection,"");
+        assert.equal(keyboardContext.filterDraft.sectionDisplay,"");
         keyboardContext.sectionOpen=true;
         component.methods.onSectionKeydown.call(keyboardContext,{key:"Escape",preventDefault(){}});
         assert.equal(keyboardContext.sectionOpen,false);
@@ -123,8 +132,9 @@ assert.equal(component.methods.formatTaipeiDate.call({},new Date("2026-09-13T16:
         component.methods.closeSectionOptionsFromOutside.call(outsideContext,{target:{}});
         assert.equal(outsideContext.sectionOpen,false);
 
-        const draftContext={form:{source:"OpdEr",roomScope:"Emergency",newSection:"11910"},filterDraft:{},filterOpen:false,sectionOpen:false,sectionActiveIndex:-1,$refs:{filterTitle:{focus(){}}},$nextTick(callback){callback()}};
+        const draftContext={form:{source:"OpdEr",roomScope:"Emergency",newSection:"11910"},sectionOptions:filterContext.sectionOptions,filterDraft:{},filterOpen:false,sectionOpen:false,sectionActiveIndex:-1,$refs:{filterTitle:{focus(){}}},$nextTick(callback){callback()}};
         component.methods.openFilters.call(draftContext);
+        assert.equal(draftContext.filterDraft.sectionDisplay,"11910｜一般內科","reopening shows the selected name");
         draftContext.filterDraft.newSection="11920";
         component.methods.closeFilters.call(draftContext);
         assert.equal(draftContext.form.newSection,"11910","cancel keeps applied filters");

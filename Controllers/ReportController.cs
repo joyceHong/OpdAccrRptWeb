@@ -354,7 +354,7 @@ public sealed class ReportController : Controller
                 string userId = User.Identity?.IsAuthenticated == true ? User.Identity.Name ?? string.Empty : string.Empty;
                 C12MedicalReceiptSummaryViewModel result = (_c12ReportService ?? throw new InvalidOperationException("C12 report service 尚未設定。"))
                     .CreateAsync(request,userId,HttpContext.RequestAborted).GetAwaiter().GetResult();
-                return result.HasVisits ? Ok(result) : NotFound(new ProblemDetails { Status=404,Title="找不到資料！" });
+                return Ok(result);
             }
             if (searchCondition.ReportCode == "C211")
             {

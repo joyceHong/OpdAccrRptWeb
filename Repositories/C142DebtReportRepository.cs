@@ -184,11 +184,11 @@ public sealed class C142DebtReportRepository(IConnectionStringProvider connectio
     {
         string sql = source == "Inpatient" ? """
             SELECT CHIPDTYPE,CHIPDTDATETIME,CHIPDTUSER,CHIPDTNOTE FROM IPDAccTranTbl
-            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND chOp1Room=:opRoom AND intOp1No=:opNo
+            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND RTRIM(chOp1Room)=RTRIM(:opRoom) AND intOp1No=:opNo
             ORDER BY CHIPDTDATETIME
             """ : """
             SELECT CHOPDTTYPE,CHOPDTDATETIME,CHOPDTUSER,CHOPDTNOTE FROM OPDTRANTBL
-            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND chOp1Room=:opRoom AND intOp1No=:opNo
+            WHERE chOp1Date=:opDate AND chOp1Time=:opTime AND RTRIM(chOp1Room)=RTRIM(:opRoom) AND intOp1No=:opNo
             ORDER BY CHOPDTDATETIME
             """;
         using var connection = Open();

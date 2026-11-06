@@ -76,6 +76,7 @@ public sealed record C141PaymentNoticeDocument(
     string? Note3)
 {
     public bool PartialPaymentCalculationAvailable { get; init; }
+    public DateOnly PrintDate { get; init; }
 }
 
 public sealed record C141NoticePreviewRequest(

@@ -43,12 +43,15 @@ public sealed class C142DebtReportController(
     public async Task<IActionResult> SectionOptions([FromQuery] string? query, CancellationToken cancellationToken)
     {
         Response.Headers.CacheControl = "private, no-store";
-        if (string.IsNullOrWhiteSpace(query)) return Ok(Array.Empty<object>());
         try
         {
-            return Ok(await organizationUnitCodeService.SearchAsync(query, includeSections: true,
-                includePlaces: false, activePlaceOnly: false, limit: 20,
-                cancellationToken: cancellationToken));
+            return Ok(string.IsNullOrWhiteSpace(query)
+                ? await organizationUnitCodeService.BrowseAsync(includeSections: true,
+                    includePlaces: false, activePlaceOnly: false, limit: 20,
+                    cancellationToken: cancellationToken)
+                : await organizationUnitCodeService.SearchAsync(query, includeSections: true,
+                    includePlaces: false, activePlaceOnly: false, limit: 20,
+                    cancellationToken: cancellationToken));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return StatusCode(499); }
         catch (OracleException exception)

@@ -1,48 +1,63 @@
 @using System.Globalization
 @model OpdAccrRptWeb.ViewModels.C141PaymentNoticeDocument
+@{
+    var categoryPairs = Model.Categories.Chunk(2).ToArray();
+    var insuranceSubtotal = Model.Categories.Sum(category => category.InsuranceAmount);
+    var patientSubtotal = Model.Categories.Sum(category => category.PatientAmount);
+}
 
 <article class="c141-payment-notice">
     <header class="c141-notice-header">
-        <span>住院費用通知單</span>
-        <span>病歷號：@Model.Basic.MedicalRecordNumber</span>
+        <h1>醫療財團法人徐元智先生醫藥基金會亞東紀念醫院</h1>
+        <h2>住 院 費 用 通 知 單</h2>
+        <p>請至　本院一樓住出院櫃台 8:00–16:00　繳費</p>
     </header>
-    <section class="c141-notice-patient">
-        <div><strong>姓名</strong><span>@Model.Basic.PatientName</span></div>
-        <div><strong>科別</strong><span>@Model.Basic.SectionName</span></div>
-        <div><strong>床號</strong><span>@Model.Basic.BedNumber</span></div>
-        <div><strong>入院日</strong><span>@Model.Basic.InpatientAdmissionDate</span></div>
-        <div><strong>醫師</strong><span>@Model.Basic.DoctorName</span></div>
-        <div><strong>住院序號</strong><span>@Model.Basic.InpatientSequence</span></div>
-        <div><strong>部分負擔類別</strong><span>@Model.Basic.PaymentType</span></div>
-        <div><strong>健保類別</strong><span>@Model.Basic.InsuranceCategory</span></div>
-    </section>
-    <table class="c141-notice-details">
-        <thead>
-            <tr><th>收費分類</th><th>名稱</th><th class="amount">健保費用</th><th class="amount">自付費用</th></tr>
-        </thead>
+    <table class="c141-notice-patient">
         <tbody>
-            @foreach (var category in Model.Categories)
+            <tr><th>病歷號</th><td>@Model.Basic.MedicalRecordNumber</td><th>病床號</th><td>@Model.Basic.BedNumber</td><th>卡號</th><td>@Model.Basic.HealthCardNumber</td></tr>
+            <tr><th>姓名</th><td>@Model.Basic.PatientName</td><th>主治醫師</th><td colspan="3">@Model.Basic.DoctorName</td></tr>
+            <tr><th>科別</th><td>@Model.Basic.SectionName</td><th>出表日期</th><td colspan="3">@Model.PrintDate.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)</td></tr>
+            <tr><th>住院日</th><td>@Model.Basic.InpatientAdmissionDate</td><th>結算日期</th><td colspan="3"></td></tr>
+        </tbody>
+    </table>
+    <table class="c141-notice-details">
+        <thead><tr><th>收費項目</th><th>健保費用</th><th>自付費用</th><th>收費項目</th><th>健保費用</th><th>自付費用</th></tr></thead>
+        <tbody>
+            @foreach (var pair in categoryPairs)
             {
                 <tr>
-                    <td>@category.DepartmentCode</td>
-                    <td>@category.DepartmentName</td>
-                    <td class="amount">@category.InsuranceAmount.ToString("N0", CultureInfo.CurrentCulture)</td>
-                    <td class="amount">@category.PatientAmount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    @foreach (var category in pair)
+                    {
+                        <td>@category.DepartmentName</td><td class="amount">@category.InsuranceAmount.ToString("N0", CultureInfo.CurrentCulture)</td><td class="amount">@category.PatientAmount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    }
+                    @if (pair.Length == 1)
+                    {
+                        <td></td><td></td><td></td>
+                    }
                 </tr>
             }
+            @if (categoryPairs.Length == 0)
+            {
+                <tr><td colspan="6" class="c141-notice-empty">無費用項目</td></tr>
+            }
+            <tr class="c141-notice-subtotal"><th colspan="4">費用小計</th><td class="amount">@insuranceSubtotal.ToString("N0", CultureInfo.CurrentCulture)</td><td class="amount">@patientSubtotal.ToString("N0", CultureInfo.CurrentCulture)</td></tr>
         </tbody>
     </table>
     <table class="c141-notice-totals">
         <tbody>
-            <tr><th>A 總醫療費用</th><td>@Model.Totals.TotalAmountA.ToString("N0", CultureInfo.CurrentCulture)</td><th>B 健保費用</th><td>@Model.Totals.InsuranceAmountB.ToString("N0", CultureInfo.CurrentCulture)</td></tr>
-            <tr><th>C 醫療補助</th><td>@Model.Totals.SubsidyAmountC.ToString("N0", CultureInfo.CurrentCulture)</td><th>D 優待金額</th><td>@Model.Totals.PreferentialAmountD.ToString("N0", CultureInfo.CurrentCulture)</td></tr>
-            <tr><th>E 應繳金額</th><td>@Model.Totals.AmountDueE.ToString("N0", CultureInfo.CurrentCulture)</td><th>F 已預繳</th><td>@Model.Totals.PrepaidAmountF.ToString("N0.##", CultureInfo.CurrentCulture)</td></tr>
-            <tr class="c141-notice-balance"><th>G 尚需繳款</th><td colspan="3">@Model.Totals.RemainingAmountG.ToString("N0.##", CultureInfo.CurrentCulture)</td></tr>
+            <tr><th>A 總醫療費用</th><td>@Model.Totals.TotalAmountA.ToString("N0", CultureInfo.CurrentCulture)</td><th>B 健保費用</th><td>@Model.Totals.InsuranceAmountB.ToString("N0", CultureInfo.CurrentCulture)</td><th>C 醫療補助</th><td>@Model.Totals.SubsidyAmountC.ToString("N0", CultureInfo.CurrentCulture)</td></tr>
+            <tr><th>D 優待金額</th><td>@Model.Totals.PreferentialAmountD.ToString("N0", CultureInfo.CurrentCulture)</td><th>E 自付醫療費用<br />(A-B-C-D)</th><td>@Model.Totals.AmountDueE.ToString("N0", CultureInfo.CurrentCulture)</td><th>F 累計已預繳<br />醫療費用</th><td>@Model.Totals.PrepaidAmountF.ToString("N0.##", CultureInfo.CurrentCulture)</td></tr>
+            <tr><th>身份別</th><td colspan="2">@Model.Basic.PaymentType　@Model.Basic.InsuranceCategory</td><th colspan="2">G 本次應繳醫療費用 (E-F=G)</th><td>@Model.Totals.RemainingAmountG.ToString("N0.##", CultureInfo.CurrentCulture)</td></tr>
         </tbody>
     </table>
     <aside class="c141-notice-notes">
-        @if (Model.Note1 is not null) { <p>@Model.Note1</p> }
-        @if (Model.Note2 is not null) { <p>@Model.Note2</p> }
-        @if (Model.Note3 is not null) { <p>@Model.Note3</p> }
+        <div>備註：</div>
+        <p>(1) 健保法規定住院基本部分負擔計算方式：30日內10%；第31日至第60日20%；第61日以後30%。</p>
+        <p>(2) 本院提供金融卡線上扣款（即時轉帳）服務。</p>
+        <p>(3) 此為預計金額，實際費用以出院結帳金額為準，多退少補。請妥善保存，避免個人資料外洩。</p>
+        @if (Model.Note1 is not null) { <p class="c141-notice-alert">@Model.Note1</p> }
+        @if (Model.Note2 is not null) { <p class="c141-notice-alert">@Model.Note2</p> }
+        @if (Model.Note3 is not null) { <p class="c141-notice-alert">@Model.Note3</p> }
     </aside>
+    <footer class="c141-notice-footer">醫事課 89667000 分機 1012、2922</footer>
 </article>

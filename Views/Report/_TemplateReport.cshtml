@@ -115,16 +115,6 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
-                    <div v-if="isC142" class="advanced-grid">
-                        <label><span>科別</span>
-                            <report-autocomplete v-model="form.c142SectionCode" id-prefix="c142-section"
-                                                 :options="c142SectionOptions" v-model:open="c142SectionOpen"
-                                                 :loading="c142SectionLoading" placeholder="輸入新碼或科別名稱；空白代表全部"
-                                                 v-on:input="onC142SectionInput" v-on:select="selectC142SectionOption" />
-                        </label>
-                        <label><span>Excel 模式</span><select v-model="form.c142ExportMode"><option value="General">一般 Excel</option><option value="Transactions">含動態紀錄 Excel</option></select></label>
-                    </div>
-                    <p v-if="isC142 && c142SectionError" class="validation-message">{{ c142SectionError }}</p>
                     <fieldset v-if="hasReportType" class="source-fieldset">
                         <legend>報表類型 <i>*</i></legend>
                         <label v-for="option in reportTypeConfiguration.options" :key="option.value" class="source-option">
@@ -133,7 +123,7 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
-                    <div v-if="isC4" class="c22-source-filter-row">
+                    <div v-if="isC4 || isC141 || isC142" class="c22-source-filter-row">
                         <button class="c22-filter-button" type="button" :aria-label="activeFilterCount ? `進階篩選，已套用 ${activeFilterCount} 項` : '進階篩選'" aria-haspopup="dialog" aria-controls="report-filter-dialog" v-on:click="openReportFilters">
                             <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="white"/><circle cx="16" cy="17" r="2.5" fill="white"/></svg>
                             <span>進階篩選</span><span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
@@ -171,11 +161,6 @@
                         <input v-model="form.forceRebuild" type="checkbox" :disabled="!canForceC21Rebuild" />
                         <span><strong>重新計算本日資料</strong><small>限住院單日；勾選後按「查詢」，將重新計算當日資料。</small></span>
                     </label>
-                    <div v-if="isC141" class="advanced-grid">
-                        <label><span>病歷號</span><input v-model.trim="form.medicalRecordNo" type="text" maxlength="10" autocomplete="off" v-on:input="currentPage = 1" /></label>
-                        <label><span>床號</span><input v-model.trim="form.c141BedNumber" type="text" maxlength="8" autocomplete="off" v-on:input="currentPage = 1" /></label>
-                        <label><span>淨額門檻</span><input v-model="form.c141MinimumNetAmount" type="number" step="any" inputmode="decimal" v-on:input="currentPage = 1" /></label>
-                    </div>
                     <div v-if="isC23" class="advanced-grid c23-filter-grid">
                         <label><span>日期模式 <i>*</i></span><select v-model="form.dateMode" v-on:change="changeC23DateMode"><option value="General">一般日期</option><option value="EncounterDate">就診日</option></select></label>
                         <label><span>合約代碼</span><select v-model="form.contractCode"><option value="">全部</option><option v-for="item in c23Contracts" :key="item.code" :value="item.code">{{ item.code }} : {{ item.name }}</option></select></label>
@@ -312,8 +297,20 @@
         </div>
         <div v-if="reportFilterOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeReportFilters">
             <section id="report-filter-dialog" class="c22-filter-dialog" :class="{ 'contract-filter-dialog': isC4 || isC29 || isC211 }" role="dialog" aria-modal="true" aria-labelledby="report-filter-title" v-on:keydown.esc="closeReportFilters">
-                <h2 id="report-filter-title" ref="reportFilterTitle" :tabindex="isC4 || isC29 || isC211 ? -1 : undefined">{{ isC10 ? '進階查詢' : '進階篩選條件' }}</h2>
+                <h2 id="report-filter-title" ref="reportFilterTitle" :tabindex="isC4 || isC29 || isC211 || isC142 ? -1 : undefined">{{ isC10 ? '進階查詢' : '進階篩選條件' }}</h2>
                 <div class="advanced-grid">
+                    <label v-if="isC141"><span>病歷號</span><input ref="reportFilterInput" v-model.trim="reportFilterDraft.medicalRecordNo" type="text" maxlength="10" autocomplete="off" placeholder="空白代表全部" /></label>
+                    <label v-if="isC141"><span>床號</span><input v-model.trim="reportFilterDraft.c141BedNumber" type="text" maxlength="8" autocomplete="off" placeholder="空白代表全部" /></label>
+                    <label v-if="isC141"><span>淨額門檻</span><input v-model="reportFilterDraft.c141MinimumNetAmount" type="number" step="any" inputmode="decimal" placeholder="空白代表不限" /></label>
+                    <label v-if="isC142"><span>科別</span>
+                        <report-autocomplete v-model="reportFilterDraft.c142SectionCode" id-prefix="c142-section"
+                                             :options="c142SectionOptions" :open="c142SectionOpen"
+                                             :loading="c142SectionLoading" placeholder="輸入新碼或科別名稱；空白代表全部"
+                                             v-on:input="onC142SectionInput" v-on:select="selectC142SectionOption"
+                                             v-on:update:open="setC142SectionOpen" />
+                    </label>
+                    <label v-if="isC142"><span>Excel 模式</span><select v-model="reportFilterDraft.c142ExportMode"><option value="General">一般 Excel</option><option value="Transactions">含動態紀錄 Excel</option></select></label>
+                    <p v-if="isC142 && c142SectionError" class="validation-message" role="alert">{{ c142SectionError }}</p>
                     <label v-if="isC10"><span>門急診別</span><select ref="reportFilterInput" v-model="reportFilterDraft.roomScope" :disabled="form.encounterSource === 'Inpatient'"><option value="All">全部</option><option value="Emergency">急診</option><option value="Outpatient">門診</option></select></label>
                     <div v-if="isC10" class="report-clearable-field"><label for="c10-filter-mrn">病歷號</label><input id="c10-filter-mrn" v-model.trim="reportFilterDraft.medicalRecordNo" maxlength="10" autocomplete="off" placeholder="空白代表全部" /><button v-if="reportFilterDraft.medicalRecordNo" class="report-input-clear" type="button" aria-label="清除病歷號" v-on:click="reportFilterDraft.medicalRecordNo = ''">×</button></div>
                     <label v-if="isC4"><span>科別／部門</span>
@@ -350,6 +347,10 @@
                 </div>
                 <div class="c22-filter-actions"><button class="ghost-button" type="button" v-on:click="closeReportFilters">取消</button><button class="primary-button" type="button" v-on:click="applyReportFilters">套用篩選</button></div>
             </section>
+        </div>
+        <div v-if="c141PreviewOpen && c141PreviewHtml" class="report-preview-overlay c141-preview-overlay" role="dialog" aria-modal="true" aria-label="C141 通知單列印預覽">
+            <div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeC141Preview">關閉預覽</button><button class="primary-button" type="button" v-on:click="printC141Preview">列印</button></div>
+            <iframe ref="c141PreviewFrame" class="c141-preview-frame" :srcdoc="c141PreviewHtml" title="C141 通知單預覽"></iframe>
         </div>
         <div v-if="legacyPreviewOpen && legacyPreviewHtml" class="report-preview-overlay" role="dialog" aria-modal="true" :aria-label="`${selectedReport.code} 列印預覽`"><div class="report-preview-actions no-print"><button class="ghost-button" type="button" v-on:click="closeLegacyPreview">{{ isC10 || isC21 || isC22 || isC23 || isC24 || isC29 ? '取消' : '關閉預覽' }}</button><button class="primary-button" type="button" v-on:click="printLegacyPreview">{{ isC10 || isC21 || isC22 || isC23 || isC24 || isC29 ? '確認列印' : '列印' }}</button></div><article class="report-preview-paper" v-html="legacyPreviewHtml"></article></div>
         <div v-if="c4PreviewOpen && c4Preview" class="c4-preview-overlay" role="dialog" aria-modal="true" aria-label="C4 列印預覽">

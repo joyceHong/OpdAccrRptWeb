@@ -75,6 +75,8 @@ public sealed class C141PaymentNoticeController(
                 continue;
             }
 
+            document = document with { PrintDate = entryDate };
+
             try
             {
                 service.RecordBeforeDocument(document, userId, cancellationToken);

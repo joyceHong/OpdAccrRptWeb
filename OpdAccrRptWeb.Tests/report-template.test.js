@@ -1781,10 +1781,27 @@ async function verifiesC13SharedPaginationSkeletonAndPreviewContract() {
     assert.match(markup, /legacyPreviewOpen[\s\S]*report-preview-overlay[\s\S]*role="dialog"[\s\S]*closeLegacyPreview[\s\S]*printLegacyPreview/);
     const c13Method = templateSource.match(/async previewC13\(\) \{[\s\S]*?\n            \},/)?.[0] || "";
     assert.doesNotMatch(c13Method, /window\.open/);
-    assert.match(preview, /社服需求急診高危險群個案明細表/);
+    // 與 VB6 C13 樣張比對：雙行標題、處理／資料日期、頁次和十個欄位保留；
+    // 報表編號、程式編號與製表人不出現在文件，表頭為白底單底線且資料列無格線。
+    assert.match(preview, /亞東紀念醫院報表作業/);
+    assert.match(preview, /社會服務需求急診高危險群個案明細表/);
     assert.match(preview, /處理日期/);
-    assert.match(preview, /急診床號/);
+    assert.match(preview, /資料日期：@Model\.StartDate[\s\S]*?@Model\.EndDate/);
+    assert.match(preview, /頁次：@\(pageIndex \+ 1\) \/ @pages\.Count/);
+    const columnHeadings = [...preview.match(/<thead><tr>(.*?)<\/tr><\/thead>/s)[1].matchAll(/<th>(.*?)<\/th>/g)]
+        .map(match => match[1]);
+    assert.deepEqual(columnHeadings, [
+        "就診日", "病歷號", "病患姓名", "就診身份", "部份負擔",
+        "生日", "身分證字號", "住址", "電話", "急診床號"
+    ]);
+    assert.doesNotMatch(preview, /報表編號|程式編號/);
     assert.doesNotMatch(preview, /@Model\.GeneratedBy/);
+    const css = fs.readFileSync("wwwroot/css/site.css", "utf8");
+    const cellsRule = css.match(/\.c13-print-table th,\.c13-print-table td\{([^}]*)\}/)?.[1] || "";
+    assert.match(cellsRule, /border:0/);
+    assert.match(cellsRule, /background:transparent/);
+    assert.match(css, /\.c13-print-table thead th\{border-bottom:1px solid #111/);
+    assert.match(css, /\.c13-print-table tbody tr:hover\{background:transparent\}/);
 
     let requestBody;
     global.fetch = async (_url, options) => {

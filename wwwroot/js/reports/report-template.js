@@ -298,7 +298,7 @@
             return {
                 advancedOpen: false,
                 reportFilterOpen: false,
-                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "" },
+                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "", c141BedNumber: "", c141MinimumNetAmount: "", c142SectionCode: "", c142ExportMode: "General", c142SelectedNewSectionCode: "", c142SelectedLegacySectionCode: "" },
                 reportFilterContractValid: true,
                 validationMessage: "",
                 isLoading: false,
@@ -326,6 +326,8 @@
                 c141LineBotKind: 0,
                 c141ActionLoading: false,
                 c141ActionResults: [],
+                c141PreviewOpen: false,
+                c141PreviewHtml: "",
                 exportPollTimer: null,
                 form: createInitialForm(
                     this.defaultStartDate,
@@ -448,7 +450,9 @@
                     + (this.isC211 && this.form.contractCode.trim() ? 1 : 0)
                     + (this.isC3 ? [this.form.logisticsType !== 0, this.form.departmentCode.trim(),
                         this.form.roomCodes.trim(), this.form.chargeCodes.trim()].filter(Boolean).length : 0)
-                    + (this.isC10 ? [this.form.roomScope !== "All", this.form.medicalRecordNo.trim()].filter(Boolean).length : 0);
+                    + (this.isC10 ? [this.form.roomScope !== "All", this.form.medicalRecordNo.trim()].filter(Boolean).length : 0)
+                    + (this.isC141 ? [this.form.medicalRecordNo.trim(), this.form.c141BedNumber.trim(), this.form.c141MinimumNetAmount !== ""].filter(Boolean).length : 0)
+                    + (this.isC142 ? [this.form.c142SectionCode.trim(), this.form.c142ExportMode !== "General"].filter(Boolean).length : 0);
             },
             cashierCashSortConfiguration() { return this.reportConfiguration.cashierCashSort ?? null; },
             isEndDateOnly() { return this.reportConfiguration.endDateOnly === true; },
@@ -625,12 +629,18 @@
                     organizationQuery: this.form.organizationQuery,
                     sectionPrefix: this.form.sectionPrefix,
                     roomScope: this.form.roomScope,
-                    medicalRecordNo: this.form.medicalRecordNo
+                    medicalRecordNo: this.form.medicalRecordNo,
+                    c141BedNumber: this.form.c141BedNumber,
+                    c141MinimumNetAmount: this.form.c141MinimumNetAmount,
+                    c142SectionCode: this.form.c142SectionCode,
+                    c142ExportMode: this.form.c142ExportMode,
+                    c142SelectedNewSectionCode: this.c142SelectedNewSectionCode,
+                    c142SelectedLegacySectionCode: this.c142SelectedLegacySectionCode
                 };
                 this.reportFilterContractValid = true;
                 this.reportFilterOpen = true;
                 if (this.isC29) this.loadC29Contracts();
-                this.$nextTick?.(() => (this.isC4 || this.isC29 || this.isC211
+                this.$nextTick?.(() => (this.isC4 || this.isC29 || this.isC211 || this.isC142
                     ? this.$refs?.reportFilterTitle
                     : this.$refs?.reportFilterInput)?.focus());
             },
@@ -642,6 +652,7 @@
                     this.c4OrganizationDropdownOpen = false;
                     this.c4Organizations = [];
                 }
+                if (this.isC142) this.setC142SectionOpen(false);
             },
             async applyReportFilters() {
                 if (this.isC3) {
@@ -670,6 +681,16 @@
                     if (!this.reportFilterContractValid) return;
                     this.form.contractCode = this.reportFilterDraft.contractCode.trim();
                     this.c211ContractValid = true;
+                } else if (this.isC141) {
+                    this.form.medicalRecordNo = this.reportFilterDraft.medicalRecordNo.trim();
+                    this.form.c141BedNumber = this.reportFilterDraft.c141BedNumber.trim();
+                    this.form.c141MinimumNetAmount = this.reportFilterDraft.c141MinimumNetAmount;
+                } else if (this.isC142) {
+                    this.form.c142SectionCode = this.reportFilterDraft.c142SectionCode.trim();
+                    this.form.c142ExportMode = this.reportFilterDraft.c142ExportMode;
+                    this.c142SelectedNewSectionCode = this.reportFilterDraft.c142SelectedNewSectionCode;
+                    this.c142SelectedLegacySectionCode = this.reportFilterDraft.c142SelectedLegacySectionCode;
+                    this.setC142SectionOpen(false);
                 }
                 this.currentPage = 1;
                 this.hasSearched = false;
@@ -677,7 +698,7 @@
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
                 this.reportFilterOpen = false;
-                if (this.isC3 || this.isC4 || this.isC10 || this.isC22 || this.isC29 || this.isC211) await this.search();
+                if (this.isC3 || this.isC4 || this.isC10 || this.isC22 || this.isC29 || this.isC211 || this.isC141 || this.isC142) await this.search();
             },
             resetForm() {
                 this.stopExportPolling?.();
@@ -688,7 +709,7 @@
                 if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
                 this.reportFilterOpen = false;
-                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "" };
+                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "", c141BedNumber: "", c141MinimumNetAmount: "", c142SectionCode: "", c142ExportMode: "General", c142SelectedNewSectionCode: "", c142SelectedLegacySectionCode: "" };
                 this.reportFilterContractValid = true;
                 this.c211ContractValid = true;
                 this.validationMessage = "";
@@ -821,14 +842,10 @@
                 const cases = this.c141SelectedKeys();
                 if (cases.length === 0) return;
                 if (!window.confirm(`預覽 ${cases.length} 筆繳款通知單會更新通知日期並寫入交易紀錄。要繼續嗎？`)) return;
-                const previewWindow = window.open("about:blank", "_blank");
-                if (!previewWindow) {
-                    this.validationMessage = "瀏覽器封鎖了預覽視窗，請允許此網站開啟新視窗後重試。";
-                    return;
-                }
-
                 this.c141ActionLoading = true;
                 this.c141ActionResults = [];
+                this.c141PreviewOpen = false;
+                this.c141PreviewHtml = "";
                 try {
                     const response = await fetch("/Report/C141/Notice/Preview", {
                         method: "POST",
@@ -839,16 +856,21 @@
                         const body = await response.json().catch(() => ({}));
                         throw new Error(body.title || `通知單預覽失敗（HTTP ${response.status}）。`);
                     }
-                    const html = await response.text();
-                    previewWindow.document.open();
-                    previewWindow.document.write(html);
-                    previewWindow.document.close();
+                    this.c141PreviewHtml = await response.text();
+                    this.c141PreviewOpen = true;
                 } catch (error) {
-                    previewWindow.close();
                     this.validationMessage = error instanceof Error ? error.message : "通知單預覽失敗。";
                 } finally {
                     this.c141ActionLoading = false;
                 }
+            },
+            closeC141Preview() {
+                this.c141PreviewOpen = false;
+                this.c141PreviewHtml = "";
+            },
+            printC141Preview() {
+                if (!this.c141PreviewOpen) return;
+                this.$refs.c141PreviewFrame?.contentWindow?.print();
             },
             async loadC141TodayAndSearch() {
                 try {
@@ -867,22 +889,16 @@
                 }
             },
             onC142SectionInput(value) {
-                this.c142SelectedNewSectionCode = "";
-                this.c142SelectedLegacySectionCode = "";
+                this.reportFilterDraft.c142SelectedNewSectionCode = "";
+                this.reportFilterDraft.c142SelectedLegacySectionCode = "";
                 this.c142Organizations = [];
-                this.currentPage = 1;
                 this.searchC142Sections(value);
             },
-            searchC142Sections(value = this.form.c142SectionCode) {
+            searchC142Sections(value = this.reportFilterDraft.c142SectionCode) {
                 window.clearTimeout(this.c142OrganizationSearchTimer);
                 const query = String(value ?? "").trim();
                 const generation = ++this.c142OrganizationSearchGeneration;
                 this.c142SectionError = "";
-                if (!query) {
-                    this.c142Organizations = [];
-                    this.c142SectionLoading = false;
-                    return;
-                }
                 this.c142OrganizationSearchTimer = window.setTimeout(async () => {
                     this.c142SectionLoading = true;
                     try {
@@ -899,7 +915,20 @@
                     } finally {
                         if (generation === this.c142OrganizationSearchGeneration) this.c142SectionLoading = false;
                     }
-                }, 250);
+                }, query ? 250 : 0);
+            },
+            setC142SectionOpen(open) {
+                if (open && this.c142SectionOpen) return;
+                this.c142SectionOpen = open;
+                if (open) {
+                    if (!this.c142Organizations.length) this.searchC142Sections(
+                        this.reportFilterDraft.c142SelectedNewSectionCode ? "" : this.reportFilterDraft.c142SectionCode);
+                } else {
+                    window.clearTimeout(this.c142OrganizationSearchTimer);
+                    this.c142OrganizationSearchGeneration++;
+                    this.c142Organizations = [];
+                    this.c142SectionLoading = false;
+                }
             },
             selectC142SectionOption(option) {
                 const mapping = option?.raw ?? option;
@@ -910,13 +939,12 @@
                 this.c142OrganizationSearchGeneration++;
                 this.c142SectionLoading = false;
                 const displayName = String(mapping?.displayName ?? option?.label ?? "").trim();
-                this.c142SelectedNewSectionCode = newCode;
-                this.c142SelectedLegacySectionCode = legacyCode;
-                this.form.c142SectionCode = displayName ? `${newCode}｜${displayName}` : newCode;
+                this.reportFilterDraft.c142SelectedNewSectionCode = newCode;
+                this.reportFilterDraft.c142SelectedLegacySectionCode = legacyCode;
+                this.reportFilterDraft.c142SectionCode = displayName ? `${newCode}｜${displayName}` : newCode;
                 this.c142Organizations = [];
                 this.c142SectionOpen = false;
                 this.c142SectionError = "";
-                this.currentPage = 1;
             },
             async loadC21BillingItems() {
                 this.c21BillingItems = [];

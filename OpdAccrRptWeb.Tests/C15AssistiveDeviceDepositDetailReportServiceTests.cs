@@ -10,6 +10,66 @@ namespace OpdAccrRptWeb.Tests;
 public sealed class C15AssistiveDeviceDepositDetailReportServiceTests
 {
     [Fact]
+    public async Task ReportC15Async_DbTest3SeedRowsMatchObservedPreviewResults()
+    {
+        var repository = new FakeRepository
+        {
+            Rows =
+            [
+                new("1151109", "1", "T15A01", 9915m, "T15A00001", "C15測試甲", "", "696-001", 1200m),
+                new("1151109", "1", "T15A01", 9915m, "T15A00001", "C15測試甲", "", "696-003", 300m),
+                new("1151109", "2", "T15B01", 9916m, "T15B00001", "C15測試乙", "1151109", "696-007", 400m),
+                new("1151109", "2", "T15B01", 9916m, "T15B00001", "C15測試乙", "1151109", "696-008", 800m)
+            ]
+        };
+        ReportService service = CreateService(repository, new PassthroughReportTotalCountCache());
+        SearchReportCondition condition = Condition();
+        condition.StartDate = "2026-11-09";
+        condition.EndDate = "2026-11-09";
+
+        ReportDataAndColumns<C15AssistiveDeviceDepositDetailReportViewModel> result =
+            await service.ReportC15Async(condition);
+
+        Assert.Equal(2, result.TotalCount);
+        Assert.Collection(result.Data!,
+            first =>
+            {
+                Assert.Equal(("1151109", "T15A00001", "C15測試甲", "", "1"),
+                    (first.VisitDate, first.MedicalRecordNumber, first.PatientName, first.ReturnDate, first.Type));
+                Assert.Equal(("", ""), (first.DeviceNumber, first.RentalPeriod));
+                Assert.Equal((1200m, (decimal?)null, (decimal?)null, 300m),
+                    (first.Rl001, first.Rl002, first.Rl004, first.Rl003));
+            },
+            second =>
+            {
+                Assert.Equal(("1151109", "T15B00001", "C15測試乙", "1151109", "2"),
+                    (second.VisitDate, second.MedicalRecordNumber, second.PatientName, second.ReturnDate, second.Type));
+                Assert.Equal(("", ""), (second.DeviceNumber, second.RentalPeriod));
+                Assert.Equal((800m, 400m, (decimal?)null, (decimal?)null),
+                    (second.Rl001, second.Rl002, second.Rl004, second.Rl003));
+            });
+
+        C15ReportSummary summary = Assert.IsType<C15ReportSummary>(result.Summary);
+        Assert.Collection(summary.Groups,
+            first =>
+            {
+                Assert.Equal(("1", "社工室生活輔具租借月報表", "保證金696-001", "輔具租金696-002", "輔具租金696-004", "輔具維修696-003"),
+                    (first.Type, first.Title, first.Amount001Label, first.Amount002Label,
+                        first.Amount004Label, first.Amount003Label));
+                Assert.Equal((1200m, 0m, 0m, 300m),
+                    (first.Rl001Total, first.Rl002Total, first.Rl004Total, first.Rl003Total));
+            },
+            second =>
+            {
+                Assert.Equal(("2", "小兒外科輔具租借月報表", "保證金696-008", "輔具租金696-007", "", ""),
+                    (second.Type, second.Title, second.Amount001Label, second.Amount002Label,
+                        second.Amount004Label, second.Amount003Label));
+                Assert.Equal((800m, 400m, 0m, 0m),
+                    (second.Rl001Total, second.Rl002Total, second.Rl004Total, second.Rl003Total));
+            });
+    }
+
+    [Fact]
     public async Task ReportC15Async_ReducesBeforeCountingSortingAndPaging()
     {
         var repository = new FakeRepository

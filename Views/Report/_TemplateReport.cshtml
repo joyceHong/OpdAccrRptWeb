@@ -420,12 +420,12 @@
             <div class="c15-preview-pages">
                 <article v-for="page in c15PreviewPages" :key="`print-${page.type}-${page.pageNumber}`" class="c15-paper">
                     <header class="c15-print-header">
-                        <h1>亞東紀念醫院</h1>
+                        <h1>亞東紀念醫院報表作業</h1>
                         <h2>{{ page.title }}</h2>
                         <div class="c15-print-meta">
-                            <span>資料日期：{{ displayRocDate(form.startDate) }} ～ {{ displayRocDate(form.endDate) }}</span>
-                            <span>處理時間：{{ c15PrintGeneratedAt }}</span>
-                            <span>頁次：{{ page.pageNumber }} / {{ page.totalPages }}</span>
+                            <span>處理日期：{{ c15PrintGeneratedAt }}</span>
+                            <span>資料日期：{{ displayRocDate(form.startDate) }}　/　{{ displayRocDate(form.endDate) }}</span>
+                            <span>頁次：{{ page.pageNumber }}</span>
                         </div>
                     </header>
                     <table class="c15-print-table">

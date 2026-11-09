@@ -476,6 +476,106 @@ public sealed class ReportExportServiceTests
             rows.Select(row => row["病歷號"]));
     }
 
+    [Theory]
+    [InlineData(C143DischargeGroups.Discharged, "D1", "D2", "D3", 1)]
+    [InlineData(C143DischargeGroups.InHospital, "I1", "I2", "I3", 2)]
+    public void Dispatch_C143InpatientGroup_ExportsOnlyRequestedGroupAcrossBatches(
+        string group, string first, string second, string third, int repositoryGroup)
+    {
+        var repository = new FakeC143Repository
+        {
+            DischargedRows = [new() { MedicalRecordNumber = "D1" },
+                new() { MedicalRecordNumber = "D2" }, new() { MedicalRecordNumber = "D3" }],
+            InHospitalRows = [new() { MedicalRecordNumber = "I1" },
+                new() { MedicalRecordNumber = "I2" }, new() { MedicalRecordNumber = "I3" }]
+        };
+        var services = new ServiceCollection();
+        services.AddSingleton<IC143AccountingBalanceDebtRepository>(repository);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), new FakeJobStore(), new FakeExportQueue(),
+            Options.Create(new ReportExportOptions { BatchSize = 2 }), TimeProvider.System,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        ReportExportDispatchResult result = service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C143", StartDate = "2026-08-01", EndDate = "2026-08-31",
+            Source = C143Sources.Inpatient, ReportType = C143ReportTypes.All,
+            C143DischargeGroup = group
+        });
+
+        Assert.NotNull(result.Workbook);
+        using var workbook = new MemoryStream(result.Workbook);
+        List<IDictionary<string, object?>> rows = workbook.Query(useHeaderRow: true)
+            .Cast<IDictionary<string, object?>>().ToList();
+        Assert.Equal(new[] { first, second, third }, rows.Select(row => row["病歷號"]));
+        Assert.Equal(12, rows[0].Count);
+        Assert.StartsWith($"C143_Inpatient_{group}_1150831_", result.FileName);
+        Assert.Equal([repositoryGroup], repository.CountGroups);
+        Assert.Equal([(repositoryGroup, 0, 2), (repositoryGroup, 2, 2)], repository.PageCalls);
+    }
+
+    [Fact]
+    public void Dispatch_C143EmptyInpatientGroup_DoesNotCreateWorkbookOrJob()
+    {
+        var repository = new FakeC143Repository
+        {
+            DischargedRows = [new() { MedicalRecordNumber = "D1" }]
+        };
+        var services = new ServiceCollection();
+        services.AddSingleton<IC143AccountingBalanceDebtRepository>(repository);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var store = new FakeJobStore();
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), store, new FakeExportQueue(),
+            Options.Create(new ReportExportOptions()), TimeProvider.System,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        ReportExportDispatchResult result = service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C143", StartDate = "2026-08-01", EndDate = "2026-08-31",
+            Source = C143Sources.Inpatient, ReportType = C143ReportTypes.All,
+            C143DischargeGroup = C143DischargeGroups.InHospital
+        });
+
+        Assert.True(result.NoData);
+        Assert.Null(result.Workbook);
+        Assert.Null(result.Job);
+        Assert.Null(store.Created);
+        Assert.Equal([2], repository.CountGroups);
+        Assert.Empty(repository.PageCalls);
+    }
+
+    [Fact]
+    public void Dispatch_C143LargeInpatientGroup_PreservesGroupInBackgroundJob()
+    {
+        var repository = new FakeC143Repository
+        {
+            InHospitalRows = [new() { MedicalRecordNumber = "I1" },
+                new() { MedicalRecordNumber = "I2" }]
+        };
+        var services = new ServiceCollection();
+        services.AddSingleton<IC143AccountingBalanceDebtRepository>(repository);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var store = new FakeJobStore();
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), store, new FakeExportQueue(),
+            Options.Create(new ReportExportOptions { SynchronousRowLimit = 1 }), TimeProvider.System,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        ReportExportDispatchResult result = service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C143", StartDate = "2026-08-01", EndDate = "2026-08-31",
+            Source = C143Sources.Inpatient, ReportType = C143ReportTypes.All,
+            C143DischargeGroup = C143DischargeGroups.InHospital
+        });
+
+        Assert.NotNull(result.Job);
+        Assert.Equal(C143DischargeGroups.InHospital, store.Created?.SearchCondition.C143DischargeGroup);
+        Assert.Equal([2], repository.CountGroups);
+        Assert.Empty(repository.PageCalls);
+    }
+
     [Fact]
     public void GenerateWorkbook_C143OutpatientAll_MatchesLegacyComparisonRows()
     {
@@ -682,6 +782,90 @@ public sealed class ReportExportServiceTests
     }
 
     [Fact]
+    public void Dispatch_C144_ExcelMatchesThreeLegacyComparisonRows()
+    {
+        // Excel comparison captured for 2026-11-02 through 2026-11-04 (ROC 1151102-1151104).
+        // Both exports show the same three rows and zero in the visible amount breakdown columns.
+        var c144Repository = new FakeC144Repository
+        {
+            TotalCount = 3,
+            Data =
+            [
+                ComparisonRow("1151102", "T10O01", 9911m, "T10OP0001", "C10門診測試甲", 150m, 250m),
+                ComparisonRow("1151103", "T10E01", 9912m, "T10ER0001", "C10急診測試", 150m, 210m),
+                ComparisonRow("1151104", "T10O02", 9913m, "T10OP0002", "C10門診測試乙", 200m, 400m)
+            ]
+        };
+        var services = new ServiceCollection();
+        services.AddSingleton<IC144DebtDetailReportRepository>(c144Repository);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        var service = new ReportExportService(
+            new FakeHealthCenterRepository(), new FakeJobStore(), new FakeExportQueue(),
+            Options.Create(new ReportExportOptions { BatchSize = 1 }), TimeProvider.System,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        ReportExportDispatchResult result = service.Dispatch(new SearchReportCondition
+        {
+            ReportCode = "C144", StartDate = "2026-11-02", EndDate = "2026-11-04",
+            Source = C144Sources.OpdEr
+        });
+
+        using var output = new MemoryStream(result.Workbook!);
+        var rows = output.Query(useHeaderRow: true)
+            .Cast<IDictionary<string, object?>>().ToArray();
+        Assert.Equal(3, rows.Length);
+        Assert.All(rows, row =>
+        {
+            Assert.Equal(31, row.Count);
+            Assert.Equal("R", row["診別"]);
+            Assert.Equal("1", Convert.ToString(row["時段"]));
+            Assert.Equal("0201", Convert.ToString(row["科別代碼"]));
+            Assert.Equal("一般內科", row["科別名稱"]);
+            Assert.Equal("測試醫師", row["醫師名稱"]);
+            foreach (string label in new[]
+            {
+                "一般身分自費金額", "健保身分自費金額", "部分負擔金額", "藥品部分負擔金額",
+                "優待金額", "記帳金額", "一般身分醫療材料費", "健保身分醫療材料費",
+                "一般身分手術費", "健保身分手術費", "一般身分麻醉費", "健保身分麻醉費",
+                "一般身分藥品費", "健保身分藥品費", "一般身分掛號費", "健保身分掛號費"
+            })
+            {
+                Assert.Equal(0m, Convert.ToDecimal(row[label]));
+            }
+        });
+        Assert.Equal(
+            new[]
+            {
+                ("1151102", "T10O01", 9911m, "T10OP0001", "C10門診測試甲", 150m, 250m),
+                ("1151103", "T10E01", 9912m, "T10ER0001", "C10急診測試", 150m, 210m),
+                ("1151104", "T10O02", 9913m, "T10OP0002", "C10門診測試乙", 200m, 400m)
+            },
+            rows.Select(row => (
+                Convert.ToString(row["就診日"])!, Convert.ToString(row["診間號"])!,
+                Convert.ToDecimal(row["序號"]), Convert.ToString(row["病歷號"])!,
+                Convert.ToString(row["病人姓名"])!, Convert.ToDecimal(row["尚欠"]),
+                Convert.ToDecimal(row["應繳自費總額"]))).ToArray());
+        Assert.Equal([(0, 1), (1, 1), (2, 1), (3, 1)], c144Repository.BatchCalls);
+    }
+
+    private static C144DebtDetailReportViewModel ComparisonRow(
+        string visitDate, string room, decimal sequence, string medicalRecordNumber,
+        string patientName, decimal outstanding, decimal totalSelfPay) => new()
+    {
+        EncounterType = "R", VisitDate = visitDate, VisitTime = "1", RoomNumber = room,
+        SequenceNumber = sequence, MedicalRecordNumber = medicalRecordNumber,
+        PatientName = patientName, SectionCode = "0201", SectionName = "一般內科",
+        DoctorName = "測試醫師", OutstandingAmount = outstanding,
+        TotalSelfPayAmount = totalSelfPay, GeneralSelfPayAmount = 0m,
+        InsuredSelfPayAmount = 0m, CopaymentAmount = 0m, DrugCopaymentAmount = 0m,
+        DiscountAmount = 0m, OnAccountAmount = 0m, GeneralMaterialAmount = 0m,
+        InsuredMaterialAmount = 0m, GeneralSurgeryAmount = 0m, InsuredSurgeryAmount = 0m,
+        GeneralAnesthesiaAmount = 0m, InsuredAnesthesiaAmount = 0m,
+        GeneralDrugAmount = 0m, InsuredDrugAmount = 0m,
+        GeneralRegistrationAmount = 0m, InsuredRegistrationAmount = 0m
+    };
+
+    [Fact]
     public void Dispatch_C144ThirtyThousandOneRows_QueuesBackgroundJobWithoutReadingRows()
     {
         var c144Repository = new FakeC144Repository { TotalCount = 30_001 };
@@ -861,6 +1045,8 @@ public sealed class ReportExportServiceTests
         public List<C143AccountingBalanceDebtReportViewModel> OutpatientRows { get; init; } = [];
         public List<C143AccountingBalanceDebtReportViewModel> DischargedRows { get; init; } = [];
         public List<C143AccountingBalanceDebtReportViewModel> InHospitalRows { get; init; } = [];
+        public List<int> CountGroups { get; } = [];
+        public List<(int Group, int Offset, int PageSize)> PageCalls { get; } = [];
 
         public int GetOutpatientEmergencyCount(
             C143Query query, CancellationToken cancellationToken = default) => OutpatientRows.Count;
@@ -870,13 +1056,19 @@ public sealed class ReportExportServiceTests
             OutpatientRows.Skip(offset).Take(pageSize).ToList();
 
         public int GetInpatientCount(
-            C143Query query, int dischargeGroup, CancellationToken cancellationToken = default) =>
-            dischargeGroup == 1 ? DischargedRows.Count : InHospitalRows.Count;
+            C143Query query, int dischargeGroup, CancellationToken cancellationToken = default)
+        {
+            CountGroups.Add(dischargeGroup);
+            return dischargeGroup == 1 ? DischargedRows.Count : InHospitalRows.Count;
+        }
 
         public List<C143AccountingBalanceDebtReportViewModel> GetInpatientPage(
             C143Query query, int dischargeGroup, int offset, int pageSize,
-            CancellationToken cancellationToken = default) =>
-            (dischargeGroup == 1 ? DischargedRows : InHospitalRows)
+            CancellationToken cancellationToken = default)
+        {
+            PageCalls.Add((dischargeGroup, offset, pageSize));
+            return (dischargeGroup == 1 ? DischargedRows : InHospitalRows)
                 .Skip(offset).Take(pageSize).ToList();
+        }
     }
 }

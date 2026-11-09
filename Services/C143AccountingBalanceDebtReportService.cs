@@ -69,7 +69,10 @@ public sealed class C143AccountingBalanceDebtReportService(
             TotalCount = totalCount,
             PageNumber = query.PageNumber,
             PageSize = query.PageSize,
-            TotalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)query.PageSize)
+            TotalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)query.PageSize),
+            Summary = query.Source == C143Sources.Inpatient
+                ? new { dischargedCount, inHospitalCount = totalCount - dischargedCount }
+                : null
         });
     }
 

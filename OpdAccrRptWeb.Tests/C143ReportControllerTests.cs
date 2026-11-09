@@ -73,14 +73,54 @@ public sealed class C143ReportControllerTests
         Assert.All(logger.Entries, entry => Assert.DoesNotContain(sentinel, entry.Message, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("C143", "Inpatient", "All", "Other")]
+    [InlineData("C143", "OpdEr", "All", "Discharged")]
+    [InlineData("C143", "Inpatient", "Difference", "InHospital")]
+    [InlineData("C143", "Inpatient", "All", "")]
+    [InlineData("C143", "Inpatient", "All", "discharged")]
+    [InlineData("C29", "Inpatient", "All", "Discharged")]
+    public void Export_InvalidC143DischargeGroup_Returns400BeforeDispatch(
+        string code, string source, string reportType, string group)
+    {
+        var export = new FakeReportExportService();
+        SearchReportCondition condition = Condition(source, reportType);
+        condition.ReportCode = code;
+        condition.C143DischargeGroup = group;
+
+        IActionResult action = Create(new C143Service(), exportService: export).Export(condition);
+
+        Assert.IsType<BadRequestObjectResult>(action);
+        Assert.Equal(0, export.DispatchCalls);
+    }
+
+    [Theory]
+    [InlineData("All", "Discharged")]
+    [InlineData("All", "InHospital")]
+    [InlineData("Difference", "Discharged")]
+    [InlineData("All", null)]
+    public void Export_ValidC143DischargeGroup_Dispatches(string reportType, string? group)
+    {
+        var export = new FakeReportExportService();
+        SearchReportCondition condition = Condition("Inpatient", reportType);
+        condition.C143DischargeGroup = group;
+
+        IActionResult action = Create(new C143Service(), exportService: export).Export(condition);
+
+        Assert.IsType<FileContentResult>(action);
+        Assert.Equal(1, export.DispatchCalls);
+        Assert.Equal(group, export.LastCondition?.C143DischargeGroup);
+    }
+
     private static SearchReportCondition Condition(string source, string reportType) => new()
     {
         ReportCode = "C143", StartDate = "2026-09-01", EndDate = "2026-09-14",
         Source = source, ReportType = reportType, PageNumber = 1, PageSize = 10
     };
 
-    private static ReportController Create(IReportService service, CapturingLogger<ReportController>? logger = null) =>
-        new(new FakeReportCatalogService(), service, new FakeReportExportService(),
+    private static ReportController Create(IReportService service, CapturingLogger<ReportController>? logger = null,
+        FakeReportExportService? exportService = null) =>
+        new(new FakeReportCatalogService(), service, exportService ?? new FakeReportExportService(),
             logger ?? new CapturingLogger<ReportController>())
         {
             ControllerContext = new ControllerContext

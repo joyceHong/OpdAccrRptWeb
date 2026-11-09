@@ -92,10 +92,8 @@ internal sealed class BackgroundReportExportService : BackgroundService
                         await output.FlushAsync(stoppingToken);
                     }
 
-                    var reportCode = string.IsNullOrWhiteSpace(job.SearchCondition.ReportCode)
-                        ? "Report"
-                        : job.SearchCondition.ReportCode;
-                    var fileName = $"{reportCode}_{_timeProvider.GetUtcNow():yyyyMMdd_HHmmss}_{job.JobId:N}.xlsx";
+                    var fileName = ReportExportService.CreateFileName(
+                        job.SearchCondition, _timeProvider.GetUtcNow(), job.JobId);
                     var completedJob = new ReportExportJob
                     {
                         JobId = job.JobId,

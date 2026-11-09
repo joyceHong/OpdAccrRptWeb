@@ -1874,6 +1874,66 @@ async function verifiesC143SharedQueryPagingAndResetContract() {
     assert.match(markup, /<partial name="_TableSkeleton" \/>/);
 }
 
+async function verifiesC143InpatientGroupCountsAndSeparateExports() {
+    const initial = component.data.call({
+        selectedReport: { code: "C143" }, defaultStartDate: "2026-11-07", defaultEndDate: "2026-11-07"
+    });
+    initial.form.encounterSource = "Inpatient";
+    initial.form.reportType = "All";
+    const requests = [];
+    global.fetch = async (url, options) => {
+        const body = JSON.parse(options.body);
+        requests.push({ url, body });
+        if (url === "/Report/GetReportData") return { ok: true, json: async () => ({
+            columns: [], data: [{ medicalRecordNumber: "D1" }],
+            summary: { dischargedCount: 566, inHospitalCount: 724 },
+            totalCount: 1290, totalPages: 129, pageNumber: 1
+        }) };
+        return {
+            status: 200, blob: async () => ({}),
+            headers: { get: () => "attachment; filename=C143_Inpatient.xlsx" }
+        };
+    };
+    const context = {
+        ...initial, selectedReport: { code: "C143" }, isC143: true, isC143Inpatient: true,
+        isServerPaged: true, currentPage: 1, pageSize: 10, canExport: true,
+        isEndDateOnly: false, isLoading: false, hasSearched: false,
+        hasEncounterSource: true, hasAdvancedConditions: false,
+        rows: [], columns: [], serverTotalCount: 0, serverTotalPages: 0,
+        validationMessage: "", isExporting: false,
+        canExportC143Group: group => component.methods.canExportC143Group.call(context, group),
+        downloadBlob: () => {}, $emit: () => {}
+    };
+
+    await component.methods.fetchResults.call(context);
+    assert.deepEqual(context.c143Summary, { dischargedCount: 566, inHospitalCount: 724 });
+    assert.equal(context.serverTotalCount, 1290);
+    assert.equal(context.canExportC143Group("Discharged"), true);
+    assert.equal(context.canExportC143Group("InHospital"), true);
+    await component.methods.exportResults.call(context, "Discharged");
+    await component.methods.exportResults.call(context, "InHospital");
+    assert.deepEqual(requests.slice(1).map(request => request.body.c143DischargeGroup),
+        ["Discharged", "InHospital"]);
+    assert.deepEqual(requests.slice(1).map(request => request.body.source),
+        ["Inpatient", "Inpatient"]);
+
+    context.form.reportType = "Difference";
+    assert.equal(context.canExportC143Group("InHospital"), false);
+    context.c143Summary.inHospitalCount = 0;
+    assert.equal(context.canExportC143Group("InHospital"), false);
+    context.c143Summary.dischargedCount = 0;
+    assert.equal(context.canExportC143Group("Discharged"), false);
+
+    const markup = fs.readFileSync("Views/Report/_TemplateReport.cshtml", "utf8");
+    assert.match(markup, /aria-label="C143 住院分組筆數"/);
+    assert.match(markup, /匯出有出院日 Excel/);
+    assert.match(markup, /匯出無出院日 Excel/);
+    assert.match(markup, /v-on:click="exportResults\('Discharged'\)"/);
+    assert.match(markup, /v-on:click="exportResults\('InHospital'\)"/);
+    assert.match(markup, /v-if="form\.reportType === 'All'"/);
+    assert.match(markup, /<button v-else class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">/);
+}
+
 async function verifiesC144SharedQueryPagingAndExportContract() {
     const configuration = window.ReportConfigurations.C144;
     assert.equal(configuration.serverPaged, true);
@@ -2258,6 +2318,7 @@ verifiesC171RequestsServerPages()
     .then(verifiesC212UsesSharedDatesAndPaginatedResults)
     .then(verifiesC13SharedPaginationSkeletonAndPreviewContract)
     .then(verifiesC143SharedQueryPagingAndResetContract)
+    .then(verifiesC143InpatientGroupCountsAndSeparateExports)
     .then(verifiesC144SharedQueryPagingAndExportContract)
     .then(verifiesC15SharedPagingGroupingAndPrintContract)
     .then(verifiesC3ModalPreviewAndPrintContract)

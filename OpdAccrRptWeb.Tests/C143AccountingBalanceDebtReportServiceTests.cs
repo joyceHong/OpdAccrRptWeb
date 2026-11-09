@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
@@ -61,6 +62,7 @@ public sealed class C143AccountingBalanceDebtReportServiceTests
             "差額(尚欠_會計-尚欠_批價)" }, result.Columns!.Select(x => x.Label));
         Assert.Null(result.Data![0].BillingDebt);
         Assert.Equal(10.25m, result.Data[0].Difference);
+        Assert.Null(result.Summary);
     }
 
     [Fact]
@@ -86,9 +88,11 @@ public sealed class C143AccountingBalanceDebtReportServiceTests
         var secondResult = await service.QueryAsync(second);
 
         Assert.Equal(37, firstResult.TotalCount);
+        Assert.Equal((12, 25), Counts(firstResult.Summary));
         Assert.Equal(new[] { "D11", "D12", "I1", "I2", "I3", "I4", "I5", "I6", "I7", "I8" },
             firstResult.Data!.Select(x => x.MedicalRecordNumber));
         Assert.Equal(30, secondResult.Data!.Count);
+        Assert.Equal((12, 25), Counts(secondResult.Summary));
         Assert.Equal(1, repository.Group1CountCalls);
         Assert.Equal(1, repository.Group2CountCalls);
         Assert.DoesNotContain(cache.Keys, key => key.Contains("PageNumber", StringComparison.Ordinal));
@@ -112,12 +116,30 @@ public sealed class C143AccountingBalanceDebtReportServiceTests
             await service.QueryAsync(Condition("Inpatient", "Difference"));
 
         Assert.Equal(12, result.TotalCount);
+        Assert.Equal((12, 0), Counts(result.Summary));
         Assert.Equal(10, result.Data!.Count);
         Assert.All(result.Data, row => Assert.Equal(C143ResultGroups.Discharged, row.ResultGroup));
         Assert.Equal(1, repository.Group1CountCalls);
         Assert.Equal(0, repository.Group2CountCalls);
         Assert.Equal(1, repository.Group1PageCalls);
         Assert.Equal(0, repository.Group2PageCalls);
+    }
+
+    [Fact]
+    public async Task QueryAsync_EmptyInpatientAll_ReportsZeroForBothGroups()
+    {
+        var repository = new FakeRepository();
+        var service = new C143AccountingBalanceDebtReportService(
+            repository, new PassthroughReportTotalCountCache());
+
+        ReportDataAndColumns<C143AccountingBalanceDebtReportViewModel> result =
+            await service.QueryAsync(Condition("Inpatient", "All"));
+
+        Assert.Equal(0, result.TotalCount);
+        Assert.Empty(result.Data!);
+        Assert.Equal((0, 0), Counts(result.Summary));
+        Assert.Equal(1, repository.Group1CountCalls);
+        Assert.Equal(1, repository.Group2CountCalls);
     }
 
     [Fact]
@@ -139,6 +161,15 @@ public sealed class C143AccountingBalanceDebtReportServiceTests
         ReportCode = "C143", StartDate = "2026-09-01", EndDate = "2026-09-14",
         Source = source, ReportType = reportType, PageNumber = 1, PageSize = 10
     };
+
+    private static (int DischargedCount, int InHospitalCount) Counts(object? summary)
+    {
+        Assert.NotNull(summary);
+        JsonElement json = JsonSerializer.SerializeToElement(summary,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        return (json.GetProperty("dischargedCount").GetInt32(),
+            json.GetProperty("inHospitalCount").GetInt32());
+    }
 
     private sealed class FakeRepository : IC143AccountingBalanceDebtRepository
     {

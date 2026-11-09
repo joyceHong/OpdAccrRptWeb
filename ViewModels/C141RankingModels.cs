@@ -35,7 +35,7 @@ public static class C141RankingColumns
         new("patientName", "姓名"),
         new("bedNumber", "床號"),
         new("inpatientAdmissionDate", "入院日"),
-        new("insuranceIdentity", "健保身分"),
+        new("insuranceIdentityName", "健保身分"),
         new("paymentType", "部分負擔類別"),
         new("receivableAmount", "應收金額", true),
         new("insuredReceivableAmount", "健保金額", true),
@@ -63,7 +63,10 @@ public sealed record C141RankingSourceRow(
     string? PaymentDate,
     string? NoticeDate,
     decimal? PayTotal,
-    bool HasPreferredContact);
+    bool HasPreferredContact)
+{
+    public string? InsuranceIdentityName { get; init; }
+}
 
 public sealed record C141RankingRow(
     C141AdmissionKey Key,
@@ -86,6 +89,7 @@ public sealed record C141RankingRow(
     bool HasPreferredContact)
 {
     public decimal DisplayPayTotal => decimal.Floor((PayTotal ?? 0m) + 0.5m);
+    public string? InsuranceIdentityName { get; init; }
     public int? DaysSinceAdmission { get; init; }
     public bool IsAutomaticallySelected { get; init; }
     public string? AutomaticSelectionReason { get; init; }

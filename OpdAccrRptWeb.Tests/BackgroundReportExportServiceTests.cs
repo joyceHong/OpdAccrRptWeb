@@ -55,6 +55,47 @@ public sealed class BackgroundReportExportServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_C143InpatientGroup_UsesGroupAndRocEndDateInFileName()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "OpdAccrRptWeb.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var options = Options.Create(new ReportExportOptions { QueueCapacity = 1, CleanupIntervalMinutes = 60 });
+            var queue = new ReportExportWorkQueue(options);
+            var store = new RecordingStore(root);
+            var generator = new RecordingWorkbookGenerator();
+            var service = new BackgroundReportExportService(options, queue, store, generator,
+                TimeProvider.System, NullLogger<BackgroundReportExportService>.Instance);
+            var job = new ReportExportJob
+            {
+                JobId = Guid.NewGuid(), CreatedAt = DateTimeOffset.UtcNow,
+                SearchCondition = new SearchReportCondition
+                {
+                    ReportCode = "C143", StartDate = "2026-08-01", EndDate = "2026-08-31",
+                    Source = C143Sources.Inpatient, ReportType = C143ReportTypes.All,
+                    C143DischargeGroup = C143DischargeGroups.InHospital
+                }
+            };
+
+            await service.StartAsync(CancellationToken.None);
+            Assert.True(queue.TryEnqueue(job));
+            await store.Ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await service.StopAsync(CancellationToken.None);
+
+            Assert.StartsWith("C143_Inpatient_InHospital_1150831_",
+                Path.GetFileName(store.CompletedPath));
+            Assert.EndsWith($"_{job.JobId:N}.xlsx", store.CompletedPath);
+            Assert.Equal(C143DischargeGroups.InHospital, generator.LastCondition?.C143DischargeGroup);
+            Assert.True(File.Exists(store.CompletedPath));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public async Task ExecuteAsync_MiniExcelGenerator_WritesWorkbookToTemporaryFile()
     {
         var root = Path.Combine(Path.GetTempPath(), "OpdAccrRptWeb.Tests", Guid.NewGuid().ToString("N"));
@@ -206,8 +247,13 @@ public sealed class BackgroundReportExportServiceTests
 
     private sealed class RecordingWorkbookGenerator : IReportWorkbookGenerator
     {
-        public void GenerateWorkbook(SearchReportCondition searchCondition, Stream destination) =>
+        public SearchReportCondition? LastCondition { get; private set; }
+
+        public void GenerateWorkbook(SearchReportCondition searchCondition, Stream destination)
+        {
+            LastCondition = searchCondition;
             destination.Write([1, 2, 3]);
+        }
     }
 
     private sealed class FailFirstWorkbookGenerator : IReportWorkbookGenerator

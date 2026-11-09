@@ -41,6 +41,35 @@ public sealed class C141RankingServiceTests
     }
 
     [Fact]
+    public void Ranking_DisplayAndExportColumnsUseSevenCharacterAdmissionDateAndIdentityName()
+    {
+        C141RankingSourceRow source = Source("1150101", "1", "A12", 7, 200m, 0m, "11501011230")
+            with { InsuranceIdentityName = "健保病患 " };
+        var service = new C141RankingService(new FakeRepository([source]));
+
+        C141RankingRow queried = Assert.Single(service.Query(new(null, null, null)));
+        C141RankingRow paged = Assert.Single(service.GetPage(new(null, null, null), 0, 10));
+
+        Assert.Equal("1150101", queried.InpatientAdmissionDate);
+        Assert.Equal("1150101", paged.InpatientAdmissionDate);
+        Assert.Equal("健保病患", queried.InsuranceIdentityName);
+        Assert.Equal("健保病患", paged.InsuranceIdentityName);
+        Assert.Equal("30", queried.InsuranceIdentity);
+        Assert.Contains(C141RankingColumns.Visible,
+            column => column.Key == "insuranceIdentityName" && column.Label == "健保身分");
+        Assert.DoesNotContain(C141RankingColumns.Visible, column => column.Key == "insuranceIdentity");
+    }
+
+    [Fact]
+    public void Ranking_UnknownIdentityDoesNotDisplayRawCode()
+    {
+        C141RankingSourceRow source = Source("1150101", "1", "A12", 7, 200m, 0m);
+        var service = new C141RankingService(new FakeRepository([source]));
+
+        Assert.Equal("未建檔", Assert.Single(service.Query(new(null, null, null))).InsuranceIdentityName);
+    }
+
+    [Fact]
     public void Query_AutomaticSelectionUsesSevenThirtyAndStrictFourDayRules()
     {
         var repository = new FakeRepository(
@@ -92,6 +121,8 @@ public sealed class C141RankingServiceTests
         Assert.Contains("(:bedNoLength=6 AND B.chOp1EBid=:bedNo)", sql, StringComparison.Ordinal);
         Assert.Contains("B.chOp1EBid LIKE :bedNoPrefix", sql, StringComparison.Ordinal);
         Assert.Contains("(NVL(b2.rlAMT,0) - NVL(pay.PayTot,0)) AS NetAmount", sql, StringComparison.Ordinal);
+        Assert.Contains("LEFT JOIN GenFin1Tbl fin1", sql, StringComparison.Ordinal);
+        Assert.Contains("fin1.chFin1Name AS InsuranceIdentityName", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("NVL(T.intOp2Acc1", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("COALESCE", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("UPDATE", sql, StringComparison.OrdinalIgnoreCase);

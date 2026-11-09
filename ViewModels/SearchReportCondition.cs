@@ -61,6 +61,9 @@
         /// <summary>C143 報表類型：Difference 或 All；C16：All、Child 或 NewHope。</summary>
         public string? ReportType { get; set; }
 
+        /// <summary>C143 住院 Excel 匯出組別：Discharged 或 InHospital；空值保留合併匯出。</summary>
+        public string? C143DischargeGroup { get; set; }
+
         /// <summary>C3 彙總 0 或明細 1。</summary>
         public int? DetailType { get; set; }
 
@@ -241,5 +244,12 @@
             All => "2",
             _ => throw new ArgumentException("C143 報表類型不正確。", nameof(value))
         };
+    }
+
+    public static class C143DischargeGroups
+    {
+        public const string Discharged = "Discharged";
+        public const string InHospital = "InHospital";
+        public static bool IsSupported(string? value) => value is Discharged or InHospital;
     }
 }

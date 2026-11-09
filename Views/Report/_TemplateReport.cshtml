@@ -45,6 +45,13 @@
                 <button class="outline-button" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC10">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
                 <button class="outline-button" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
             </div>
+            <div v-else-if="isC143" class="c21-title-actions no-print" v-show="selectedReport.canExcel">
+                <template v-if="isC143Inpatient">
+                    <button class="outline-button" type="button" :disabled="!canExportC143Group('Discharged')" v-on:click="exportResults('Discharged')">{{ isExporting ? '匯出處理中…' : '匯出有出院日 Excel' }}</button>
+                    <button v-if="form.reportType === 'All'" class="outline-button" type="button" :disabled="!canExportC143Group('InHospital')" v-on:click="exportResults('InHospital')">{{ isExporting ? '匯出處理中…' : '匯出無出院日 Excel' }}</button>
+                </template>
+                <button v-else class="outline-button" type="button" :disabled="!canExport" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
+            </div>
             <div v-else-if="isC141" class="c141-title-actions no-print">
                 <button class="outline-button no-print" type="button" :disabled="c141SelectedCount === 0 || c141ActionLoading" v-show="selectedReport.canPrint" v-on:click="previewC141Notice">{{ c141ActionLoading ? '處理中…' : `通知單預覽／列印（${c141SelectedCount}）` }}</button>
                 <button v-if="selectedReport.canC141NoticeHistory" class="outline-button no-print" type="button" v-on:click="openC141History">通知單繳費查詢</button>
@@ -208,6 +215,11 @@
             </div>
         </section>
         <section class="panel result-panel" :aria-busy="isLoading ? 'true' : 'false'">
+            <div v-if="isC143Inpatient && c143Summary && !isLoading" class="result-heading" aria-label="C143 住院分組筆數">
+                <span>有出院日 {{ c143Summary.dischargedCount }} 筆</span>
+                <span>無出院日 {{ c143Summary.inHospitalCount }} 筆</span>
+                <span>合計 {{ totalCount }} 筆</span>
+            </div>
             <div v-if="isC142 && c142Summary" class="result-heading">
                 <span>尚欠合計：{{ c142Summary.totalAmount }}</span>
                 <span v-if="c142Summary.errors?.length">資料異常 {{ c142Summary.errors.length }} 筆（不計入合計與 Excel）</span>

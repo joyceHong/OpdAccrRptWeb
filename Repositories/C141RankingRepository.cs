@@ -122,7 +122,10 @@ public sealed class C141RankingRepository(IConnectionStringProvider connectionSt
                 ReadText(reader, "PaymentDate"),
                 ReadText(reader, "NoticeDate"),
                 ReadDecimal(reader, "PayTotal"),
-                Convert.ToInt32(reader["HasPreferredContact"], CultureInfo.InvariantCulture) == 1));
+                Convert.ToInt32(reader["HasPreferredContact"], CultureInfo.InvariantCulture) == 1)
+            {
+                InsuranceIdentityName = ReadText(reader, "InsuranceIdentityName")
+            });
         }
         return rows;
     }

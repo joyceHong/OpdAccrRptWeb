@@ -312,6 +312,7 @@
                 exportJob: null,
                 c142SnapshotId: null,
                 c142Summary: null,
+                c143Summary: null,
                 c142Organizations: [],
                 c142OrganizationSearchTimer: null,
                 c142OrganizationSearchGeneration: 0,
@@ -486,6 +487,7 @@
             isC3() { return this.reportConfiguration.c3 === true; },
             isC4() { return this.reportConfiguration.c4 === true; },
             isC143() { return this.reportConfiguration.c143 === true; },
+            isC143Inpatient() { return this.isC143 && this.form.encounterSource === "Inpatient"; },
             isC142() { return this.reportConfiguration.c142 === true; },
             isC144() { return this.reportConfiguration.c144 === true; },
             reportTypeConfiguration() { return this.reportConfiguration.reportType ?? null; },
@@ -743,6 +745,7 @@
                 this.summaries = [];
                 this.c211Summary = null;
                 this.c212Summary = null;
+                this.c143Summary = null;
                 clearC212PreviewState(this);
                 this.c15Summary = null;
                 this.c15PreviewOpen = false;
@@ -1272,6 +1275,8 @@
                         ? result.summary : null;
                     this.c212Summary = this.isC212 && result.summary && !Array.isArray(result.summary)
                         ? result.summary : null;
+                    this.c143Summary = this.isC143Inpatient && result.summary && !Array.isArray(result.summary)
+                        ? result.summary : null;
                     if (this.isC212 && this.rows.length === 0) clearC212PreviewState(this);
                     this.c15Summary = this.isC15 && result.summary && !Array.isArray(result.summary)
                         ? result.summary : null;
@@ -1290,6 +1295,7 @@
                     this.summaries = [];
                     this.c211Summary = null;
                     this.c212Summary = null;
+                    this.c143Summary = null;
                     if (this.isC212) clearC212PreviewState(this);
                     this.c15Summary = null;
                     this.serverTotalCount = 0;
@@ -1626,6 +1632,14 @@
             },
             changeEncounterSource() {
                 this.currentPage = 1;
+                if (this.isC143) {
+                    this.hasSearched = false;
+                    this.rows = [];
+                    this.columns = [];
+                    this.c143Summary = null;
+                    this.serverTotalCount = 0;
+                    this.serverTotalPages = 0;
+                }
                 if (this.isC22) {
                     this.hasSearched = false;
                     this.rows = [];
@@ -1655,7 +1669,14 @@
                 this.columns = [];
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
+                this.c143Summary = null;
                 this.validationMessage = "";
+            },
+            canExportC143Group(group) {
+                return this.isC143Inpatient && this.canExport
+                    && Number.isInteger(this.c143Summary?.[group === "Discharged" ? "dischargedCount" : "inHospitalCount"])
+                    && this.c143Summary[group === "Discharged" ? "dischargedCount" : "inHospitalCount"] > 0
+                    && (group === "Discharged" || group === "InHospital" && this.form.reportType === "All");
             },
             changeC24Source() {
                 this.currentPage = 1;
@@ -1736,8 +1757,9 @@
                 if (!match) return value ?? "";
                 return `${String(Number(match[1]) - 1911).padStart(3, "0")}/${match[2]}/${match[3]}`;
             },
-            async exportResults() {
+            async exportResults(c143DischargeGroup) {
                 if (!this.canExport) return;
+                if (typeof c143DischargeGroup === "string" && !this.canExportC143Group(c143DischargeGroup)) return;
                 if (this.isC142) return this.exportC142();
                 this.isExporting = true;
                 this.validationMessage = "";
@@ -1781,6 +1803,8 @@
                         c141MinimumNetAmount: reportCode === "C141" && this.form.c141MinimumNetAmount !== ""
                             ? Number(this.form.c141MinimumNetAmount) : undefined,
                         reportType: reportCode === "C143" ? this.form.reportType : undefined,
+                        c143DischargeGroup: reportCode === "C143" && this.isC143Inpatient
+                            && typeof c143DischargeGroup === "string" ? c143DischargeGroup : undefined,
                         receivableBalanceType: reportCode === "C214"
                             ? this.form.receivableBalanceType : undefined
                     };

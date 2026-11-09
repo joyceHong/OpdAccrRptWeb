@@ -81,7 +81,9 @@ public sealed class C141RankingService(IC141RankingRepository repository) : IC14
             row.MedicalRecordNumber,
             row.PatientName,
             row.BedNumber,
-            row.InpatientAdmissionDate,
+            row.InpatientAdmissionDate is { Length: > 7 } admissionDate
+                ? admissionDate[..7]
+                : row.InpatientAdmissionDate,
             row.InsuranceIdentity,
             row.InsuranceCategory,
             row.PaymentType,
@@ -96,6 +98,9 @@ public sealed class C141RankingService(IC141RankingRepository repository) : IC14
             netAmount,
             row.HasPreferredContact)
         {
+            InsuranceIdentityName = string.IsNullOrWhiteSpace(row.InsuranceIdentityName)
+                ? string.IsNullOrWhiteSpace(row.InsuranceIdentity) ? "未設定" : "未建檔"
+                : row.InsuranceIdentityName.Trim(),
             DaysSinceAdmission = selection.DaysSinceAdmission,
             IsAutomaticallySelected = selection.IsSelected,
             AutomaticSelectionReason = selection.Reason

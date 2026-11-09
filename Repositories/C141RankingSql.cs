@@ -12,6 +12,7 @@ internal static class C141RankingSql
                b1.chOp1Ebid AS BedNumber,
                b1.chOp1Eindate AS InpatientAdmissionDate,
                b1.chOp1PFin1 AS InsuranceIdentity,
+               fin1.chFin1Name AS InsuranceIdentityName,
                b1.chOp1PFin2 AS InsuranceCategory,
                b1.chOp1PPay AS PaymentType,
                b1.chOp11st AS AdmissionSequence,
@@ -28,6 +29,7 @@ internal static class C141RankingSql
         JOIN IPDBasic2Tbl b2
           ON b1.chOp1date=b2.chOp1date AND b1.chOp1time=b2.chOp1time
          AND b1.chOp1room=b2.chOp1room AND b1.intOp1no=b2.intOp1no
+        LEFT JOIN GenFin1Tbl fin1 ON fin1.chFin1No=RTRIM(b1.chOp1PFin1)
         LEFT JOIN (
             SELECT T.chOp1Date, T.chOp1Time, T.chOp1Room, T.intOp1No,
                    SUM(T.intOp2Acc1 + T.intOp2Acc2 + T.intOp2Acc3 + T.intOp2Acc4 + T.intitemI3) AS PayTot

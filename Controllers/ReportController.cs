@@ -1257,6 +1257,15 @@ public sealed class ReportController : Controller
     [HttpPost("Report/Export")]
     public IActionResult Export([FromBody] SearchReportCondition searchCondition)
     {
+        if (searchCondition.C143DischargeGroup is not null
+            && (searchCondition.ReportCode != "C143"
+                || searchCondition.Source != C143Sources.Inpatient
+                || !C143DischargeGroups.IsSupported(searchCondition.C143DischargeGroup)
+                || searchCondition.ReportType == C143ReportTypes.Difference
+                    && searchCondition.C143DischargeGroup == C143DischargeGroups.InHospital))
+        {
+            return BadRequest("C143 住院匯出組別不正確。");
+        }
         if (searchCondition.ReportCode == "C141"
             && (User.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(User.Identity.Name)))
         {
@@ -1336,7 +1345,9 @@ public sealed class ReportController : Controller
                 return NotFound(new ProblemDetails
                 {
                     Status = StatusCodes.Status404NotFound,
-                    Title = "查無符合條件的 C141 資料，未產生匯出檔。"
+                    Title = searchCondition.ReportCode == "C143"
+                        ? "查無符合條件的 C143 住院分組資料，未產生匯出檔。"
+                        : "查無符合條件的 C141 資料，未產生匯出檔。"
                 });
             }
             if (result.Workbook is not null)

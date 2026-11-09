@@ -243,7 +243,9 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
                 : NormalizeOutpatientReport(searchCondition);
         IReportExportDefinition definition = ResolveDefinition(normalized.ReportCode);
         int totalCount = definition.GetCount(normalized);
-        if (normalized.ReportCode == "C141" && totalCount == 0)
+        if ((normalized.ReportCode == "C141"
+                || normalized.ReportCode == "C143" && normalized.C143DischargeGroup is not null)
+            && totalCount == 0)
         {
             return new ReportExportDispatchResult(null, null, null, NoData: true);
         }
@@ -252,7 +254,7 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             using var stream = new MemoryStream();
             GenerateWorkbook(normalized, stream);
             return new ReportExportDispatchResult(
-                stream.ToArray(), CreateFileName(normalized.ReportCode!, _timeProvider.GetUtcNow()), null);
+                stream.ToArray(), CreateFileName(normalized, _timeProvider.GetUtcNow()), null);
         }
 
         ReportExportJob job = _jobStore.Create(
@@ -472,9 +474,15 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             scope.ServiceProvider.GetRequiredService<IC143AccountingBalanceDebtRepository>();
         C143Query query = C143AccountingBalanceDebtReportService.CreateQuery(
             condition, allowExportBatch: true);
+        int? dischargeGroup = ResolveC143DischargeGroup(condition, query);
         if (query.Source == C143Sources.OpdEr)
         {
             return repository.GetOutpatientEmergencyCount(query);
+        }
+
+        if (dischargeGroup.HasValue)
+        {
+            return repository.GetInpatientCount(query, dischargeGroup.Value);
         }
 
         int dischargedCount = repository.GetInpatientCount(query, 1);
@@ -494,9 +502,15 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             scope.ServiceProvider.GetRequiredService<IC143AccountingBalanceDebtRepository>();
         C143Query query = C143AccountingBalanceDebtReportService.CreateQuery(
             ForBatch(condition, offset, batchSize), allowExportBatch: true);
+        int? dischargeGroup = ResolveC143DischargeGroup(condition, query);
         if (query.Source == C143Sources.OpdEr)
         {
             return repository.GetOutpatientEmergencyPage(query, offset, batchSize);
+        }
+
+        if (dischargeGroup.HasValue)
+        {
+            return repository.GetInpatientPage(query, dischargeGroup.Value, offset, batchSize);
         }
 
         int dischargedCount = repository.GetInpatientCount(query, 1);
@@ -516,6 +530,23 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
         }
 
         return rows;
+    }
+
+    private static int? ResolveC143DischargeGroup(SearchReportCondition condition, C143Query query)
+    {
+        if (condition.C143DischargeGroup is null) return null;
+        if (query.Source != C143Sources.Inpatient
+            || query.ReportType == C143ReportTypes.Difference
+                && condition.C143DischargeGroup == C143DischargeGroups.InHospital)
+        {
+            throw new ArgumentException("C143 住院匯出組別不正確。", nameof(condition));
+        }
+        return condition.C143DischargeGroup switch
+        {
+            C143DischargeGroups.Discharged => 1,
+            C143DischargeGroups.InHospital => 2,
+            _ => throw new ArgumentException("C143 住院匯出組別不正確。", nameof(condition))
+        };
     }
 
     private static TResult WithC144Repository<TResult>(
@@ -575,6 +606,7 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
             Source = source.Source,
             Mode = source.Mode,
             ReportType = source.ReportType,
+            C143DischargeGroup = source.C143DischargeGroup,
             DetailType = source.DetailType,
             LogisticsType = source.LogisticsType,
             DepartmentCode = source.DepartmentCode,
@@ -616,6 +648,22 @@ public sealed class ReportExportService : IReportExportService, IReportWorkbookG
 
     internal static string CreateFileName(string reportCode, DateTimeOffset timestamp) =>
         $"{reportCode}_{timestamp:yyyyMMdd_HHmmss}.xlsx";
+
+    internal static string CreateFileName(
+        SearchReportCondition condition, DateTimeOffset timestamp, Guid? jobId = null)
+    {
+        string reportCode = string.IsNullOrWhiteSpace(condition.ReportCode) ? "Report" : condition.ReportCode;
+        string jobSuffix = jobId.HasValue ? $"_{jobId.Value:N}" : string.Empty;
+        if (reportCode == "C143" && condition.Source == C143Sources.Inpatient
+            && C143DischargeGroups.IsSupported(condition.C143DischargeGroup)
+            && DateOnly.TryParseExact(condition.EndDate, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateOnly endDate))
+        {
+            string rocEndDate = $"{endDate.Year - 1911:000}{endDate:MMdd}";
+            return $"C143_Inpatient_{condition.C143DischargeGroup}_{rocEndDate}_{timestamp:yyyyMMdd_HHmmss}{jobSuffix}.xlsx";
+        }
+        return $"{reportCode}_{timestamp:yyyyMMdd_HHmmss}{jobSuffix}.xlsx";
+    }
 
     internal static string CreateFileName(DateTimeOffset timestamp) => CreateFileName("C174", timestamp);
 

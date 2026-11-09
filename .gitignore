@@ -51,3 +51,4 @@ openspec/.vector-search.db*
 /scripts/sql/add-c141-notice-history-permission.sql
 /scripts/sql/create-opd-accrreport-permission.sql
 /scripts/seed-c144-inpatient-dbtest3.ps1
+/scripts/seed-c15-dbtest3.ps1

@@ -1,7 +1,7 @@
 @model OpdAccrRptWeb.ViewModels.M3OpdEmergencyDailyPreviewViewModel
 @{ Layout = null; }
 <section class="m3-print-report">
-    <header><h1>@Model.Title</h1><div>查詢日期：@Model.QueryDate　@Model.Weekday</div><div>產表：@Model.GeneratedAt　程式：@Model.ProgramId　使用者：@Model.UserName</div></header>
+    <header><h1>@Model.Title</h1><div>查詢日期：@Model.QueryDate　@Model.Weekday</div><div>使用者：@Model.UserName</div></header>
     <table class="m3-preview-table">
         <thead>
             <tr><th rowspan="2">科別</th><th colspan="5">門診初診</th><th colspan="5">門診複診</th><th colspan="5">急診初診</th><th colspan="5">急診複診</th><th colspan="5">門急診合計</th></tr>

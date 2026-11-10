@@ -131,7 +131,7 @@ public sealed class DoctorMonthlyReportController(
 
     private M2DoctorMonthlyPreviewViewModel ToPreview(M2DoctorMonthlyReportSnapshot snapshot, string actor) =>
         new("醫師看診人數月表", snapshot.ReportMonth.ToString("yyyy-MM"),
-            snapshot.CalculationBasis.ToString(), snapshot.VisitScope.ToString(), snapshot.TimeSlot.ToString(),
+            snapshot.CalculationBasis.ToString(), snapshot.VisitScope, snapshot.TimeSlot,
             TimeZoneInfo.ConvertTime(snapshot.GeneratedAt, TaipeiTimeZone).ToString("yyyy-MM-dd HH:mm:ss"),
             "OpdAccrRptWeb.M2", actor, snapshot.Rows);
 

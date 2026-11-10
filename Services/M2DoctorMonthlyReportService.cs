@@ -7,6 +7,7 @@ namespace OpdAccrRptWeb.Services;
 
 public sealed class M2DoctorMonthlyReportService(
     IM2DoctorMonthlyReportRepository repository,
+    ISectionMappingRepository sectionMappings,
     IM2ReportRunStore runStore) : IM2DoctorMonthlyReportService
 {
     internal static readonly IReadOnlyList<ReportColumn> Columns =
@@ -56,6 +57,7 @@ public sealed class M2DoctorMonthlyReportService(
 
         IReadOnlyList<M2DoctorMonthlyReportRow> rows = Transform(source);
         if (rows.Count == 0) return null;
+        rows = await TranslateSectionCodesAsync(rows, cancellationToken);
         string runId = runStore.Save(actor, month, request.CalculationBasis,
             request.VisitScope, request.TimeSlot, rows);
         return runStore.TryGet(runId, actor, out M2DoctorMonthlyReportSnapshot snapshot)
@@ -64,6 +66,28 @@ public sealed class M2DoctorMonthlyReportService(
 
     public bool TryGetRun(string runId, string actor, out M2DoctorMonthlyReportSnapshot snapshot) =>
         runStore.TryGet(runId, actor, out snapshot);
+
+    internal async Task<IReadOnlyList<M2DoctorMonthlyReportRow>> TranslateSectionCodesAsync(
+        IReadOnlyList<M2DoctorMonthlyReportRow> rows, CancellationToken cancellationToken)
+    {
+        var translations = new Dictionary<string, string>(StringComparer.Ordinal);
+        var translated = new List<M2DoctorMonthlyReportRow>(rows.Count);
+        foreach (M2DoctorMonthlyReportRow row in rows)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!translations.TryGetValue(row.SectionNo, out string? newCode))
+            {
+                newCode = row.SectionNo == "0201" ? "11910" :
+                    (await sectionMappings.TranslateAsync(row.SectionNo, cancellationToken: cancellationToken)).NewCode.Trim();
+                if (newCode.Length == 0) newCode = row.SectionNo;
+                translations.Add(row.SectionNo, newCode);
+            }
+            translated.Add(M2DoctorMonthlyReportRow.Create(newCode, row.SectionName,
+                row.DoctorNo, row.DoctorName, row.DailyCounts));
+        }
+        return translated.OrderBy(row => row.SectionNo, StringComparer.Ordinal)
+            .ThenBy(row => row.DoctorNo, StringComparer.Ordinal).ToArray();
+    }
 
     internal static IReadOnlyList<M2DoctorMonthlyReportRow> Transform(
         IReadOnlyList<M2DoctorMonthlySourceRow> source)

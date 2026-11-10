@@ -22,6 +22,32 @@ public sealed class M2DoctorMonthlyReportServiceTests
         Assert.DoesNotContain(rows, row => row.DoctorNo is "D2" or "D4");
     }
 
+    [Fact]
+    public async Task Generate_TranslatesMergedSectionsBeforeSavingSnapshot()
+    {
+        using var fixture = CreateFixture();
+        M2DoctorMonthlyReportSnapshot? snapshot = await fixture.Service.GenerateAsync(
+            new("2026-10"), "alice");
+        Assert.NotNull(snapshot);
+        Assert.Equal("12080", Assert.Single(snapshot.Rows).SectionNo);
+    }
+
+    [Fact]
+    public async Task TranslateSectionCodes_UsesM2SpecialCaseAndPreservesUnmappedCode()
+    {
+        using var fixture = CreateFixture();
+        IReadOnlyList<M2DoctorMonthlyReportRow> merged = M2DoctorMonthlyReportService.Transform([
+            Source("0201", "D1", 1, 2), Source("0450", "D2", 1, 1),
+            Source("0420", "D2", 1, 3), Source("9999", "D3", 1, 4)
+        ]);
+
+        IReadOnlyList<M2DoctorMonthlyReportRow> rows = await fixture.Service.TranslateSectionCodesAsync(
+            merged, CancellationToken.None);
+
+        Assert.Equal(["11910", "12080", "9999"], rows.Select(row => row.SectionNo));
+        Assert.Equal(4, rows.Single(row => row.SectionNo == "12080").MonthlyTotal);
+    }
+
     [Theory]
     [InlineData("2025-02", 28)]
     [InlineData("2024-02", 29)]
@@ -70,7 +96,7 @@ public sealed class M2DoctorMonthlyReportServiceTests
         var cache = new MemoryCache(new MemoryCacheOptions());
         var inner = new M2ReportRunStore(cache, TimeProvider.System);
         var store = new Store(inner);
-        return new(new M2DoctorMonthlyReportService(repository, store), repository, store, cache);
+        return new(new M2DoctorMonthlyReportService(repository, new Sections(), store), repository, store, cache);
     }
 
     private static M2DoctorMonthlySourceRow Source(string section, string doctor, int day, int count) =>
@@ -101,6 +127,17 @@ public sealed class M2DoctorMonthlyReportServiceTests
         { SaveCalls++; return inner.Save(actor, reportMonth, calculationBasis, visitScope, timeSlot, rows); }
         public bool TryGet(string runId, string actor, out M2DoctorMonthlyReportSnapshot snapshot) =>
             inner.TryGet(runId, actor, out snapshot);
+    }
+
+    private sealed class Sections : ISectionMappingRepository
+    {
+        public Task<SectionMapping> TranslateAsync(string oldCode, string roomType = "",
+            CancellationToken cancellationToken = default) => Task.FromResult(
+                new SectionMapping(oldCode == "0450" ? "12080" : string.Empty, string.Empty));
+        public Task<bool> LocationExistsAsync(string location, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<SectionMapping?> FindPlaceAsync(string code, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<SectionMapping?> FindSectionAsync(string code, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<SectionMapping?> FindLocationAsync(string sectionCode, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed record Fixture(M2DoctorMonthlyReportService Service, Repository Repository,

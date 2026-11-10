@@ -65,8 +65,7 @@ public sealed class OpdEmergencyDailyReportController(
                 throw new M3ReportRunNotFoundException();
             var model = new M3OpdEmergencyDailyPreviewViewModel("亞東紀念醫院門急診日報表",
                 snapshot.ReportDate.ToString("yyyy-MM-dd"), M3OpdEmergencyDailyReportRenderer.Weekday(snapshot.ReportDate),
-                TimeZoneInfo.ConvertTime(snapshot.GeneratedAt, TaipeiTimeZone).ToString("yyyy-MM-dd HH:mm:ss"),
-                "OpdAccrRptWeb.M3", actor, snapshot.Rows, snapshot.NineKpis);
+                actor, snapshot.Rows, snapshot.NineKpis);
             await Audit(actor, snapshot.ReportDate, started, snapshot, "Preview", "html", "Success", null, cancellationToken);
             NoStore(); return View("~/Views/OpdEmergencyDailyReport/Preview.cshtml", model);
         }

@@ -1,22 +1,88 @@
 @model OpdAccrRptWeb.ViewModels.C16PreviewViewModel
 @using OpdAccrRptWeb.Models
-<!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8" /><title>@Model.Title</title>
-<style>
-body{font-family:"Microsoft JhengHei",sans-serif;margin:12px;color:#111}h1{text-align:center;font-size:20px}.actions{text-align:right}.meta{display:flex;justify-content:space-between;font-size:12px;margin:8px 0}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #222;padding:3px;text-align:center}.amount{text-align:right}thead{display:table-header-group}tr{break-inside:avoid}@@page{size:A4 landscape;margin:10mm}@@media print{.no-print{display:none}body{margin:0}}
-</style></head><body>
-<div class="actions no-print"><button onclick="window.print()">列印</button><button onclick="window.close()">關閉</button></div>
-<h1>@Model.Title</h1><div class="meta"><span>資料日期：@Model.StartDate ～ @Model.EndDate</span><span>人次：@Model.Rows.Count</span><span>列印日期：@DateTime.Now.ToString("yyyy-MM-dd HH:mm")</span></div>
-@if (Model.Source == C16Source.OutpatientEmergency)
-{
-<table><thead><tr><th>No.</th><th>姓名</th><th>身分證號</th><th>生日</th><th>就診日</th><th>就診科別</th><th>ICD-10-CM</th><th>補助類別</th><th>掛號費</th><th>門診部分負擔</th><th>急診部分負擔</th><th>藥品部分負擔</th><th>費用總計</th><th>核減</th><th>核付</th></tr></thead><tbody>
-@for (int i=0;i<Model.Rows.Count;i++){var row=Model.Rows[i];<tr><td>@(i+1)</td><td>@row.PatientName</td><td>@row.PatientId</td><td>@row.BirthDate</td><td>@row.VisitDate</td><td>@row.SectionName</td><td>@row.Diagnosis</td><td>@row.SubsidyType</td><td class="amount">@row.Rl25</td><td class="amount">@row.OutpatientPartPay</td><td class="amount">@row.EmergencyPartPay</td><td class="amount">@row.Rl49Drug</td><td class="amount">@row.OutpatientTotal</td><td></td><td></td></tr>}
-</tbody><tfoot><tr><th colspan="8">合計</th><th>@Model.Rl25Total</th><th>@Model.OutpatientPartPayTotal</th><th>@Model.EmergencyPartPayTotal</th><th>@Model.DrugPartPayTotal</th><th>@Model.Total</th><th></th><th></th></tr></tfoot></table>
+@{
+    var pages = Model.Rows.Chunk(18).ToArray();
+    DateOnly.TryParse(Model.EndDate, out var endDate);
+    var reportYear = endDate == default ? "" : (endDate.Year - 1911).ToString();
+    var reportMonth = endDate == default ? "" : endDate.Month.ToString();
+    var isOutpatient = Model.Source == C16Source.OutpatientEmergency;
 }
-else
+@for (var pageIndex = 0; pageIndex < pages.Length; pageIndex++)
 {
-<table><thead><tr><th>No.</th><th>姓名</th><th>身分證號</th><th>生日</th><th>住院日</th><th>出院日</th><th>天數</th><th>ICD-10-CM</th><th>補助類別</th><th>部分負擔</th><th>其他自付額</th><th>費用總計</th><th>核減</th><th>核付</th></tr></thead><tbody>
-@for (int i=0;i<Model.Rows.Count;i++){var row=Model.Rows[i];<tr><td>@(i+1)</td><td>@row.PatientName</td><td>@row.PatientId</td><td>@row.BirthDate</td><td>@row.VisitDate</td><td>@row.DischargeDate</td><td>@row.Days</td><td>@row.Diagnosis</td><td>@row.SubsidyType</td><td class="amount">@row.Rl49</td><td class="amount">@row.Rl50</td><td class="amount">@row.InpatientTotal</td><td></td><td></td></tr>}
-</tbody><tfoot><tr><th colspan="9">合計</th><th>@Model.Rl49Total</th><th>@Model.Rl50Total</th><th>@Model.Total</th><th></th><th></th></tr></tfoot></table>
+    var pageRows = pages[pageIndex];
+    var isLastPage = pageIndex == pages.Length - 1;
+    <section class="c16-print-page">
+        <header class="c16-print-header">
+            <div class="c16-print-title">@Model.Title</div>
+            <div class="c16-print-applicant">申請機構：<br />醫療財團法人徐元智先生醫藥基金會亞東紀念醫院</div>
+            <div class="c16-print-meta">
+                <div>列印日期：@DateTime.Now.ToString("yyyy/M/d")</div>
+                <div class="c16-print-form-box">
+                    <span>申請</span><span>@reportYear 年</span>
+                    <span class="c16-print-copy-types">□ 甲聯<br />□ 乙聯<br />□ 丙聯</span>
+                    <span class="c16-print-page-number">第 @(pageIndex + 1) 頁</span>
+                    <span>月份</span><span>@reportMonth 月</span>
+                </div>
+            </div>
+        </header>
+        @if (isOutpatient)
+        {
+            <table class="c16-print-table c16-outpatient-table">
+                <colgroup>
+                    <col style="width:2.5%" /><col style="width:8%" /><col style="width:8%" /><col style="width:8%" />
+                    <col style="width:7%" /><col style="width:12%" /><col style="width:8%" /><col style="width:7%" />
+                    <col style="width:6%" /><col style="width:5.5%" /><col style="width:5.5%" /><col style="width:5.5%" />
+                    <col style="width:6%" /><col style="width:5.5%" /><col style="width:5.5%" />
+                </colgroup>
+                <thead>
+                    <tr><th rowspan="2">No.</th><th rowspan="2">姓名</th><th rowspan="2">身分證號</th><th rowspan="2">出生年月日</th><th rowspan="2">就診日期</th><th rowspan="2">就診科別</th><th rowspan="2">診斷疾病別<br />(ICD-10-CM)</th><th rowspan="2">補助類別</th><th rowspan="2">掛號費</th><th colspan="3">部分負擔金額</th><th rowspan="2">申報補助<br />費用總計</th><th colspan="2">金額審核結果</th></tr>
+                    <tr><th>門診</th><th>急診</th><th>藥品</th><th>核減</th><th>核付</th></tr>
+                </thead>
+                <tbody>
+                    @for (var rowIndex = 0; rowIndex < pageRows.Length; rowIndex++)
+                    {
+                        var row = pageRows[rowIndex];
+                        <tr><td>@(pageIndex * 18 + rowIndex + 1)</td><td>@row.PatientName</td><td>@row.PatientId</td><td>@row.BirthDate</td><td>@row.VisitDate</td><td>@row.SectionName</td><td>@row.Diagnosis</td><td>@row.SubsidyType</td><td class="c16-number">@(row.Rl25 == 0 ? "" : row.Rl25.ToString("#,0.##"))</td><td class="c16-number">@(row.OutpatientPartPay == 0 ? "" : row.OutpatientPartPay.ToString("#,0.##"))</td><td class="c16-number">@(row.EmergencyPartPay == 0 ? "" : row.EmergencyPartPay.ToString("#,0.##"))</td><td class="c16-number">@(row.Rl49Drug == 0 ? "" : row.Rl49Drug.ToString("#,0.##"))</td><td class="c16-number">@row.OutpatientTotal.ToString("#,0.##")</td><td></td><td></td></tr>
+                    }
+                </tbody>
+                @if (isLastPage)
+                {
+                    <tfoot>
+                        <tr><td colspan="7" rowspan="2" class="c16-print-notes"><span>備註：1. 本表一式三聯，甲、乙兩聯送台北縣政府衛生局<br />　　（甲聯請領補助款、乙聯存衛生局），丙聯由醫療院所存查。<br />　　2. 本表請依就診日期序列。<br />　　3. 補助類別：低收入戶請填 A；重大傷病請填 B；罕見疾病請填 C；<br />　　　低收入戶且未參與健保者請填 D；罕見疾病且未參與健保者請填 E。</span></td><td class="c16-total-label">金額總計</td><td class="c16-number">@Model.Rl25Total.ToString("#,0.##")</td><td class="c16-number">@(Model.OutpatientPartPayTotal == 0 ? "" : Model.OutpatientPartPayTotal.ToString("#,0.##"))</td><td class="c16-number">@(Model.EmergencyPartPayTotal == 0 ? "" : Model.EmergencyPartPayTotal.ToString("#,0.##"))</td><td class="c16-number">@(Model.DrugPartPayTotal == 0 ? "" : Model.DrugPartPayTotal.ToString("#,0.##"))</td><td class="c16-number">@Model.Total.ToString("#,0.##")</td><td></td><td></td></tr>
+                        <tr><td class="c16-total-label">人次總計</td><td colspan="4"></td><td>@Model.Rows.Count</td><td colspan="2"></td></tr>
+                    </tfoot>
+                }
+            </table>
+        }
+        else
+        {
+            <table class="c16-print-table c16-inpatient-table">
+                <colgroup>
+                    <col style="width:2.6%" /><col style="width:9.3%" /><col style="width:9.2%" /><col style="width:7.9%" />
+                    <col style="width:6.5%" /><col style="width:6.5%" /><col style="width:4.5%" /><col style="width:8.4%" />
+                    <col style="width:7.1%" /><col style="width:6.8%" /><col style="width:8.2%" /><col style="width:8.3%" />
+                    <col style="width:7.4%" /><col style="width:7.3%" />
+                </colgroup>
+                <thead>
+                    <tr><th rowspan="2">No.</th><th rowspan="2">姓名</th><th rowspan="2">身分證號</th><th rowspan="2">出生年月日</th><th colspan="2">住院起迄日</th><th rowspan="2">天數</th><th rowspan="2">診斷疾病別<br />(ICD-10-CM)</th><th rowspan="2">補助類別</th><th colspan="2">住院醫療費用</th><th rowspan="2">申報補助<br />費用總計</th><th colspan="2">審核結果</th></tr>
+                    <tr><th>住院日</th><th>出院日</th><th>部分負擔</th><th>其他自付額</th><th>核減金額</th><th>核付金額</th></tr>
+                </thead>
+                <tbody>
+                    @for (var rowIndex = 0; rowIndex < pageRows.Length; rowIndex++)
+                    {
+                        var row = pageRows[rowIndex];
+                        <tr><td>@(pageIndex * 18 + rowIndex + 1)</td><td>@row.PatientName</td><td>@row.PatientId</td><td>@row.BirthDate</td><td>@row.VisitDate</td><td>@row.DischargeDate</td><td>@row.Days</td><td>@row.Diagnosis</td><td>@row.SubsidyType</td><td class="c16-number">@(row.Rl49 == 0 ? "" : row.Rl49.ToString("#,0.##"))</td><td class="c16-number">@(row.Rl50 == 0 ? "" : row.Rl50.ToString("#,0.##"))</td><td class="c16-number">@(row.InpatientTotal == 0 ? "" : row.InpatientTotal.ToString("#,0.##"))</td><td></td><td></td></tr>
+                    }
+                </tbody>
+                @if (isLastPage)
+                {
+                    <tfoot>
+                        <tr><td colspan="8" rowspan="2" class="c16-print-notes"><span>1.本表一式三聯，甲、乙兩聯送台北縣政府衛生局(甲聯請領補助款、乙聯存衛生局)，丙聯由醫療院所存查。<br />2.住院醫療費用包括健保部分負擔及扣除(或免除)健保部分負擔費用後其他健保自付醫療費用，補助金額核實給付並以<br />　每人每日1,000元、全年15,000元為上限。<br />3.申報其他自付醫療費用時，為符合15,000元上限之規定，醫療院所應先洽詢衛生局確認個案可申報金額之額度。<br />4.申請本次住院醫療補助自付額費用應檢附費用明細表，以利衛生局審核。<br />5.補助類別：低收入戶請填A；重大傷病請填B；罕見疾病請填C；低收入戶且未參與健保者請填D；罕見疾病且未參與健保者請填E。</span></td><td class="c16-total-label">金額總計</td><td class="c16-number">@(Model.Rl49Total == 0 ? "" : Model.Rl49Total.ToString("#,0.##"))</td><td class="c16-number">@(Model.Rl50Total == 0 ? "" : Model.Rl50Total.ToString("#,0.##"))</td><td class="c16-number">@(Model.Total == 0 ? "" : Model.Total.ToString("#,0.##"))</td><td></td><td></td></tr>
+                        <tr><td class="c16-total-label">人次總計</td><td colspan="2"></td><td>@Model.Rows.Count</td><td colspan="2"></td></tr>
+                    </tfoot>
+                }
+            </table>
+        }
+        <div class="c16-print-revision">@(isOutpatient ? "96年7月10日" : "98年7月10日") 更新</div>
+    </section>
 }
-</body></html>

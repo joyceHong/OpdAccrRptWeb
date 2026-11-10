@@ -16,8 +16,6 @@ public sealed record M3OpdEmergencyDailyPreviewViewModel(
     string Title,
     string QueryDate,
     string Weekday,
-    string GeneratedAt,
-    string ProgramId,
     string UserName,
     IReadOnlyList<M3OpdEmergencyDailyReportRow> Rows,
     M3NineKpis NineKpis);

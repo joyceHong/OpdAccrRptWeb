@@ -291,9 +291,11 @@ body{background:var(--bg)}
 .m2-report .m2-basic-row .query-primary-field{flex:0 1 350px;min-width:220px}
 .m2-report input[type=month]{width:100%;height:38px;padding:6px 10px;border:1px solid #c9d7e4;border-radius:7px;color:#293b50;background:#fff;outline:0}
 .m2-report .m2-basic-row .source-fieldset{margin:0;min-height:38px;align-self:end}
-.m2-report .m2-basic-row .advanced-filter-toggle{align-self:end}
+.m2-report .m2-basic-row .c22-filter-button{align-self:end}
+.m2-report .m2-calculation-fieldset .source-option:last-of-type span{border-radius:7px;box-shadow:0 2px 5px #173f6312}
+.m2-report .m2-calculation-fieldset .source-option input:checked+span{box-shadow:0 0 0 1px #4b91bf,0 3px 9px #173f6318}
 @media(max-width:760px){.c6-report form>.date-row{flex-basis:auto;min-width:0;max-width:none;width:100%}.c6-report form>.source-fieldset{min-height:0}.c6-report form>.form-actions{width:100%;margin-left:0}}
-@media(max-width:760px){.m2-report .m2-basic-row .query-primary-field{flex:1 1 100%}.m2-report .m2-basic-row .source-fieldset{flex:0 1 auto}.m2-report .m2-basic-row .advanced-filter-toggle{flex:0 1 auto}}
+@media(max-width:760px){.m2-report .m2-basic-row .query-primary-field{flex:1 1 100%}.m2-report .m2-basic-row .source-fieldset{flex:0 1 auto}.m2-report .m2-basic-row .c22-filter-button{flex:0 1 auto}}
 .result-heading{min-height:52px;padding:14px 20px}
 .result-heading strong{color:#203d57;font-size:15px}
 .result-panel .empty-result{display:flex;min-height:240px;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;color:#647b91}
@@ -667,3 +669,37 @@ body{background:var(--bg)}
 @media(max-width:760px){.report-preview-overlay:has(.c13-print-document){padding:8px}.report-preview-overlay:has(.c13-print-document) .report-preview-paper{margin:0}}
 @media print{body:has(.report-preview-overlay .c13-print-document) .report-preview-paper{width:297mm;min-height:0;margin:0;padding:0;box-shadow:none}.c13-print-document{width:297mm;min-height:210mm;margin:0;padding:10mm;box-shadow:none}.c13-print-document:not(:last-child){break-after:page;page-break-after:always}.c13-print-table tr{break-inside:avoid;page-break-inside:avoid}}
 @page c13-landscape{size:A4 landscape;margin:0}
+
+/* C16: VB6 medical subsidy application form. */
+.report-preview-overlay:has(.c16-print-page) .report-preview-paper{width:297mm;min-height:210mm;padding:0;font-family:"PMingLiU","Noto Serif TC",serif}
+.c16-print-page{page:c16-landscape;position:relative;box-sizing:border-box;width:297mm;min-height:210mm;padding:7mm;border:1px solid #111;color:#111;background:#fff;font-family:"PMingLiU","Noto Serif TC",serif;font-size:10px}
+.c16-print-page:not(:last-child){border-bottom:1px dashed #aaa}
+.c16-print-header{position:relative;display:flex;align-items:flex-start;gap:6mm;height:24mm}
+.c16-print-title{box-sizing:border-box;flex:1 1 0;max-width:49%;min-width:0;margin:4mm 0 0 24%;border:1px solid #111;text-align:center;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.c16-print-applicant{position:absolute;bottom:3mm;left:2mm;font-size:10px;line-height:1.15}
+.c16-print-meta{flex:none;width:max-content;margin-left:auto;font-size:10px;line-height:1.2}
+.c16-print-meta>div:first-child{margin-bottom:1mm;white-space:nowrap}
+.c16-print-form-box{display:grid;width:48mm;grid-template-columns:8mm 12mm 14mm 14mm;grid-template-rows:7.5mm 7.5mm;border-top:1px solid #111;border-left:1px solid #111}
+.c16-print-form-box span{display:flex;align-items:center;justify-content:center;border-right:1px solid #111;border-bottom:1px solid #111;white-space:nowrap}
+.c16-print-form-box .c16-print-copy-types,.c16-print-form-box .c16-print-page-number{grid-row:span 2}
+.c16-print-form-box .c16-print-copy-types{display:block;padding:1px 2px;line-height:1.25}
+.c16-print-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:10px;line-height:1.2}
+.c16-print-table th,.c16-print-table td{box-sizing:border-box;min-height:7mm;padding:2px 3px;border:1px solid #111;text-align:center;vertical-align:middle;font-weight:400;overflow:hidden;white-space:nowrap}
+.c16-print-table thead th{height:7mm}
+.c16-print-table thead tr:nth-child(2) th{height:6mm}
+.c16-print-table tbody td{height:7mm}
+.c16-print-table .c16-number{text-align:center;font-variant-numeric:tabular-nums}
+.c16-print-table .c16-print-notes{text-align:left;vertical-align:top;white-space:normal;line-height:1.3}
+.c16-print-table tfoot td{height:13mm}
+.c16-print-table .c16-total-label{text-align:left;white-space:nowrap}
+.c16-print-revision{float:right;margin-top:1mm;padding:1mm 2mm;border:1px solid #111;font-size:10px;line-height:1.1}
+.c16-print-page:has(.c16-inpatient-table){font-family:"DFKai-SB","BiauKai","標楷體",serif}
+.c16-print-page:has(.c16-inpatient-table) .c16-print-title{font-size:18px}
+.c16-print-page:has(.c16-inpatient-table) .c16-print-applicant,.c16-print-page:has(.c16-inpatient-table) .c16-print-meta{font-size:12px}
+.c16-print-page:has(.c16-inpatient-table) .c16-print-revision{font-size:11px}
+.c16-inpatient-table{font-size:13px}
+.c16-inpatient-table th,.c16-inpatient-table td{white-space:normal}
+.c16-inpatient-table .c16-print-notes{font-size:10px;line-height:1.2}
+@media(max-width:760px){.report-preview-overlay:has(.c16-print-page){padding:8px}.report-preview-overlay:has(.c16-print-page) .report-preview-paper{min-width:297mm}}
+@media print{body:has(.report-preview-overlay .c16-print-page) .report-preview-paper{width:100%;min-width:0;min-height:0;margin:0;padding:0;box-shadow:none}.c16-print-page{width:100%;min-height:210mm;border:0;break-inside:avoid;page-break-inside:avoid}.c16-print-page:has(.c16-inpatient-table) .c16-print-title{font-size:14px}.c16-print-page:not(:last-child){break-after:page;page-break-after:always;border-bottom:0}.c16-print-table thead{display:table-header-group}.c16-print-table tr{break-inside:avoid;page-break-inside:avoid}}
+@page c16-landscape{size:A4 landscape;margin:0}

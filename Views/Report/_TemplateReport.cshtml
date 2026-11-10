@@ -138,7 +138,7 @@
                             <span>進階篩選</span><span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
                         </button>
                     </div>
-                    <fieldset v-if="isC16" class="source-fieldset">
+                    <fieldset v-if="isC16" class="source-fieldset segmented-source-fieldset">
                         <legend>日期基準 <i>*</i></legend>
                         <label class="source-option"><input v-model="form.dateMode" type="radio" name="c16DateBasis" value="AccountingDate" required /><span>帳務日</span></label>
                         <label class="source-option"><input v-model="form.dateMode" type="radio" name="c16DateBasis" value="VisitDate" :disabled="form.encounterSource === 'Inpatient'" required /><span>就診日</span></label>

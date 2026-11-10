@@ -52,3 +52,11 @@ openspec/.vector-search.db*
 /scripts/sql/create-opd-accrreport-permission.sql
 /scripts/seed-c144-inpatient-dbtest3.ps1
 /scripts/seed-c15-dbtest3.ps1
+/scripts/c10-manual-comparison.md
+/scripts/c16-dbtest3-test-cases.md
+/scripts/m2-dbtest3-test-cases.md
+/scripts/m3-dbtest3-test-cases.md
+/scripts/seed-c16-dbtest3.ps1
+/scripts/seed-m1-dbtest3.ps1
+/scripts/seed-m2-dbtest3.ps1
+/scripts/seed-m3-dbtest3.ps1

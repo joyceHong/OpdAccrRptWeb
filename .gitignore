@@ -60,3 +60,10 @@ openspec/.vector-search.db*
 /scripts/seed-m1-dbtest3.ps1
 /scripts/seed-m2-dbtest3.ps1
 /scripts/seed-m3-dbtest3.ps1
+/.tmp-q1-cdp
+/.tmp-q1-chrome
+/.tmp-q1-chrome-repro
+/scripts/seed-c19-dbtest3.ps1
+/scripts/seed-q3-dbtest3.ps1
+/C141_vb6_住院應收帳款排行.xlsx
+/C141_web_20261113_084812.xlsx

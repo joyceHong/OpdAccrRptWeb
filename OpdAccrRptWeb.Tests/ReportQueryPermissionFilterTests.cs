@@ -182,6 +182,7 @@ public sealed class ReportQueryPermissionFilterTests
     [Theory]
     [InlineData("Report", "PreviewC1", "C1")]
     [InlineData("Report", "PreviewC3", "C3")]
+    [InlineData("Report", "PreviewC19", "C19")]
     [InlineData("Report", "PreviewC22", "C22")]
     [InlineData("Report", "PreviewC24", "C24")]
     [InlineData("Report", "PreviewC29", "C29")]
@@ -207,6 +208,7 @@ public sealed class ReportQueryPermissionFilterTests
 
     [Theory]
     [InlineData("C22")]
+    [InlineData("C19")]
     [InlineData("C29")]
     public async Task PreviewRunsOnlyWithPrintGrant(string code)
     {

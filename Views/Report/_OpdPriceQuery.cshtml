@@ -13,32 +13,15 @@
                 <div class="q1-basic-row" :class="'query-basic-row'">
                     <label class="q1-medical-record-field" :class="'query-primary-field'">
                         <span>病歷號 <i>*</i></span>
-                        <input v-model.trim="form.medicalRecordNo" autocomplete="off" required />
+                        <input ref="medicalRecordInput" v-model.trim="form.medicalRecordNo" autocomplete="off" required />
                     </label>
                     <div class="q1-basic-actions" :class="'query-actions'">
                         <button class="primary-button" type="submit" :disabled="loading">{{ loading ? '查詢中…' : '⌕ 查詢' }}</button>
                         <button class="ghost-button" type="button" :disabled="loading" v-on:click="reset">↺ 重設</button>
-                        <button class="q1-filter-toggle" :class="'advanced-filter-toggle'" type="button" :aria-expanded="advancedOpen ? 'true' : 'false'"
-                                aria-controls="q1-advanced-filters" v-on:click="advancedOpen = !advancedOpen">
-                            進階篩選 <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span><span class="chevron" :class="{ open: advancedOpen }">⌄</span>
+                        <button ref="filterButton" class="c22-filter-button" type="button" aria-haspopup="dialog" aria-controls="q1-filter-dialog"
+                                :aria-expanded="advancedOpen ? 'true' : 'false'" :aria-label="activeFilterCount ? `進階篩選，已套用 ${activeFilterCount} 項` : '進階篩選'" v-on:click="openFilters">
+                            進階篩選 <span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
                         </button>
-                    </div>
-                </div>
-
-                <div id="q1-advanced-filters" class="q1-advanced-collapse" :class="['advanced-filter-region', { open: advancedOpen }]" :aria-hidden="advancedOpen ? 'false' : 'true'" :inert="!advancedOpen">
-                    <div class="q1-advanced-content" :class="'advanced-filter-content'">
-                        <div class="advanced-grid">
-                            <label><span>就診日期</span><input type="date" v-model="form.visitDate" /></label>
-                            <label><span>科別</span>
-                                <report-autocomplete v-model="form.sectionQuery" id-prefix="q1-section"
-                                                     placeholder="輸入新科別碼或中文名稱"
-                                                     :options="normalizedSectionOptions" :open="sectionOpen"
-                                                     v-on:input="loadSections" v-on:select="selectSectionOption"
-                                                     v-on:update:open="sectionOpen = $event" />
-                            </label>
-                            <label class="check-field"><input type="checkbox" v-model="form.showDc" /> 顯示 DC</label>
-                            <label class="check-field"><input type="checkbox" v-model="form.showExtendedCode" /> 顯示延伸碼</label>
-                        </div>
                     </div>
                 </div>
             </form>
@@ -65,6 +48,24 @@
                 <p v-else class="q1-patient-placeholder">{{ patientError || '請先查詢並選取就診紀錄。' }}</p>
             </div>
         </section>
+        </div>
+
+        <div v-if="advancedOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeFilters">
+            <section id="q1-filter-dialog" class="c22-filter-dialog q1-filter-dialog" role="dialog" aria-modal="true" aria-labelledby="q1-filter-title" v-on:keydown.esc="closeFilters">
+                <h2 id="q1-filter-title" ref="filterTitle" tabindex="-1">進階查詢</h2>
+                <div class="advanced-grid">
+                    <label><span>就診日期</span><input type="date" v-model="filterDraft.visitDate" /></label>
+                    <label><span>科別</span><div class="q1-section-input">
+                        <report-autocomplete v-model="filterDraft.sectionQuery" id-prefix="q1-section" placeholder="輸入新科別碼或中文名稱"
+                                             :options="normalizedSectionOptions" :open="sectionOpen"
+                                             v-on:input="loadSections" v-on:select="selectSectionOption" v-on:update:open="sectionOpen = $event && normalizedSectionOptions.length > 0" />
+                        <button v-if="filterDraft.sectionQuery" type="button" class="report-input-clear" aria-label="清除科別" v-on:click="clearSection">×</button>
+                    </div></label>
+                    <label class="q1-option-field"><input type="checkbox" v-model="filterDraft.showDc" /><span>顯示 DC</span></label>
+                    <label class="q1-option-field"><input type="checkbox" v-model="filterDraft.showExtendedCode" /><span>顯示延伸碼</span></label>
+                </div>
+                <div class="c22-filter-actions"><button class="ghost-button" type="button" v-on:click="closeFilters">取消</button><button class="primary-button" type="button" :disabled="loading" v-on:click="applyFilters">套用篩選</button></div>
+            </section>
         </div>
 
         <div v-if="error" class="validation-summary">{{error}}</div>

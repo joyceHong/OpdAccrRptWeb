@@ -38,13 +38,15 @@
             return {
                 form: emptyForm(this.defaultStartDate),
                 modeOptions,
-                advancedOpen: false,
+                filterOpen: false,
+                filterDraft: null,
                 rows: [],
                 summary: null,
                 loading: false,
                 searched: false,
                 error: "",
                 conditionError: "",
+                filterError: "",
                 pageNumber: 1,
                 pageSize: 10,
                 totalCount: 0,
@@ -91,10 +93,64 @@
             validateRegistrationNo(event) {
                 const registrationNo = String(event.target.value || "").trim();
                 if (registrationNo && !/^\d{1,3}$/.test(registrationNo)) {
-                    this.conditionError = registrationNoError;
-                } else if (this.conditionError === registrationNoError) {
-                    this.conditionError = "";
+                    this.filterError = registrationNoError;
+                } else if (this.filterError === registrationNoError) {
+                    this.filterError = "";
                 }
+            },
+            openFilters() {
+                this.filterDraft = { ...this.form };
+                this.filterError = "";
+                this.newSectionOptions = [];
+                this.doctorOptions = [];
+                this.filterOpen = true;
+                this.$nextTick(() => this.$refs.filterTitle?.focus());
+            },
+            closeFilters() {
+                this.filterOpen = false;
+                this.filterDraft = null;
+                this.newSectionOpen = false;
+                this.doctorOpen = false;
+                this.lookupGeneration.section++;
+                this.lookupGeneration.doctor++;
+                this.lookupLoading.section = false;
+                this.lookupLoading.doctor = false;
+                this.filterError = "";
+                this.$nextTick(() => this.$refs.filterButton?.focus());
+            },
+            clearFilterText(field) {
+                if (!this.filterDraft) return;
+                this.filterDraft[field] = "";
+                if (field === "newSectionDisplay") {
+                    this.filterDraft.newSectionCode = "";
+                    this.filterDraft.newSectionLegacyCode = "";
+                    this.newSectionOpen = false;
+                }
+                if (field === "doctorDisplay") {
+                    this.filterDraft.doctorCode = "";
+                    this.doctorOpen = false;
+                }
+                if (field === "registrationNo" && this.filterError === registrationNoError) this.filterError = "";
+            },
+            async applyFilters() {
+                if (!this.filterDraft || this.loading) return;
+                const error = this.validateConditions(this.filterDraft);
+                if (error) {
+                    this.filterError = error;
+                    return;
+                }
+                Object.assign(this.form, this.filterDraft);
+                this.closeFilters();
+                await this.search();
+            },
+            validateConditions(values) {
+                if (values.mode === "summary") {
+                    if (!values.regDate) return "報診查詢請選擇掛號日期。";
+                    if (!String(values.room || "").trim()) return "報診查詢請輸入診間編號。";
+                    if (!values.time) return "報診查詢請選擇時段。";
+                }
+                const registrationNo = String(values.registrationNo || "").trim();
+                return registrationNo && !/^\d{1,3}$/.test(registrationNo) ? registrationNoError : "";
             },
             conditions() {
                 return {
@@ -126,7 +182,11 @@
             },
             resetForm() {
                 this.form = emptyForm(this.defaultStartDate);
-                this.advancedOpen = false;
+                this.filterOpen = false;
+                this.filterDraft = null;
+                this.filterError = "";
+                this.lookupGeneration.section++;
+                this.lookupGeneration.doctor++;
                 this.newSectionOptions = [];
                 this.doctorOptions = [];
                 this.newSectionOpen = false;
@@ -138,7 +198,11 @@
                 const date = this.form.regDate;
                 this.form = emptyForm(date || this.defaultStartDate);
                 this.form.mode = mode;
-                this.advancedOpen = false;
+                this.filterOpen = false;
+                this.filterDraft = null;
+                this.filterError = "";
+                this.lookupGeneration.section++;
+                this.lookupGeneration.doctor++;
                 this.newSectionOptions = [];
                 this.doctorOptions = [];
                 this.newSectionOpen = false;
@@ -146,11 +210,10 @@
                 this.resetResults();
             },
             async search() {
-                const registrationNo = String(this.form.registrationNo || "").trim();
-                if (this.conditionError === registrationNoError ||
-                    (registrationNo && !/^\d{1,3}$/.test(registrationNo))) {
+                const error = this.validateConditions(this.form);
+                if (error) {
                     this.resetResults();
-                    this.conditionError = registrationNoError;
+                    this.conditionError = error;
                     return;
                 }
 
@@ -231,9 +294,10 @@
                 };
             },
             async loadSections(value) {
-                this.form.newSectionCode = "";
-                this.form.newSectionLegacyCode = "";
-                const query = String(value || this.form.newSectionDisplay || "").trim();
+                if (!this.filterDraft) return;
+                this.filterDraft.newSectionCode = "";
+                this.filterDraft.newSectionLegacyCode = "";
+                const query = String(value || "").trim();
                 const current = ++this.lookupGeneration.section;
                 if (!query) {
                     this.newSectionOptions = [];
@@ -254,21 +318,23 @@
                     if (current === this.lookupGeneration.section) {
                         this.newSectionOptions = [];
                         this.newSectionOpen = false;
-                        this.conditionError = "無法載入科別清單，仍可直接輸入科別代碼。";
+                        this.filterError = "無法載入科別清單，仍可直接輸入科別代碼。";
                     }
                 } finally {
                     if (current === this.lookupGeneration.section) this.lookupLoading.section = false;
                 }
             },
             selectSectionOption(option) {
-                this.form.newSectionCode = option.code;
-                this.form.newSectionLegacyCode = option.legacyCode;
-                this.form.newSectionDisplay = option.code + (option.label ? "｜" + option.label : "");
+                if (!this.filterDraft) return;
+                this.filterDraft.newSectionCode = option.code;
+                this.filterDraft.newSectionLegacyCode = option.legacyCode;
+                this.filterDraft.newSectionDisplay = option.code + (option.label ? "｜" + option.label : "");
                 this.newSectionOpen = false;
             },
             async loadDoctors(value) {
-                this.form.doctorCode = "";
-                const query = String(value || this.form.doctorDisplay || "").trim();
+                if (!this.filterDraft) return;
+                this.filterDraft.doctorCode = "";
+                const query = String(value || "").trim();
                 const current = ++this.lookupGeneration.doctor;
                 if (!query) {
                     this.doctorOptions = [];
@@ -294,15 +360,16 @@
                     if (current === this.lookupGeneration.doctor) {
                         this.doctorOptions = [];
                         this.doctorOpen = false;
-                        this.conditionError = "無法載入醫師清單，仍可直接輸入醫師代號。";
+                        this.filterError = "無法載入醫師清單，仍可直接輸入醫師代號。";
                     }
                 } finally {
                     if (current === this.lookupGeneration.doctor) this.lookupLoading.doctor = false;
                 }
             },
             selectDoctor(option) {
-                this.form.doctorCode = option.code;
-                this.form.doctorDisplay = option.code + (option.label ? "｜" + option.label : "");
+                if (!this.filterDraft) return;
+                this.filterDraft.doctorCode = option.code;
+                this.filterDraft.doctorDisplay = option.code + (option.label ? "｜" + option.label : "");
                 this.doctorOpen = false;
             },
             async message(response) {

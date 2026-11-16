@@ -641,6 +641,29 @@ public sealed class ReportControllerTests
         Assert.Equal(10, service.LastCondition.PageSize);
     }
 
+    [Fact]
+    public void PreviewC19_UsesFullFilteredRowsAndRocDate()
+    {
+        var repository = new StubC19PreviewRepository();
+        var controller = CreateController(new CountingReportService(),
+            new CapturingLogger<ReportController>(), safeNeedleRepository: repository);
+
+        var result = controller.PreviewC19(new SearchReportCondition
+        {
+            StartDate = "2026-11-13", EndDate = "2026-11-13",
+            EncounterSource = EncounterSources.Emergency, StationOrBedPrefix = "7A"
+        });
+
+        var view = Assert.IsType<PartialViewResult>(result);
+        var preview = Assert.IsType<C19SafeNeedlePreviewViewModel>(view.Model);
+        Assert.Equal("1151113", repository.CountCondition?.StartDate);
+        Assert.Equal("7A", repository.CountCondition?.StationOrBedPrefix);
+        Assert.Equal(2, repository.BatchSize);
+        Assert.Single(preview.Pages);
+        Assert.NotNull(preview.Pages[0].Rows[0].FirstNeedle);
+        Assert.NotNull(preview.Pages[0].Rows[0].Injection);
+    }
+
     [Theory]
     [InlineData(0, 10)]
     [InlineData(-1, 10)]
@@ -1711,18 +1734,42 @@ public sealed class ReportControllerTests
         string traceId = "test-trace",
         IReportExportService? exportService = null,
         IC211ContractBalanceReportService? c211ReportService = null,
-        IContractPaymentDetailRepository? c29Repository = null)
+        IContractPaymentDetailRepository? c29Repository = null,
+        ISafeNeedleRepository? safeNeedleRepository = null)
     {
         return new ReportController(new FakeReportCatalogService(), service,
             exportService ?? new FakeReportExportService(), logger,
             c211ReportService: c211ReportService,
-            c29Repository: c29Repository)
+            c29Repository: c29Repository,
+            safeNeedleRepository: safeNeedleRepository)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { TraceIdentifier = traceId }
             }
         };
+    }
+
+    private sealed class StubC19PreviewRepository : ISafeNeedleRepository
+    {
+        public SearchReportCondition? CountCondition { get; private set; }
+        public int BatchSize { get; private set; }
+        public List<ModelDescriptionsHelper.PropertyMetadata> GetColumns() => [];
+        public int GetCount(SearchReportCondition condition)
+        {
+            CountCondition = condition;
+            return 2;
+        }
+        public List<SafeNeedleReportViewModel> GetPage(SearchReportCondition condition) => [];
+        public List<SafeNeedleReportViewModel> GetBatch(SearchReportCondition condition, int offset, int batchSize)
+        {
+            BatchSize = batchSize;
+            return
+            [
+                new() { Category = "X", OrderCode = "SICPU24", BedNumber = "7A01" },
+                new() { Category = "Y", OrderCode = "SDS3", BedNumber = "7A01" }
+            ];
+        }
     }
 
     private sealed class StubC29PreviewRepository : IContractPaymentDetailRepository

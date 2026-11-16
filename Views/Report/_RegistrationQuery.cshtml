@@ -14,9 +14,9 @@
                 <small>未指定日期時仍依掛號狀態查詢</small>
             </div>
             <form v-on:submit.prevent="search">
-                <fieldset class="q3-mode-fieldset">
+                <fieldset class="q3-mode-fieldset segmented-source-fieldset">
                     <legend>查詢方式</legend>
-                    <label v-for="option in modeOptions" :key="option.value" class="q3-mode-option">
+                    <label v-for="option in modeOptions" :key="option.value" class="source-option q3-mode-option">
                         <input type="radio" name="registration-mode" v-model="form.mode"
                                :value="option.value" v-on:change="changeMode" />
                         <span>{{ option.label }}</span>
@@ -36,64 +36,14 @@
                         <span>身分證號</span>
                         <input v-model.trim="form.patientId" type="text" maxlength="11" autocomplete="off" />
                     </label>
-                    <button class="advanced-filter-toggle" type="button"
-                            :aria-expanded="advancedOpen ? 'true' : 'false'"
-                            aria-controls="registration-query-advanced-filters"
-                            v-on:click="advancedOpen = !advancedOpen">
-                        進階篩選
-                        <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span>
-                        <span class="chevron" :class="{ open: advancedOpen }">⌄</span>
+                    <button ref="filterButton" class="c22-filter-button" type="button"
+                            :aria-label="activeFilterCount ? `進階篩選，已套用 ${activeFilterCount} 項` : '進階篩選'"
+                            aria-haspopup="dialog" aria-controls="q3-filter-dialog"
+                            :aria-expanded="filterOpen ? 'true' : 'false'" v-on:click="openFilters">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="white"/><circle cx="16" cy="17" r="2.5" fill="white"/></svg>
+                        <span>進階篩選</span><span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
                     </button>
                 </div>
-
-                <transition name="advanced-filter">
-                    <div v-show="advancedOpen" id="registration-query-advanced-filters"
-                         class="advanced-grid advanced-filter-region open q3-advanced-grid">
-                        <label>
-                            <span>出生日期</span>
-                            <input v-model="form.birthDate" type="date" />
-                        </label>
-                        <label>
-                            <span>新科別</span>
-                            <report-autocomplete v-model="form.newSectionDisplay" id-prefix="q3-new-section"
-                                                 placeholder="輸入新科別代碼或名稱"
-                                                 :options="newSectionOptions" :open="newSectionOpen"
-                                                 :loading="lookupLoading.section"
-                                                 v-on:input="loadSections"
-                                                 v-on:select="selectSectionOption"
-                                                 v-on:update:open="newSectionOpen = $event" />
-                        </label>
-                        <label>
-                            <span>診間編號 <i v-if="form.mode === 'summary'">*</i></span>
-                            <input v-model.trim="form.room" type="text" maxlength="6"
-                                   autocomplete="off" :required="form.mode === 'summary'" />
-                        </label>
-                        <label>
-                            <span>時段 <i v-if="form.mode === 'summary'">*</i></span>
-                            <select v-model="form.time" :required="form.mode === 'summary'">
-                                <option value="">請選擇</option>
-                                <option value="1">1．早診</option>
-                                <option value="2">2．午診</option>
-                                <option value="3">3．晚診</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>掛號序號</span>
-                            <input v-model.trim="form.registrationNo" type="text" inputmode="numeric"
-                                   maxlength="3" autocomplete="off" v-on:input="validateRegistrationNo" />
-                        </label>
-                        <label>
-                            <span>醫師代號</span>
-                            <report-autocomplete v-model="form.doctorDisplay" id-prefix="q3-doctor"
-                                                 placeholder="輸入醫師代號或姓名"
-                                                 :options="doctorOptions" :open="doctorOpen"
-                                                 :loading="lookupLoading.doctor"
-                                                 v-on:input="loadDoctors"
-                                                 v-on:select="selectDoctor"
-                                                 v-on:update:open="doctorOpen = $event" />
-                        </label>
-                    </div>
-                </transition>
 
                 <div class="form-actions">
                     <button class="ghost-button" type="button" :disabled="loading" v-on:click="resetForm">重設</button>
@@ -104,6 +54,66 @@
                 <p v-if="conditionError" class="validation-message" role="alert">{{ conditionError }}</p>
             </form>
         </section>
+
+        <div v-if="filterOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeFilters">
+            <section id="q3-filter-dialog" class="c22-filter-dialog q3-filter-dialog" role="dialog" aria-modal="true"
+                     aria-labelledby="q3-filter-title" v-on:keydown.esc.stop="closeFilters">
+                <h2 id="q3-filter-title" ref="filterTitle" tabindex="-1">進階查詢</h2>
+                    <div class="advanced-grid q3-advanced-grid">
+                        <label>
+                            <span>出生日期</span>
+                            <input v-model="filterDraft.birthDate" type="date" />
+                        </label>
+                        <label>
+                            <span>新科別</span>
+                            <div class="q3-autocomplete-field"><report-autocomplete v-model="filterDraft.newSectionDisplay" id-prefix="q3-new-section"
+                                                 placeholder="輸入新科別代碼或名稱"
+                                                 :options="newSectionOptions" :open="newSectionOpen"
+                                                 :loading="lookupLoading.section"
+                                                 v-on:input="loadSections"
+                                                 v-on:select="selectSectionOption"
+                                                 v-on:update:open="newSectionOpen = $event" />
+                                <button v-if="filterDraft.newSectionDisplay" type="button" class="report-input-clear" aria-label="清除新科別" v-on:click="clearFilterText('newSectionDisplay')">×</button></div>
+                        </label>
+                        <label>
+                            <span>診間編號 <i v-if="form.mode === 'summary'">*</i></span>
+                            <div class="q3-clearable-field"><input v-model.trim="filterDraft.room" type="text" maxlength="6" autocomplete="off" />
+                                <button v-if="filterDraft.room" type="button" class="report-input-clear" aria-label="清除診間編號" v-on:click="clearFilterText('room')">×</button></div>
+                        </label>
+                        <label>
+                            <span>時段 <i v-if="form.mode === 'summary'">*</i></span>
+                            <select v-model="filterDraft.time">
+                                <option value="">請選擇</option>
+                                <option value="1">1．早診</option>
+                                <option value="2">2．午診</option>
+                                <option value="3">3．晚診</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>掛號序號</span>
+                            <div class="q3-clearable-field"><input v-model.trim="filterDraft.registrationNo" type="text" inputmode="numeric"
+                                   maxlength="3" autocomplete="off" v-on:input="validateRegistrationNo" />
+                                <button v-if="filterDraft.registrationNo" type="button" class="report-input-clear" aria-label="清除掛號序號" v-on:click="clearFilterText('registrationNo')">×</button></div>
+                        </label>
+                        <label>
+                            <span>醫師代號</span>
+                            <div class="q3-autocomplete-field"><report-autocomplete v-model="filterDraft.doctorDisplay" id-prefix="q3-doctor"
+                                                 placeholder="輸入醫師代號或姓名"
+                                                 :options="doctorOptions" :open="doctorOpen"
+                                                 :loading="lookupLoading.doctor"
+                                                 v-on:input="loadDoctors"
+                                                 v-on:select="selectDoctor"
+                                                 v-on:update:open="doctorOpen = $event" />
+                                <button v-if="filterDraft.doctorDisplay" type="button" class="report-input-clear" aria-label="清除醫師代號" v-on:click="clearFilterText('doctorDisplay')">×</button></div>
+                        </label>
+                    </div>
+                <p v-if="filterError" class="validation-message" role="alert">{{ filterError }}</p>
+                <div class="c22-filter-actions">
+                    <button class="ghost-button" type="button" v-on:click="closeFilters">取消</button>
+                    <button class="primary-button" type="button" :disabled="loading" v-on:click="applyFilters">套用篩選</button>
+                </div>
+            </section>
+        </div>
 
         <template v-if="form.mode === 'summary'">
             <section v-if="loading" class="panel result-panel q3-summary-result" :aria-busy="'true'">

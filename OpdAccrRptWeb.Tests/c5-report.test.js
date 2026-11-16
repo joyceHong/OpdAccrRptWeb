@@ -71,6 +71,16 @@ assert.equal(previewPages[1].lines.find(line => line.type === "subtotal").quanti
 assert.equal(previewPages[1].totals.quantity, 5);
 assert.equal(previewPages[1].totals.amount, 50);
 assert.ok(previewPages.every(page => page.isLastForSource));
+const c6SummaryPages = component.computed.previewPages.call({ preview: { detailType: 0, dataSource: 0, rows: [
+    { roomType: "急診", sectionCode: "11910", sectionName: "一般內科", chargeCode: "C6O00001", chargeName: "C6特殊檢查醫令", quantity: 3, amount: 150 },
+    { roomType: "急診", sectionCode: "11910", sectionName: "一般內科", chargeCode: "C7O0002", chargeName: "C7TEST醫令", quantity: 2, amount: 100 }
+] } });
+assert.deepEqual(Array.from(c6SummaryPages[0].lines, line => line.type), ["row", "subtotal", "row", "subtotal"]);
+assert.deepEqual(Array.from(c6SummaryPages[0].lines.filter(line => line.type === "subtotal"), line => line.amount), [150, 100]);
+assert.equal(c6SummaryPages[0].totals.quantity, 5);
+assert.equal(c6SummaryPages[0].totals.amount, 250);
+assert.doesNotMatch(c5, /報表名稱：|程式名稱：/);
+assert.match(c5, /c5-print-subtotal-marker/);
 const inpatientPages = component.computed.previewPages.call({ preview: { dataSource: 1, rows: [
     { roomType: "住院", sectionCode: "A", quantity: 1, amount: 10 },
     { roomType: "住0201", sectionCode: "B", quantity: 2, amount: 20 }

@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
+const { compile } = require("@vue/compiler-dom");
 
 let opened = [];
 global.window = {
@@ -15,6 +16,7 @@ global.window = {
 global.document = { querySelector() { return { value: "csrf" }; } };
 vm.runInThisContext(fs.readFileSync("wwwroot/js/reports/opd-price-query.js", "utf8"));
 const component = window.ReportComponents.OpdPriceQuery;
+assert.ok(component.props.includes("selectedReport"));
 const markup = fs.readFileSync("Views/Report/_OpdPriceQuery.cshtml", "utf8");
 const styles = fs.readFileSync("wwwroot/css/site.css", "utf8");
 const catalog = fs.readFileSync("Services/ReportCatalogService.cs", "utf8");
@@ -29,8 +31,14 @@ assert.match(markup, /partial name="_TableSkeleton"/);
 assert.match(markup, /<report-autocomplete/);
 assert.match(markup, /normalizedSectionOptions/);
 assert.match(markup, /medicalRecordNo"[^>]*required/);
-assert.match(markup, /class="q1-advanced-collapse"/);
-assert.match(markup, /aria-expanded="advancedOpen/);
+assert.match(markup, /class="c22-filter-dialog q1-filter-dialog"/);
+assert.match(markup, /v-on:click="applyFilters"/);
+assert.match(markup, /v-model="filterDraft\.showDc"/);
+assert.match(markup, /v-model="filterDraft\.showExtendedCode"/);
+const template = markup.split('<script type="text/x-template" id="opd-price-query-template">')[1].split("</script>")[0];
+const compilerErrors = [];
+compile(template, { onError: error => compilerErrors.push(error.message) });
+assert.deepEqual(compilerErrors, []);
 assert.match(markup, /class="panel q1-patient-panel"/);
 assert.match(markup, /class="q1-patient-content"/);
 assert.match(markup, /class="q1-row-action q1-row-action-detail"/);
@@ -67,6 +75,8 @@ assert.ok(shell.indexOf("js/components/report-autocomplete.js") < shell.indexOf(
 function instance() {
     const state = component.data();
     for (const [name, method] of Object.entries(component.methods)) state[name] = method.bind(state);
+    state.$nextTick = callback => callback();
+    state.$refs = {};
     return state;
 }
 function deferred() {
@@ -86,7 +96,15 @@ async function run() {
     };
     state.form.medicalRecordNo = "MR1";
     const options = component.computed.normalizedSectionOptions.call({ sectionOptions: [{ code: "11910", name: "心臟內科" }] });
+    state.openFilters();
     state.selectSectionOption(options[0]);
+    assert.equal(state.filterDraft.sectionQuery, "11910｜心臟內科");
+    assert.equal(state.form.sectionQuery, "");
+    state.closeFilters();
+    assert.equal(state.form.sectionQuery, "");
+    state.openFilters();
+    state.selectSectionOption(options[0]);
+    await state.applyFilters();
     assert.equal(state.form.sectionQuery, "11910｜心臟內科");
     await state.search();
     assert.equal(calls[0][1].sectionCode, "11910");

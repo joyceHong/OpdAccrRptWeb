@@ -27,39 +27,14 @@
                         <span>姓名</span>
                         <input v-model.trim="form.name" type="text" maxlength="10" autocomplete="off" />
                     </label>
-                    <button class="advanced-filter-toggle" type="button"
-                            :aria-expanded="advancedOpen ? 'true' : 'false'"
-                            aria-controls="medical-record-advanced-filters"
-                            v-on:click="advancedOpen = !advancedOpen">
-                        進階篩選
-                        <span v-if="activeFilterCount" class="active-filter-count">已套用 {{ activeFilterCount }} 項</span>
-                        <span class="chevron" :class="{ open: advancedOpen }">⌄</span>
+                    <button ref="filterButton" class="c22-filter-button" type="button"
+                            :aria-label="activeFilterCount ? `進階篩選，已套用 ${activeFilterCount} 項` : '進階篩選'"
+                            aria-haspopup="dialog" aria-controls="medical-record-filter-dialog" v-on:click="openFilters">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="white"/><circle cx="16" cy="17" r="2.5" fill="white"/></svg>
+                        <span>進階篩選</span>
+                        <span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
                     </button>
                 </div>
-                <transition name="advanced-filter">
-                    <div v-show="advancedOpen" id="medical-record-advanced-filters" class="advanced-grid advanced-filter-region open">
-                        <label>
-                            <span>住址一</span>
-                            <input v-model.trim="form.address1" type="text" maxlength="60" autocomplete="off" />
-                        </label>
-                        <label>
-                            <span>住址二</span>
-                            <input v-model.trim="form.address2" type="text" maxlength="60" autocomplete="off" />
-                        </label>
-                        <label>
-                            <span>新身份證</span>
-                            <input v-model.trim="form.newIdentityNumber" type="text" maxlength="10" autocomplete="off" />
-                        </label>
-                        <label>
-                            <span>新姓名</span>
-                            <input v-model.trim="form.newName" type="text" maxlength="10" autocomplete="off" />
-                        </label>
-                        <label>
-                            <span>新生日</span>
-                            <input v-model="form.newBirthday" type="date" />
-                        </label>
-                    </div>
-                </transition>
                 <div class="form-actions">
                     <button class="ghost-button" type="button" :disabled="loading" v-on:click="resetForm">重設</button>
                     <button class="primary-button" type="submit" :disabled="loading">⌕ 查詢</button>
@@ -67,6 +42,43 @@
                 <p v-if="conditionError" class="validation-message" role="alert">{{ conditionError }}</p>
             </form>
         </section>
+
+        <div v-if="filterOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeFilters">
+            <section id="medical-record-filter-dialog" class="c22-filter-dialog" role="dialog" aria-modal="true"
+                     aria-labelledby="medical-record-filter-title" v-on:keydown.esc.stop="closeFilters">
+                <h2 id="medical-record-filter-title" ref="filterTitle" tabindex="-1">進階查詢</h2>
+                <div class="advanced-grid">
+                    <div class="report-clearable-field">
+                        <label for="q2-address1">住址一</label>
+                        <input id="q2-address1" ref="address1Input" v-model.trim="filterDraft.address1" type="text" maxlength="60" autocomplete="off" />
+                        <button v-if="filterDraft.address1" type="button" class="report-input-clear" aria-label="清除住址一" v-on:click="clearFilterText('address1')">×</button>
+                    </div>
+                    <div class="report-clearable-field">
+                        <label for="q2-address2">住址二</label>
+                        <input id="q2-address2" ref="address2Input" v-model.trim="filterDraft.address2" type="text" maxlength="60" autocomplete="off" />
+                        <button v-if="filterDraft.address2" type="button" class="report-input-clear" aria-label="清除住址二" v-on:click="clearFilterText('address2')">×</button>
+                    </div>
+                    <div class="report-clearable-field">
+                        <label for="q2-new-identity-number">新身份證</label>
+                        <input id="q2-new-identity-number" ref="newIdentityNumberInput" v-model.trim="filterDraft.newIdentityNumber" type="text" maxlength="10" autocomplete="off" />
+                        <button v-if="filterDraft.newIdentityNumber" type="button" class="report-input-clear" aria-label="清除新身份證" v-on:click="clearFilterText('newIdentityNumber')">×</button>
+                    </div>
+                    <div class="report-clearable-field">
+                        <label for="q2-new-name">新姓名</label>
+                        <input id="q2-new-name" ref="newNameInput" v-model.trim="filterDraft.newName" type="text" maxlength="10" autocomplete="off" />
+                        <button v-if="filterDraft.newName" type="button" class="report-input-clear" aria-label="清除新姓名" v-on:click="clearFilterText('newName')">×</button>
+                    </div>
+                    <label>
+                        <span>新生日</span>
+                        <input v-model="filterDraft.newBirthday" type="date" />
+                    </label>
+                </div>
+                <div class="c22-filter-actions">
+                    <button class="ghost-button" type="button" v-on:click="closeFilters">取消</button>
+                    <button class="primary-button" type="button" :disabled="loading" v-on:click="applyFilters">套用篩選</button>
+                </div>
+            </section>
+        </div>
 
         <section class="panel result-panel" :aria-busy="loading ? 'true' : 'false'">
             <div class="result-heading">

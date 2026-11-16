@@ -1,0 +1,47 @@
+@model OpdAccrRptWeb.ViewModels.C19SafeNeedlePreviewViewModel
+@foreach (var printPage in Model.Pages)
+{
+    <section class="c19-print-document">
+        <header class="c19-print-header">
+            <div>列印日期： @Model.PrintedAt</div>
+            <div class="c19-print-title">安全針具使用情形查檢表<small>資料日期： @Model.RocReportDate</small></div>
+            <div>病房別： @printPage.Station</div>
+        </header>
+        <table class="c19-print-table">
+            <colgroup>
+                @for (var section = 0; section < 3; section++)
+                {
+                    <col class="c19-col-code" /><col class="c19-col-patient" /><col class="c19-col-check" /><col class="c19-col-material" /><col class="c19-col-safe" />
+                }
+            </colgroup>
+            <thead>
+                <tr><th colspan="5">置放靜脈留置針</th><th colspan="5">置放靜脈留置針</th><th colspan="5">最近3月內有執行肌肉注射</th></tr>
+                <tr>
+                    @for (var section = 0; section < 3; section++)
+                    {
+                        <th>批價碼</th><th>基本資料</th><th>查核<br />對象</th><th>針具領料號<br />（是否在本單位<br />置放）</th><th>是否為<br />安全針具</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in printPage.Rows)
+                {
+                    <tr>
+                        @foreach (var item in new[] { row.FirstNeedle, row.SecondNeedle, row.Injection })
+                        {
+                            <td>@item?.OrderCode</td>
+                            <td>@if (item is not null) { <span>@item.BedNumber，@item.MedicalRecordNumber<br />@item.PatientName</span> }</td>
+                            <td>@if (item is not null) { <span>□</span> }</td>
+                            <td>領料號：＿＿＿＿<br />（■是　□否）</td>
+                            <td>■是</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="c19-print-note">查核結果：□經查高風險單位住院病人中，均無置放靜脈留置針或最近3月內有執行肌肉注射的病人，評分該期 A-2、B-2、C-2 得免評。</p>
+        <p class="c19-print-note">□安全針具使用比率：［靜脈留置針使用安全針具人數（　　　）＋肌肉注射使用安全針具人數（　　　）］／［實際查核人數（　　　）］ × 100% ＝ ＿＿＿＿％</p>
+        <p class="c19-print-signature">查核人員簽名：</p>
+        <div class="c19-print-page-number">第 @printPage.PageNumber 頁</div>
+    </section>
+}

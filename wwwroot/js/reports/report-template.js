@@ -211,6 +211,7 @@
         C19: Object.freeze({
             serverPaged: true,
             singleDay: true,
+            advancedConditions: false,
             stationOrBedPrefix: true,
             encounterSource: Object.freeze({
                 defaultValue: "Emergency",
@@ -298,7 +299,7 @@
             return {
                 advancedOpen: false,
                 reportFilterOpen: false,
-                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "", c141BedNumber: "", c141MinimumNetAmount: "", c142SectionCode: "", c142ExportMode: "General", c142SelectedNewSectionCode: "", c142SelectedLegacySectionCode: "" },
+                reportFilterDraft: { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", stationOrBedPrefix: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "", c141BedNumber: "", c141MinimumNetAmount: "", c142SectionCode: "", c142ExportMode: "General", c142SelectedNewSectionCode: "", c142SelectedLegacySectionCode: "" },
                 reportFilterContractValid: true,
                 validationMessage: "",
                 isLoading: false,
@@ -425,6 +426,7 @@
             isC23() { return this.reportConfiguration.c23 === true; },
             isC24() { return this.reportConfiguration.c24 === true; },
             isC10() { return this.reportConfiguration.c10 === true; },
+            isC19() { return this.selectedReport.code === "C19"; },
             isC1() { return this.selectedReport.code === "C1"; },
             isC141() { return this.reportConfiguration.c141 === true; },
             isC211() { return this.reportConfiguration.c211 === true; },
@@ -645,6 +647,7 @@
                     departmentCode: this.form.departmentCode,
                     roomCodes: this.form.roomCodes,
                     chargeCodes: this.form.chargeCodes,
+                    stationOrBedPrefix: this.form.stationOrBedPrefix,
                     organizationQuery: this.form.organizationQuery,
                     sectionPrefix: this.form.sectionPrefix,
                     roomScope: this.form.roomScope,
@@ -690,6 +693,8 @@
                     this.form.roomScope = this.form.encounterSource === "Inpatient"
                         ? "All" : this.reportFilterDraft.roomScope;
                     this.form.medicalRecordNo = this.reportFilterDraft.medicalRecordNo.trim();
+                } else if (this.isC19) {
+                    this.form.stationOrBedPrefix = this.reportFilterDraft.stationOrBedPrefix.trim();
                 } else if (this.isC22) {
                     this.form.cashierUserId = this.reportFilterDraft.cashierUserId.trim();
                     this.form.cashierCashSortType = this.reportFilterDraft.cashierCashSortType;
@@ -717,7 +722,7 @@
                 this.serverTotalCount = 0;
                 this.serverTotalPages = 0;
                 this.reportFilterOpen = false;
-                if (this.isC3 || this.isC4 || this.isC10 || this.isC22 || this.isC29 || this.isC211 || this.isC141 || this.isC142) await this.search();
+                if (this.isC3 || this.isC4 || this.isC10 || this.isC19 || this.isC22 || this.isC29 || this.isC211 || this.isC141 || this.isC142) await this.search();
             },
             resetForm() {
                 this.stopExportPolling?.();
@@ -728,7 +733,7 @@
                 if (this.isC141 && this.c141OracleToday) this.form.endDate = this.c141OracleToday;
                 this.advancedOpen = false;
                 this.reportFilterOpen = false;
-                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "", c141BedNumber: "", c141MinimumNetAmount: "", c142SectionCode: "", c142ExportMode: "General", c142SelectedNewSectionCode: "", c142SelectedLegacySectionCode: "" };
+                this.reportFilterDraft = { cashierUserId: "", cashierCashSortType: "Cashier", billingCode: "", contractCode: "", logisticsType: 0, departmentCode: "", roomCodes: "", chargeCodes: "", stationOrBedPrefix: "", organizationQuery: "", sectionPrefix: "", roomScope: "All", medicalRecordNo: "", c141BedNumber: "", c141MinimumNetAmount: "", c142SectionCode: "", c142ExportMode: "General", c142SelectedNewSectionCode: "", c142SelectedLegacySectionCode: "" };
                 this.reportFilterContractValid = true;
                 this.c211ContractValid = true;
                 this.validationMessage = "";
@@ -1484,6 +1489,17 @@
                     cashierUserId: this.form.cashierUserId.trim() || undefined,
                     cashierCashSortType: this.form.cashierCashSortType
                 }, "無法建立 C22 列印預覽。");
+            },
+            async previewC19() {
+                if (!this.isC19 || !this.selectedReport.canPrint || !this.hasResults ||
+                    this.isLoading || this.legacyPreviewLoading) return;
+                await this.openLegacyPreview("/Report/C19/Preview", {
+                    reportCode: "C19",
+                    startDate: this.form.startDate,
+                    endDate: this.form.endDate,
+                    encounterSource: this.form.encounterSource,
+                    stationOrBedPrefix: this.form.stationOrBedPrefix?.trim() || undefined
+                }, "無法建立 C19 列印預覽。");
             },
             async previewC23() {
                 if (!this.isC23 || !this.hasResults || this.legacyPreviewLoading) return;

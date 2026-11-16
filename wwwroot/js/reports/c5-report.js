@@ -63,24 +63,26 @@
                         }
                         continue;
                     }
-                    let sectionKey = null;
-                    let sectionQuantity = 0;
-                    let sectionAmount = 0;
+                    let groupKey = null;
+                    let groupQuantity = 0;
+                    let groupAmount = 0;
                     for (const row of rows) {
-                        const key = `${row.sectionCode}|${row.sectionName ?? ""}`;
-                        if (sectionKey !== null && key !== sectionKey) {
-                            lines.push({ type: "subtotal", quantity: sectionQuantity, amount: sectionAmount });
-                            sectionQuantity = 0;
-                            sectionAmount = 0;
+                        const key = this.preview?.detailType === 0
+                            ? `${row.sectionCode}|${row.sectionName ?? ""}|${row.chargeCode}|${row.chargeName ?? ""}`
+                            : `${row.sectionCode}|${row.sectionName ?? ""}`;
+                        if (groupKey !== null && key !== groupKey) {
+                            lines.push({ type: "subtotal", quantity: groupQuantity, amount: groupAmount });
+                            groupQuantity = 0;
+                            groupAmount = 0;
                         }
-                        sectionKey = key;
+                        groupKey = key;
                         lines.push({ type: "row", row });
-                        sectionQuantity += Number(row.quantity) || 0;
-                        sectionAmount += Number(row.amount) || 0;
+                        groupQuantity += Number(row.quantity) || 0;
+                        groupAmount += Number(row.amount) || 0;
                         totals.quantity += Number(row.quantity) || 0;
                         totals.amount += Number(row.amount) || 0;
                     }
-                    if (sectionKey !== null) lines.push({ type: "subtotal", quantity: sectionQuantity, amount: sectionAmount });
+                    if (groupKey !== null) lines.push({ type: "subtotal", quantity: groupQuantity, amount: groupAmount });
                     for (let index = 0; index < lines.length; index += 22) {
                         pages.push({ source, lines: lines.slice(index, index + 22),
                             totals, isLastForSource: index + 22 >= lines.length });

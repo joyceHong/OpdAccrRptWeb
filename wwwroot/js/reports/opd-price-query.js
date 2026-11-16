@@ -3,11 +3,12 @@
     window.ReportComponents = window.ReportComponents || {};
     window.ReportComponents.OpdPriceQuery = {
         template: "#opd-price-query-template",
+        props: ["selectedReport"],
         components: { ReportAutocomplete: window.ReportComponents.ReportAutocomplete },
         data() {
             return {
                 form: { medicalRecordNo: "", visitDate: "", sectionCode: "", sectionQuery: "", showDc: false, showExtendedCode: false },
-                advancedOpen: false, visits: [], selectedDetail: null, patientLoading: false, patientError: "",
+                advancedOpen: false, filterDraft: null, visits: [], selectedDetail: null, patientLoading: false, patientError: "",
                 modalKind: "", modalVisit: null, modalDetail: null, modalLoading: false, modalError: "",
                 selectedReceipts: [], printPending: false, loading: false, searched: false, error: "",
                 pageNumber: 1, pageSize: 10, totalCount: 0, totalPages: 0, selectedToken: "",
@@ -42,8 +43,35 @@
             },
             reset() {
                 this.form = { medicalRecordNo: "", visitDate: "", sectionCode: "", sectionQuery: "", showDc: false, showExtendedCode: false };
-                this.advancedOpen = false; this.sectionOptions = []; this.sectionOpen = false;
+                this.advancedOpen = false; this.filterDraft = null; this.sectionOptions = []; this.sectionOpen = false;
                 this.invalidate(); this.pageNumber = 1; this.error = "";
+            },
+            openFilters() {
+                this.filterDraft = {
+                    visitDate: this.form.visitDate, sectionCode: this.form.sectionCode,
+                    sectionQuery: this.form.sectionQuery, showDc: this.form.showDc,
+                    showExtendedCode: this.form.showExtendedCode
+                };
+                this.sectionOpen = false; this.advancedOpen = true;
+                this.$nextTick(() => this.$refs.filterTitle?.focus());
+            },
+            closeFilters() {
+                this.advancedOpen = false; this.sectionOpen = false; this.filterDraft = null;
+                this.$nextTick(() => this.$refs.filterButton?.focus());
+            },
+            async applyFilters() {
+                if (!this.filterDraft) return;
+                Object.assign(this.form, this.filterDraft);
+                this.closeFilters();
+                if (!this.form.medicalRecordNo.trim()) {
+                    this.$nextTick(() => { this.$refs.medicalRecordInput?.focus(); this.$refs.medicalRecordInput?.reportValidity(); });
+                    return;
+                }
+                await this.search();
+            },
+            clearSection() {
+                this.filterDraft.sectionCode = ""; this.filterDraft.sectionQuery = "";
+                this.sectionOptions = []; this.sectionOpen = false;
             },
             conditions() {
                 return {
@@ -168,18 +196,25 @@
                 if (this.searched && this.snapshot) await this.fetchVisits(false);
             },
             async loadSections(value) {
-                this.form.sectionCode = "";
-                const query = String(value ?? this.form.sectionQuery).trim();
-                if (!query) { this.sectionOptions = []; this.sectionOpen = false; return; }
+                if (!this.filterDraft) return;
+                this.filterDraft.sectionCode = "";
+                const query = String(value ?? this.filterDraft.sectionQuery).trim();
+                this.sectionOptions = []; this.sectionOpen = false;
+                if (!query) return;
                 try {
                     const response = await fetch(`/data-query/opd-price/sections?q=${encodeURIComponent(query)}`);
                     if (!response.ok) throw new Error();
-                    this.sectionOptions = await response.json(); this.sectionOpen = this.sectionOptions.length > 0;
-                } catch { this.error = "無法載入科別清單，仍可直接輸入科別代碼。"; this.sectionOpen = false; }
+                    const options = await response.json();
+                    if (!this.filterDraft || this.filterDraft.sectionQuery.trim() !== query) return;
+                    this.sectionOptions = options; this.sectionOpen = options.length > 0;
+                } catch {
+                    if (!this.filterDraft || this.filterDraft.sectionQuery.trim() !== query) return;
+                    this.error = "無法載入科別清單，仍可直接輸入科別代碼。"; this.sectionOpen = false;
+                }
             },
             selectSectionOption(option) {
-                this.form.sectionCode = option.code;
-                this.form.sectionQuery = option.label ? `${option.code}｜${option.label}` : option.code;
+                this.filterDraft.sectionCode = option.code;
+                this.filterDraft.sectionQuery = option.label ? `${option.code}｜${option.label}` : option.code;
                 this.sectionOpen = false;
             },
             async message(response) {

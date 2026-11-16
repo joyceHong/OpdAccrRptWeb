@@ -12,6 +12,7 @@
                 <button class="outline-button no-print" type="button" :disabled="!canExport" v-show="selectedReport.canExcel" v-on:click="exportResults">{{ isExporting ? '匯出處理中…' : '匯出 Excel' }}</button>
             </div>
             <button v-else-if="isC13" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC13">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
+            <button v-else-if="isC19" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || legacyPreviewLoading" v-show="selectedReport.canPrint" v-on:click="previewC19">{{ legacyPreviewLoading ? '載入預覽…' : '預覽／列印' }}</button>
             <button v-else-if="isC3" class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c3PreviewLoading" v-show="selectedReport.canPrint" v-on:click="openC3Preview">{{ c3PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
             <template v-else-if="isC4">
                 <button class="outline-button no-print" type="button" :disabled="!hasResults || isLoading || c4PreviewLoading" v-show="selectedReport.canPrint" v-on:click="openC4Preview">{{ c4PreviewLoading ? '載入完整預覽…' : '預覽／列印' }}</button>
@@ -132,7 +133,7 @@
                             <span>{{ option.label }}</span>
                         </label>
                     </fieldset>
-                    <div v-if="isC4 || isC141 || isC142" class="c22-source-filter-row">
+                    <div v-if="isC4 || isC141 || isC142 || isC19" class="c22-source-filter-row">
                         <button class="c22-filter-button" type="button" :aria-label="activeFilterCount ? `進階篩選，已套用 ${activeFilterCount} 項` : '進階篩選'" aria-haspopup="dialog" aria-controls="report-filter-dialog" v-on:click="openReportFilters">
                             <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="white"/><circle cx="16" cy="17" r="2.5" fill="white"/></svg>
                             <span>進階篩選</span><span v-if="activeFilterCount" class="c22-filter-count">{{ activeFilterCount }}</span>
@@ -194,7 +195,6 @@
                     </button>
                     <transition name="advanced-filter">
                     <div v-if="hasAdvancedConditions" v-show="advancedOpen" class="advanced-grid" :class="['advanced-filter-region','open']" id="template-advanced-filters">
-                        <label v-if="hasStationOrBedPrefix"><span>護理站／床號前綴</span><input v-model.trim="form.stationOrBedPrefix" placeholder="例如：7A" /></label>
                         <label v-if="hasCashierUserId"><span>批價員代碼</span><input v-model.trim="form.cashierUserId" placeholder="請輸入批價員代碼" /></label>
                         <label v-if="hasCashierCashSort"><span>排序方式 <i>*</i></span><select v-model="form.cashierCashSortType" required><option v-for="option in cashierCashSortConfiguration.options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
                         <label v-if="hasBillingCode"><span>合約代碼</span><input v-model.trim="form.billingCode" placeholder="空白代表全部合約" /></label>
@@ -308,8 +308,9 @@
         </div>
         <div v-if="reportFilterOpen" class="c22-filter-overlay no-print" role="presentation" v-on:click.self="closeReportFilters">
             <section id="report-filter-dialog" class="c22-filter-dialog" :class="{ 'contract-filter-dialog': isC4 || isC29 || isC211 }" role="dialog" aria-modal="true" aria-labelledby="report-filter-title" v-on:keydown.esc="closeReportFilters">
-                <h2 id="report-filter-title" ref="reportFilterTitle" :tabindex="isC4 || isC29 || isC211 || isC142 ? -1 : undefined">{{ isC10 ? '進階查詢' : '進階篩選條件' }}</h2>
+                <h2 id="report-filter-title" ref="reportFilterTitle" :tabindex="isC4 || isC29 || isC211 || isC142 ? -1 : undefined">{{ isC10 || isC19 ? '進階查詢' : '進階篩選條件' }}</h2>
                 <div class="advanced-grid">
+                    <div v-if="isC19" class="report-clearable-field"><label for="c19-filter-station">護理站／床號前綴</label><input id="c19-filter-station" ref="reportFilterInput" v-model="reportFilterDraft.stationOrBedPrefix" type="text" autocomplete="off" placeholder="例如：7A；空白代表全部" /><button v-if="reportFilterDraft.stationOrBedPrefix" class="report-input-clear" type="button" aria-label="清除護理站／床號前綴" v-on:click="reportFilterDraft.stationOrBedPrefix = ''">×</button></div>
                     <label v-if="isC141"><span>病歷號</span><input ref="reportFilterInput" v-model.trim="reportFilterDraft.medicalRecordNo" type="text" maxlength="10" autocomplete="off" placeholder="空白代表全部" /></label>
                     <label v-if="isC141"><span>床號</span><input v-model.trim="reportFilterDraft.c141BedNumber" type="text" maxlength="8" autocomplete="off" placeholder="空白代表全部" /></label>
                     <label v-if="isC141"><span>淨額門檻</span><input v-model="reportFilterDraft.c141MinimumNetAmount" type="number" step="any" inputmode="decimal" placeholder="空白代表不限" /></label>

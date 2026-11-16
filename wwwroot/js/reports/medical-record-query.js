@@ -18,7 +18,8 @@
         data() {
             return {
                 form: emptyForm(),
-                advancedOpen: false,
+                filterOpen: false,
+                filterDraft: null,
                 rows: [],
                 loading: false,
                 searched: false,
@@ -65,6 +66,33 @@
                     newBirthday: this.form.newBirthday || ""
                 };
             },
+            openFilters() {
+                this.filterDraft = {
+                    address1: this.form.address1,
+                    address2: this.form.address2,
+                    newIdentityNumber: this.form.newIdentityNumber,
+                    newName: this.form.newName,
+                    newBirthday: this.form.newBirthday
+                };
+                this.filterOpen = true;
+                this.$nextTick(() => this.$refs.filterTitle?.focus());
+            },
+            closeFilters() {
+                this.filterOpen = false;
+                this.filterDraft = null;
+                this.$nextTick(() => this.$refs.filterButton?.focus());
+            },
+            clearFilterText(field) {
+                if (!this.filterDraft) return;
+                this.filterDraft[field] = "";
+                this.$nextTick(() => this.$refs[`${field}Input`]?.focus());
+            },
+            async applyFilters() {
+                if (!this.filterDraft || this.loading) return;
+                Object.assign(this.form, this.filterDraft);
+                this.closeFilters();
+                await this.search();
+            },
             resetState() {
                 this.generation++;
                 this.clearModal();
@@ -80,7 +108,8 @@
             },
             resetForm() {
                 this.form = emptyForm();
-                this.advancedOpen = false;
+                this.filterOpen = false;
+                this.filterDraft = null;
                 this.resetState();
             },
             async search() {

@@ -32,6 +32,7 @@ public sealed class ReportController : Controller
     private readonly IC3ReportService? _c3ReportService;
     private readonly IC211ContractBalanceReportService? _c211ReportService;
     private readonly IC1SurgicalPrintService? _c1SurgicalPrintService;
+    private readonly ISafeNeedleRepository? _safeNeedleRepository;
 
     public ReportController(
         IReportCatalogService reportCatalogService,
@@ -50,7 +51,8 @@ public sealed class ReportController : Controller
         IC1SurgicalPrintService? c1SurgicalPrintService = null,
         IC21AccountingSummaryCalculationService? c21CalculationService = null,
         ICashierCashRepository? c22Repository = null,
-        IContractPaymentDetailRepository? c29Repository = null)
+        IContractPaymentDetailRepository? c29Repository = null,
+        ISafeNeedleRepository? safeNeedleRepository = null)
     {
         _reportCatalogService = reportCatalogService;
         _reportService = reportService;
@@ -69,6 +71,7 @@ public sealed class ReportController : Controller
         _c3ReportService = c3ReportService;
         _c211ReportService = c211ReportService;
         _c1SurgicalPrintService = c1SurgicalPrintService;
+        _safeNeedleRepository = safeNeedleRepository;
     }
 
     [HttpGet("/")]
@@ -889,6 +892,61 @@ public sealed class ReportController : Controller
             {
                 Status = 500, Title = "無法建立 C21 列印預覽，請稍後再試。"
             });
+        }
+    }
+
+    [HttpPost("Report/C19/Preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult PreviewC19([FromBody] SearchReportCondition condition)
+    {
+        condition.ReportCode = "C19";
+        IActionResult? validation = ValidateC19Condition(condition);
+        if (validation is not null) return validation;
+        Response.Headers.CacheControl = "private, no-store";
+        try
+        {
+            var repository = _safeNeedleRepository
+                ?? throw new InvalidOperationException("C19 repository 尚未設定。");
+            DateOnly reportDate = DateOnly.ParseExact(
+                condition.StartDate!, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var sourceCondition = new SearchReportCondition
+            {
+                StartDate = DateTimeExtensions.ToRocDateString(reportDate.ToDateTime(TimeOnly.MinValue)),
+                EncounterSource = condition.EncounterSource,
+                StationOrBedPrefix = condition.StationOrBedPrefix
+            };
+            int count = repository.GetCount(sourceCondition);
+            if (count == 0)
+                return NotFound(new ProblemDetails { Status = 404, Title = "查無可預覽資料。" });
+            if (count > 5000)
+                return StatusCode(413, new ProblemDetails
+                {
+                    Status = 413, Title = "預覽資料超過 5,000 列，請縮小查詢條件。"
+                });
+
+            const int batchSize = 500;
+            var rows = new List<SafeNeedleReportViewModel>(count);
+            for (int offset = 0; offset < count; offset += batchSize)
+            {
+                var batch = repository.GetBatch(sourceCondition, offset, Math.Min(batchSize, count - offset));
+                if (batch.Count == 0) break;
+                rows.AddRange(batch);
+            }
+            if (rows.Count != count)
+                throw new InvalidOperationException("C19 預覽資料筆數與查詢結果不一致。");
+
+            return PartialView("_C19SafeNeedlePreview", C19SafeNeedlePreviewViewModel.Create(
+                reportDate, condition.EncounterSource!, rows, DateTimeOffset.Now));
+        }
+        catch (OracleException exception)
+        {
+            _logger.LogWarning(exception, "C19 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(503, new ProblemDetails { Status = 503, Title = "C19 列印預覽暫時無法取得資料。" });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "C19 preview failed. TraceId={TraceId}", HttpContext.TraceIdentifier);
+            return StatusCode(500, new ProblemDetails { Status = 500, Title = "無法建立 C19 列印預覽。" });
         }
     }
 

@@ -579,7 +579,8 @@ body{background:var(--bg)}
 .c4-query-panel form>.validation-message{flex-basis:100%}
 .c22-filter-dialog .c4-filter-hint{grid-column:1/-1;margin:0;color:#64778b;font-size:12px;line-height:1.5}
 .c12-query-panel form>.date-row{flex:0 1 620px;max-width:620px}.c12-medical-record-field{display:grid;flex:0 1 210px;min-width:170px;gap:7px;color:#43556b;font-size:13px;font-weight:700}.c12-medical-record-field input{width:100%;height:38px;padding:6px 10px;border:1px solid #c9d7e4;border-radius:7px;background:#fff;color:#293b50}.c12-query-panel form>.source-fieldset{flex:0 0 auto}.c12-query-panel form>.c22-filter-button{flex:0 0 auto}.c12-filter-hint{margin:14px 0 0;color:#64778b;font-size:12px}.c22-filter-dialog .c12-query-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0}.c12-query-grid .report-autocomplete input{padding-right:40px}@media(max-width:760px){.c12-query-panel form>.date-row,.c12-medical-record-field{flex-basis:auto;width:100%;max-width:none}.c12-query-panel form>.source-fieldset,.c12-query-panel form>.c22-filter-button{align-self:flex-start}.c22-filter-dialog .c12-query-grid{grid-template-columns:1fr}}
-.c5-filter-dialog{max-height:calc(100vh - 40px);overflow-y:auto}
+.c5-filter-overlay{overflow-y:auto;place-items:safe center}
+.c5-filter-dialog{overflow:visible}
 #c5-filter-title:focus{outline:0}
 .c5-filter-dialog .c5-filter-field{display:grid;gap:7px;min-width:0}
 .c5-filter-dialog .c5-filter-field>label{display:block}

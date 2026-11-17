@@ -23,8 +23,7 @@
                         <th>看診日期</th><th>時段</th><th>病歷號</th><th>病患姓名</th>
                         <th>科別</th><th>醫師姓名</th><th>身份</th><th>付費方式</th>
                         <th>批價碼</th><th>數量</th><th>金額</th><th>科目</th>
-                        <th>刀別</th><th>手術比例科別</th><th>手術比例醫師</th>
-                        <th>手術比例</th><th>手術比例金額</th>
+                        <th>刀別</th><th>手術比例</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -39,9 +38,7 @@
                             <td class="number">@row.Quantity.ToString("N1")</td>
                             <td class="number">@row.Amount.ToString("N0")</td>
                             <td>@row.ChargeItem</td><td>@row.SurgicalClass</td>
-                            <td>@row.RatioDepartmentCode</td><td>@row.RatioDoctorNumber</td>
                             <td class="number">@row.RatioQuantity.ToString("N1")</td>
-                            <td class="number">@row.RatioAmount.ToString("N2")</td>
                         </tr>
                     }
                 </tbody>

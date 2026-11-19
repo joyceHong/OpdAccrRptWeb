@@ -161,9 +161,9 @@
                     <strong>查詢結果</strong>
                     <span v-if="searched && !loading">共 {{ totalCount }} 筆</span>
                 </div>
-                <label v-if="searched && hasResults && !loading">
+                <label v-if="searched && hasResults">
                     每頁顯示
-                    <select v-model.number="pageSize" v-on:change="changePageSize">
+                    <select v-model.number="pageSize" :disabled="loading" v-on:change="changePageSize">
                         <option :value="10">10 筆</option>
                         <option :value="30">30 筆</option>
                         <option :value="50">50 筆</option>

@@ -25,7 +25,7 @@
                 <tr class="c22-group-heading"><td colspan="18">@group.Key</td></tr>
                 @foreach (var row in group)
                 {
-                    <tr>
+                    <tr class="c22-print-detail">
                         <td>@row.CashierDate</td><td>@row.CashierUserId</td><td>@row.CashierUserName</td>
                         <td>@Amount(row.CashAmount)</td><td>@Amount(row.SupplementaryCashAmount)</td>
                         <td>@Amount(row.DebitCardAmount)</td><td>@Amount(row.CheckAmount)</td>

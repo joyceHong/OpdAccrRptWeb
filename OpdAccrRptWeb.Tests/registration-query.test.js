@@ -21,6 +21,7 @@ assert.match(view, /v-on:click="applyFilters">套用篩選/);
 assert.match(view, /type="date"/);
 assert.match(view, /_TableSkeleton/);
 assert.match(view, /class="pagination"/);
+assert.match(view, /<select v-model\.number="pageSize" :disabled="loading" v-on:change="changePageSize">/);
 assert.match(view, /class="q3-summary-grid"/);
 assert.match(view, /id-prefix="q3-new-section"/);
 assert.doesNotMatch(view, /舊科別|q3-legacy-section/);
@@ -67,10 +68,40 @@ query.closeFilters();
 assert.equal(query.form.room, "");
 query.openFilters();
 query.filterDraft.room = "12";
-query.applyFilters().then(() => {
+query.applyFilters().then(async () => {
     assert.equal(query.form.room, "12");
     assert.equal(query.filterOpen, false);
     assert.equal(query.searchCalls, 1);
     assert.equal(query.pageNumber, 1);
+
+    const requests = [];
+    context.fetch = async (_url, options) => {
+        const request = JSON.parse(options.body);
+        requests.push(request);
+        return {
+            ok: true,
+            json: async () => ({
+                rows: Array.from({ length: request.pageSize }, (_, index) => ({ registrationKey: String(index) })),
+                totalCount: 75,
+                totalPages: Math.ceil(75 / request.pageSize),
+                pageNumber: request.pageNumber,
+                pageSize: request.pageSize
+            })
+        };
+    };
+    const paging = { ...component.data.call({ defaultStartDate: "2026-10-05" }) };
+    for (const [name, method] of Object.entries(component.methods)) paging[name] = method.bind(paging);
+    paging.snapshot = { mode: "registered" };
+    paging.searched = true;
+    paging.pageNumber = 3;
+    await paging.changePageSize({ target: { value: "30" } });
+    assert.equal(requests[0].pageNumber, 1);
+    assert.equal(requests[0].pageSize, 30);
+    assert.equal(paging.rows.length, 30);
+    assert.equal(paging.totalPages, 3);
+    await paging.changePageSize({ target: { value: "50" } });
+    assert.equal(requests[1].pageSize, 50);
+    assert.equal(paging.rows.length, 50);
+    assert.equal(paging.totalPages, 2);
     console.log("registration query UI smoke tests passed");
 }).catch(error => { console.error(error); process.exitCode = 1; });

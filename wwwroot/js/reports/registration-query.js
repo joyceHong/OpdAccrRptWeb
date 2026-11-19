@@ -273,9 +273,10 @@
                 this.pageNumber = page;
                 await this.fetchResults(false);
             },
-            async changePageSize() {
+            async changePageSize(event) {
+                this.pageSize = Number(event.target.value);
                 this.pageNumber = 1;
-                if (!this.isSummary && this.searched && this.snapshot && !this.loading) {
+                if (!this.isSummary && this.searched && this.snapshot) {
                     await this.fetchResults(false);
                 }
             },

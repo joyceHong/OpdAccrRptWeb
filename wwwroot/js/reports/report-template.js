@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const reportConfigurations = Object.freeze({
         C1: Object.freeze({ serverPaged: true }),
         C3: Object.freeze({
@@ -847,7 +848,7 @@
                 this.c141ActionLoading = true;
                 this.c141ActionResults = [];
                 try {
-                    const response = await fetch("/Report/C141/LineBot", {
+                    const response = await siteFetch("/Report/C141/LineBot", {
                         method: "POST",
                         headers: { "Content-Type": "application/json", Accept: "application/json" },
                         body: JSON.stringify({ kind: this.c141LineBotKind, cases })
@@ -872,7 +873,7 @@
                 this.c141PreviewOpen = false;
                 this.c141PreviewHtml = "";
                 try {
-                    const response = await fetch("/Report/C141/Notice/Preview", {
+                    const response = await siteFetch("/Report/C141/Notice/Preview", {
                         method: "POST",
                         headers: { "Content-Type": "application/json", Accept: "text/html, application/problem+json" },
                         body: JSON.stringify({ cases, entryDateTicket: this.c141EntryDateTicket })
@@ -960,7 +961,7 @@
                     this.c141HistoryRows = [];
                 }
                 try {
-                    const response = await fetch(
+                    const response = await siteFetch(
                         exportExcel ? "/Report/C141/NoticeHistory/Export" : "/Report/C141/NoticeHistory/Query", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -990,7 +991,7 @@
                 this.c141Recalculating = true;
                 this.validationMessage = "";
                 try {
-                    const response = await fetch("/Report/C141/Recalculate", {
+                    const response = await siteFetch("/Report/C141/Recalculate", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ accountingDate: this.form.endDate })
@@ -1007,7 +1008,7 @@
             },
             async loadC141TodayAndSearch() {
                 try {
-                    const response = await fetch("/Report/C141/Today", { headers: { Accept: "application/json" } });
+                    const response = await siteFetch("/Report/C141/Today", { headers: { Accept: "application/json" } });
                     if (!response.ok) throw new Error(`無法載入 Oracle 帳務日（HTTP ${response.status}）。`);
                     const result = await response.json();
                     if (!/^\d{4}-\d{2}-\d{2}$/.test(result.accountingDate ?? ""))
@@ -1035,7 +1036,7 @@
                 this.c142OrganizationSearchTimer = window.setTimeout(async () => {
                     this.c142SectionLoading = true;
                     try {
-                        const response = await fetch(`/Report/C142/SectionOptions?query=${encodeURIComponent(query)}`);
+                        const response = await siteFetch(`/Report/C142/SectionOptions?query=${encodeURIComponent(query)}`);
                         if (!response.ok) throw new Error();
                         const options = await response.json();
                         if (generation !== this.c142OrganizationSearchGeneration) return;
@@ -1083,7 +1084,7 @@
                 this.c21BillingItems = [];
                 if (!this.isC21) return;
                 try {
-                    const response = await fetch("/Report/C21/BillingItems");
+                    const response = await siteFetch("/Report/C21/BillingItems");
                     if (response.ok) this.c21BillingItems = await response.json();
                 } catch {
                     this.c21BillingItems = [];
@@ -1093,7 +1094,7 @@
                 this.c23Contracts = [];
                 if (!this.isC23) return;
                 try {
-                    const response = await fetch("/Report/C23/Contracts");
+                    const response = await siteFetch("/Report/C23/Contracts");
                     if (response.ok) this.c23Contracts = await response.json();
                 } catch {
                     this.c23Contracts = [];
@@ -1104,7 +1105,7 @@
                 this.c29ContractLoading = true;
                 this.c29ContractError = "";
                 try {
-                    const response = await fetch("/Report/C29/Contracts", { cache: "no-store" });
+                    const response = await siteFetch("/Report/C29/Contracts", { cache: "no-store" });
                     if (!response.ok) throw new Error("C29 合約清單載入失敗。");
                     const choices = await response.json();
                     if (!Array.isArray(choices)) throw new Error("C29 合約清單格式錯誤。");
@@ -1124,7 +1125,7 @@
                 this.c211ContractLoading = true;
                 this.c211ContractError = "";
                 try {
-                    const response = await fetch("/Report/C211/Contracts", { cache: "no-store" });
+                    const response = await siteFetch("/Report/C211/Contracts", { cache: "no-store" });
                     if (!response.ok) throw new Error("C211 合約清單載入失敗。");
                     const choices = await response.json();
                     if (!Array.isArray(choices)) throw new Error("C211 合約清單格式錯誤。");
@@ -1149,6 +1150,11 @@
                 }
                 if (!this.isEndDateOnly && this.form.startDate > this.form.endDate) {
                     this.validationMessage = "起始日期不可晚於截止日期。";
+                    return;
+                }
+                if (this.isC3 && Date.parse(this.form.endDate) - Date.parse(this.form.startDate)
+                    >= 7 * 24 * 60 * 60 * 1000) {
+                    this.validationMessage = "C3 查詢日期區間最多 7 天（含起訖日）。";
                     return;
                 }
                 if (this.hasEncounterSource && !this.form.encounterSource) {
@@ -1193,7 +1199,7 @@
                     const c4Token = this.isC4 && typeof document !== "undefined"
                         ? document.querySelector('input[name="__RequestVerificationToken"]')?.value
                         : null;
-                    const response = await fetch(this.isC141 ? "/Report/C141/Query" : this.isC142 ? "/Report/C142/Query" : this.isC4 ? "/reports/c4/query" : "/Report/GetReportData", {
+                    const response = await siteFetch(this.isC141 ? "/Report/C141/Query" : this.isC142 ? "/Report/C142/Query" : this.isC4 ? "/reports/c4/query" : "/Report/GetReportData", {
                         method: "POST",
                         headers: { "Content-Type": "application/json",
                             ...(c4Token ? { RequestVerificationToken: c4Token } : {}) },
@@ -1323,7 +1329,7 @@
                 if (!query && !this.reportFilterOpen) { this.c4Organizations = []; return; }
                 this.c4OrganizationSearchTimer = window.setTimeout(async () => {
                     try {
-                        const response = await fetch(`/reports/c4/organization-units?query=${encodeURIComponent(query)}`);
+                        const response = await siteFetch(`/reports/c4/organization-units?query=${encodeURIComponent(query)}`);
                         const organizations = response.ok ? await response.json() : [];
                         if (generation === this.c4OrganizationSearchGeneration)
                             this.c4Organizations = organizations;
@@ -1367,7 +1373,7 @@
                 if (selectedLegacyCode) return selectedLegacyCode;
                 const newCode = String(this.form.organizationQuery ?? "").trim().toUpperCase();
                 if (!newCode) return "";
-                const response = await fetch(`/reports/c4/organization-units/resolve?newCode=${encodeURIComponent(newCode)}`);
+                const response = await siteFetch(`/reports/c4/organization-units/resolve?newCode=${encodeURIComponent(newCode)}`);
                 if (!response.ok) {
                     const message = await response.text();
                     throw new Error(message || "無法轉換科別／部門代碼。");
@@ -1389,7 +1395,7 @@
                     const token = typeof document !== "undefined"
                         ? document.querySelector('input[name="__RequestVerificationToken"]')?.value
                         : null;
-                    const response = await fetch("/reports/c4/preview", {
+                    const response = await siteFetch("/reports/c4/preview", {
                         method: "POST",
                         headers: { "Content-Type": "application/json",
                             ...(token ? { RequestVerificationToken: token } : {}) },
@@ -1569,7 +1575,7 @@
                 this.legacyPreviewHtml = "";
                 this.validationMessage = "";
                 try {
-                    const response = await fetch(url, {
+                    const response = await siteFetch(url, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(payload)
@@ -1600,11 +1606,12 @@
                     return;
                 }
                 const stylesheet = document.querySelector('link[href*="site.css"]');
-                const stylesheetUrl = stylesheet?.href || "/css/site.css";
+                const stylesheetUrl = stylesheet?.href || (window.siteUrl ? window.siteUrl("/css/site.css") : "/css/site.css");
                 const paper = document.querySelector(".report-preview-overlay .report-preview-paper");
                 if (!paper) { printWindow.close(); return; }
                 printWindow.document.open();
-                printWindow.document.write(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>C23 列印</title><link rel="stylesheet" href="${stylesheetUrl}"><link rel="stylesheet" href="/css/c23-preview.css"></head><body><div class="report-preview-overlay"><article class="report-preview-paper">${paper.innerHTML}</article></div></body></html>`);
+                const previewStylesheetUrl = window.siteUrl ? window.siteUrl("/css/c23-preview.css") : "/css/c23-preview.css";
+                printWindow.document.write(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>C23 列印</title><link rel="stylesheet" href="${stylesheetUrl}"><link rel="stylesheet" href="${previewStylesheetUrl}"></head><body><div class="report-preview-overlay"><article class="report-preview-paper">${paper.innerHTML}</article></div></body></html>`);
                 printWindow.addEventListener("load", () => { printWindow.focus(); printWindow.print(); }, { once: true });
                 printWindow.document.close();
             },
@@ -1615,7 +1622,7 @@
                 this.c3PreviewOpen = false;
                 this.c3Preview = null;
                 try {
-                    const response = await fetch("/Report/C3/Preview", {
+                    const response = await siteFetch("/Report/C3/Preview", {
                         method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
                         body: JSON.stringify({ reportCode: "C3", startDate: this.form.startDate,
                             endDate: this.form.endDate, source: this.form.encounterSource,
@@ -1724,7 +1731,7 @@
                 this.c15PreviewRows = [];
                 this.c15PreviewSummary = null;
                 try {
-                    const response = await fetch("/Report/GetReportData", {
+                    const response = await siteFetch("/Report/GetReportData", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -1824,7 +1831,7 @@
                         receivableBalanceType: reportCode === "C214"
                             ? this.form.receivableBalanceType : undefined
                     };
-                    const response = await fetch("/Report/Export", {
+                    const response = await siteFetch("/Report/Export", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(exportPayload)
@@ -1854,7 +1861,7 @@
                 this.isExporting = true;
                 this.validationMessage = "";
                 try {
-                    const response = await fetch("/Report/C142/Export", {
+                    const response = await siteFetch("/Report/C142/Export", {
                         method: "POST", headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ snapshotId: this.c142SnapshotId, mode: this.form.c142ExportMode })
                     });
@@ -1868,7 +1875,7 @@
             async pollExportJob() {
                 if (!this.exportJob?.statusUrl) return;
                 try {
-                    const response = await fetch(this.exportJob.statusUrl);
+                    const response = await siteFetch(this.exportJob.statusUrl);
                     if (!response.ok) throw new Error(await this.readExportError(response));
                     this.exportJob = await response.json();
                     if (["Ready", "Failed", "Expired"].includes(this.exportJob.status)) {

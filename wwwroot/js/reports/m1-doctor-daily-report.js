@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const token = () => document.querySelector('input[name="__RequestVerificationToken"]').value;
     const yesterday = value => {
         const date = new Date(`${value}T00:00:00`);
@@ -35,7 +36,7 @@
             async load() {
                 this.isLoading = true; this.validationMessage = "";
                 try {
-                    const response = await fetch("/medical-statistics/doctor-daily/query", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: JSON.stringify(this.payload()) });
+                    const response = await siteFetch("/medical-statistics/doctor-daily/query", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: JSON.stringify(this.payload()) });
                     if (response.status === 409) {
                         const problem = await message(response);
                         if (problem.code === "M1_FUTURE_DATE_CONFIRMATION_REQUIRED" && window.confirm(`${problem.text}\n是否仍要繼續查詢？`)) { this.futureDateConfirmed = true; return await this.load(); }
@@ -58,13 +59,13 @@
                 this.previewLoading = true; this.validationMessage = "";
                 try {
                     const body = new URLSearchParams({ runId: this.runId, pageNumber: "1", pageSize: String(this.pageSize), __RequestVerificationToken: token() });
-                    const response = await fetch("/medical-statistics/doctor-daily/preview", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "RequestVerificationToken": token() }, body });
+                    const response = await siteFetch("/medical-statistics/doctor-daily/preview", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "RequestVerificationToken": token() }, body });
                     if (!response.ok) { const problem = await message(response); throw new Error(problem.text); }
                     this.previewHtml = await response.text(); this.previewOpen = true;
                 } catch (error) { this.closePreview(); this.validationMessage = error instanceof Error ? error.message : "M1 預覽失敗。"; }
                 finally { this.previewLoading = false; }
             },
-            exportReport(format) { if (this.hasResults) window.location.assign(`/medical-statistics/doctor-daily/export?runId=${encodeURIComponent(this.runId)}&format=${format}`); },
+            exportReport(format) { if (this.hasResults) { const path = `/medical-statistics/doctor-daily/export?runId=${encodeURIComponent(this.runId)}&format=${format}`; window.location.assign(window.siteUrl ? window.siteUrl(path) : path); } },
             closePreview() { this.previewOpen = false; this.previewHtml = ""; },
             printPreview() { if (this.previewOpen) window.print(); }
         }

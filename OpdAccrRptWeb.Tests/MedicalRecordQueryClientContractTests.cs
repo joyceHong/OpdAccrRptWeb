@@ -190,7 +190,7 @@ public sealed class MedicalRecordQueryClientContractTests
         Assert.Contains("modalError: \"\"", component, StringComparison.Ordinal);
         Assert.Contains("modalGeneration: 0", component, StringComparison.Ordinal);
         Assert.Contains("lastTrigger: null", component, StringComparison.Ordinal);
-        Assert.Contains("fetch(\"/data-query/medical-record/detail\"", component, StringComparison.Ordinal);
+        Assert.Contains("siteFetch(\"/data-query/medical-record/detail\"", component, StringComparison.Ordinal);
         Assert.Contains("body: JSON.stringify({ medicalRecordNo: row.medicalRecordNo })", component, StringComparison.Ordinal);
         Assert.Contains("const current = ++this.modalGeneration;", component, StringComparison.Ordinal);
         Assert.Contains("query === this.generation", component, StringComparison.Ordinal);

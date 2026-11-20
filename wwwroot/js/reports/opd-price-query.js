@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const csrf = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
     window.ReportComponents = window.ReportComponents || {};
     window.ReportComponents.OpdPriceQuery = {
@@ -90,7 +91,7 @@
                 const current = ++this.generation;
                 this.loading = true; this.error = "";
                 try {
-                    const response = await fetch("/data-query/opd-price/visits", {
+                    const response = await siteFetch("/data-query/opd-price/visits", {
                         method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": csrf() },
                         body: JSON.stringify({ ...this.snapshot, pageNumber: this.pageNumber, pageSize: this.pageSize })
                     });
@@ -110,7 +111,7 @@
                 } finally { if (current === this.generation) this.loading = false; }
             },
             async requestDetail(row) {
-                const response = await fetch("/data-query/opd-price/detail", {
+                const response = await siteFetch("/data-query/opd-price/detail", {
                     method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": csrf() },
                     body: JSON.stringify({ visitToken: row.visitToken, showDc: this.snapshot.showDc,
                         showExtendedCode: this.snapshot.showExtendedCode })
@@ -119,7 +120,7 @@
                 return await response.json();
             },
             async requestBasic(row) {
-                const response = await fetch("/data-query/opd-price/basic", {
+                const response = await siteFetch("/data-query/opd-price/basic", {
                     method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": csrf() },
                     body: JSON.stringify({ visitToken: row.visitToken })
                 });
@@ -177,7 +178,7 @@
                 body.append("__RequestVerificationToken", csrf());
                 this.printPending = true;
                 try {
-                    const response = await fetch("/data-query/opd-price/receipts", { method: "POST", body });
+                    const response = await siteFetch("/data-query/opd-price/receipts", { method: "POST", body });
                     if (!response.ok) throw new Error(await this.message(response));
                     const html = await response.text();
                     if (query !== this.generation || modal !== this.modalGeneration) { preview.close(); return; }
@@ -202,7 +203,7 @@
                 this.sectionOptions = []; this.sectionOpen = false;
                 if (!query) return;
                 try {
-                    const response = await fetch(`/data-query/opd-price/sections?q=${encodeURIComponent(query)}`);
+                    const response = await siteFetch(`/data-query/opd-price/sections?q=${encodeURIComponent(query)}`);
                     if (!response.ok) throw new Error();
                     const options = await response.json();
                     if (!this.filterDraft || this.filterDraft.sectionQuery.trim() !== query) return;

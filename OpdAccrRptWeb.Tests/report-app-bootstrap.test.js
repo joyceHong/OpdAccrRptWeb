@@ -8,6 +8,7 @@ const routesSeen = [];
 let mounted = false;
 let appOptions;
 let assignedPath;
+let historyBase;
 const directivesSeen = [];
 const initialState = {
     categories: [{ key: "outpatient", name: "Reports", groups: [{ name: "Group", reports: [{ code: "C1", name: "One" }] }] }],
@@ -44,7 +45,7 @@ const Vue = { createApp(options) { appOptions = options; return { directive(name
     return this;
 }, use() { return this; }, mount() { mounted = true; } }; } };
 const VueRouter = {
-    createWebHistory() { return {}; },
+    createWebHistory(base) { historyBase = base; return {}; },
     createRouter(options) {
         routesSeen.push(...options.routes);
         assert.ok(options.routes.every(route => route.component || route.redirect), "routes must render or redirect");
@@ -55,6 +56,7 @@ const VueRouter = {
 vm.runInNewContext(source, { window, document, Vue, VueRouter });
 
 assert.equal(mounted, true);
+assert.equal(historyBase, "/");
 assert.deepEqual(directivesSeen, ["report-query-collapse", "report-clearable-inputs"]);
 assert.match(indexMarkup, /js\/components\/report-clearable-inputs\.js/);
 const navigation = {
@@ -63,6 +65,12 @@ const navigation = {
 };
 appOptions.methods.selectReport.call(navigation, { code: "C21" });
 assert.equal(assignedPath, "/Report/C21");
+window.sitePathBase = "/femhF1482/OpdAccrRpt";
+window.siteUrl = path => `${window.sitePathBase}${path}`;
+vm.runInNewContext(source, { window, document, Vue, VueRouter });
+assert.equal(historyBase, "/femhF1482/OpdAccrRpt");
+appOptions.methods.selectReport.call(navigation, { code: "C21" });
+assert.equal(assignedPath, "/femhF1482/OpdAccrRpt/Report/C21");
 assert.ok(routesSeen.some(route => route.path === "/Report/C1"));
 assert.ok(routesSeen.some(route => route.path === "/Report/C141" && route.meta.reportCode === "C141"));
 assert.ok(routesSeen.some(route => route.path === "/Report" && route.component));

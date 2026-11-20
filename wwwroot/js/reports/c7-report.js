@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const token = () => document.querySelector('input[name="__RequestVerificationToken"]').value;
     const toLegacyTime = value => value.replace(":", "");
 
@@ -56,7 +57,7 @@
             async loadUsers() {
                 if (!this.form.endDate) return;
                 try {
-                    const r = await fetch(`/reports/c7/input-users?endDate=${encodeURIComponent(this.form.endDate)}`);
+                    const r = await siteFetch(`/reports/c7/input-users?endDate=${encodeURIComponent(this.form.endDate)}`);
                     this.users = r.ok ? await r.json() : [];
                 } catch { this.users = []; }
             },
@@ -81,7 +82,7 @@
                 this.isLoading = true;
                 this.validationMessage = "";
                 try {
-                    const r = await fetch("/reports/c7/query", {
+                    const r = await siteFetch("/reports/c7/query", {
                         method: "POST",
                         headers: { "Content-Type": "application/json", "RequestVerificationToken": token() },
                         body: JSON.stringify(this.payload())
@@ -126,7 +127,7 @@
                 this.validationMessage = "";
                 try {
                     const body = new URLSearchParams({ ...this.payload(), __RequestVerificationToken: token() });
-                    const r = await fetch("/reports/c7/preview", {
+                    const r = await siteFetch("/reports/c7/preview", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",

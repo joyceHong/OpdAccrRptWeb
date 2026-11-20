@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Services;
 using Oracle.ManagedDataAccess.Client;
 
@@ -14,7 +15,7 @@ public sealed class C5ReportController(IC5ReportService reportService,
 {
     [HttpGet("")]
     [AllowAnonymous]
-    public IActionResult Index() => Redirect("/Report/C5");
+    public IActionResult Index() => Redirect(AppPath.WithPathBase(Request, "/Report/C5"));
 
     [HttpPost("query")]
     [ValidateAntiForgeryToken]

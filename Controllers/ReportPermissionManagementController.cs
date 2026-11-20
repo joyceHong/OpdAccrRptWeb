@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oracle.ManagedDataAccess.Client;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
 
@@ -21,7 +22,7 @@ public sealed class ReportPermissionManagementController(
             (ReportPermissionSnapshot)HttpContext.Items[ReportPermissionManagerFilter.SnapshotItemKey]!;
         string path = ReportNavigationService.FirstAllowedPath(catalog.GetReportIndex(), snapshot)
             ?? "/Report";
-        return Redirect($"{path}?permissionSettings=1");
+        return Redirect($"{AppPath.WithPathBase(Request, path)}?permissionSettings=1");
     }
 
     [HttpGet("permissions/panel")]

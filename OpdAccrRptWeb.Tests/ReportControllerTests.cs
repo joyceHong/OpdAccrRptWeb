@@ -99,6 +99,17 @@ public sealed class ReportControllerTests
         Assert.Equal("/Report/C1", result.Url);
     }
 
+    [Theory]
+    [InlineData("/OpdAccrRpt", "/OpdAccrRpt/Report/C1")]
+    [InlineData("/femhF1482/OpdAccrRpt", "/femhF1482/OpdAccrRpt/Report/C1")]
+    public void Root_RedirectsWithinDeploymentPath(string basePath, string expected)
+    {
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>());
+        controller.Request.PathBase = new PathString(basePath);
+
+        Assert.Equal(expected, Assert.IsType<RedirectResult>(controller.Root()).Url);
+    }
+
     [Fact]
     public void Index_WithoutReportCode_RedirectsToC1()
     {
@@ -389,6 +400,23 @@ public sealed class ReportControllerTests
         Assert.Equal($"/Report/Export/{job.JobId:D}", response.StatusUrl);
     }
 
+    [Fact]
+    public void Export_QueuedJob_ReturnsStatusUrlWithinDeploymentPath()
+    {
+        var job = CreateJob(ReportExportJobStatus.Queued);
+        var exportService = new FakeReportExportService
+        {
+            DispatchResult = new ReportExportDispatchResult(null, null, job)
+        };
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>(), exportService: exportService);
+        controller.Request.PathBase = new PathString("/femhF1482/OpdAccrRpt");
+
+        var accepted = Assert.IsType<AcceptedResult>(controller.Export(ValidExportCondition()));
+        var response = Assert.IsType<ReportExportJobResponse>(accepted.Value);
+
+        Assert.Equal($"/femhF1482/OpdAccrRpt/Report/Export/{job.JobId:D}", response.StatusUrl);
+    }
+
     [Theory]
     [InlineData("C170", "2026-08-01", "2026-08-31")]
     [InlineData("C174", "bad", "2026-08-31")]
@@ -615,6 +643,21 @@ public sealed class ReportControllerTests
 
         Assert.IsType<BadRequestObjectResult>(controller.GetExportStatus("../secret.xlsx"));
         Assert.IsType<NotFoundResult>(controller.GetExportStatus(Guid.NewGuid().ToString("D")));
+    }
+
+    [Fact]
+    public void GetExportStatus_ReadyJob_ReturnsStatusAndDownloadUrlsWithinDeploymentPath()
+    {
+        var job = CreateJob(ReportExportJobStatus.Ready);
+        var exportService = new FakeReportExportService { Job = job };
+        var controller = CreateController(new CountingReportService(), new CapturingLogger<ReportController>(), exportService: exportService);
+        controller.Request.PathBase = new PathString("/OpdAccrRpt");
+
+        var result = Assert.IsType<OkObjectResult>(controller.GetExportStatus(job.JobId.ToString("D")));
+        var response = Assert.IsType<ReportExportJobResponse>(result.Value);
+
+        Assert.Equal($"/OpdAccrRpt/Report/Export/{job.JobId:D}", response.StatusUrl);
+        Assert.Equal($"/OpdAccrRpt/Report/Export/{job.JobId:D}/download", response.DownloadUrl);
     }
 
     [Theory]

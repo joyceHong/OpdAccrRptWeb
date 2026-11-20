@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const csrf = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
     const emptyForm = () => ({
         medicalRecordNo: "",
@@ -142,7 +143,7 @@
                 this.error = "";
                 this.conditionError = "";
                 try {
-                    const response = await fetch("/data-query/medical-record/records", {
+                    const response = await siteFetch("/data-query/medical-record/records", {
                         method: "POST",
                         headers: { "Content-Type": "application/json", "RequestVerificationToken": csrf() },
                         body: JSON.stringify({ ...this.snapshot, pageNumber: this.pageNumber, pageSize: this.pageSize })
@@ -181,7 +182,7 @@
                 this.modalLoading = true;
                 if (typeof this.$nextTick === "function") this.$nextTick(() => this.$refs.modalClose?.focus());
                 try {
-                    const response = await fetch("/data-query/medical-record/detail", {
+                    const response = await siteFetch("/data-query/medical-record/detail", {
                         method: "POST",
                         headers: { "Content-Type": "application/json", "RequestVerificationToken": csrf() },
                         body: JSON.stringify({ medicalRecordNo: row.medicalRecordNo })

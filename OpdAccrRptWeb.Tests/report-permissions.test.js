@@ -33,7 +33,7 @@ const Vue = {
     }
 };
 const fetch = async path => {
-    assert.match(path, /^\/permissions\/grants\?/);
+    assert.match(path, /^\/femhF1482\/OpdAccrRpt\/permissions\/grants\?/);
     return {
         ok: true,
         json: async () => [
@@ -42,7 +42,7 @@ const fetch = async path => {
         ]
     };
 };
-const window = { dispatchEvent() {} };
+const window = { dispatchEvent() {}, siteUrl: path => `/femhF1482/OpdAccrRpt${path}` };
 vm.runInNewContext(source, {
     Vue, document, window, fetch, URLSearchParams, Event, setTimeout, clearTimeout
 });

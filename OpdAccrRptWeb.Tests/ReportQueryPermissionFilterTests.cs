@@ -310,6 +310,7 @@ public sealed class ReportQueryPermissionFilterTests
     public async Task DefaultLandingSkipsDeniedC1AndUsesFirstGrantedReport()
     {
         var context = CreateContext("Report", "Root", new Dictionary<string, object?>());
+        context.HttpContext.Request.PathBase = new PathString("/femhF1482/OpdAccrRpt");
         var filter = CreateFilter(new ReportPermissionSnapshot(
             "E100", false, new Dictionary<string, ReportAction>
             {
@@ -319,7 +320,7 @@ public sealed class ReportQueryPermissionFilterTests
         await filter.OnActionExecutionAsync(context, () =>
             throw new InvalidOperationException("Root action must not run"));
 
-        Assert.Equal("/Report/C21", Assert.IsType<RedirectResult>(context.Result).Url);
+        Assert.Equal("/femhF1482/OpdAccrRpt/Report/C21", Assert.IsType<RedirectResult>(context.Result).Url);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const eventCodes = ["SAPCASH", "SAPCONS", "SAPACC", "SAPREV2"];
     const csrf = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
     const failureMessage = async response => {
@@ -28,7 +29,7 @@
                 this.loading = true;
                 this.error = "";
                 try {
-                    const response = await fetch("/sap-interface/default-date", { cache: "no-store" });
+                    const response = await siteFetch("/sap-interface/default-date", { cache: "no-store" });
                     if (!response.ok) throw new Error(await failureMessage(response));
                     this.businessDate = (await response.json()).businessDate;
                     await this.loadStatus();
@@ -46,7 +47,7 @@
                 this.loading = true;
                 this.error = "";
                 try {
-                    const response = await fetch(`/sap-interface/status?businessDate=${encodeURIComponent(this.businessDate)}`, { cache: "no-store" });
+                    const response = await siteFetch(`/sap-interface/status?businessDate=${encodeURIComponent(this.businessDate)}`, { cache: "no-store" });
                     if (!response.ok) throw new Error(await failureMessage(response));
                     this.events = await response.json();
                 } catch (error) {
@@ -94,7 +95,7 @@
                 this.loading = true;
                 this.error = "";
                 try {
-                    const response = await fetch("/sap-interface/run", {
+                    const response = await siteFetch("/sap-interface/run", {
                         method: "POST",
                         headers: { "Content-Type": "application/json", "RequestVerificationToken": csrf() },
                         body: JSON.stringify(request)
@@ -124,7 +125,7 @@
                 }
             },
             async loadStatusAfterRun() {
-                const response = await fetch(`/sap-interface/status?businessDate=${encodeURIComponent(this.businessDate)}`, { cache: "no-store" });
+                const response = await siteFetch(`/sap-interface/status?businessDate=${encodeURIComponent(this.businessDate)}`, { cache: "no-store" });
                 if (response.ok) this.events = await response.json();
             },
             resultLabel(event) {

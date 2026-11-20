@@ -7,6 +7,7 @@ using OpdAccrRptWeb.Help;
 using System.Globalization;
 using Oracle.ManagedDataAccess.Client;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 
 namespace OpdAccrRptWeb.Controllers;
 
@@ -77,7 +78,7 @@ public sealed class ReportController : Controller
     [HttpGet("/")]
     public IActionResult Root()
     {
-        return Redirect(DefaultReportPath);
+        return Redirect(AppPath.WithPathBase(Request, DefaultReportPath));
     }
 
     [HttpGet("Report/{reportCode?}")]
@@ -86,7 +87,7 @@ public sealed class ReportController : Controller
     {
         if (string.IsNullOrWhiteSpace(reportCode))
         {
-            return Redirect(DefaultReportPath);
+            return Redirect(AppPath.WithPathBase(Request, DefaultReportPath));
         }
 
         ReportIndexViewModel viewModel = _reportCatalogService.GetReportIndex();
@@ -1507,9 +1508,9 @@ public sealed class ReportController : Controller
 
     private ReportExportJobResponse ToResponse(ReportExportJob job)
     {
-        var statusUrl = $"/Report/Export/{job.JobId:D}";
+        var statusUrl = AppPath.WithPathBase(Request, $"/Report/Export/{job.JobId:D}");
         var downloadUrl = job.Status == ReportExportJobStatus.Ready
-            ? $"/Report/Export/{job.JobId:D}/download"
+            ? AppPath.WithPathBase(Request, $"/Report/Export/{job.JobId:D}/download")
             : null;
         return new ReportExportJobResponse(
             job.JobId,

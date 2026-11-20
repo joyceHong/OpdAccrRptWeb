@@ -3,9 +3,11 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="app-path-base" content="@Context.Request.PathBase.Value" />
     <title>@ViewData["Title"] - 門急診報表作業</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/c23-preview.css" asp-append-version="true" />
+    <script src="~/js/app-path.js" asp-append-version="true"></script>
 </head>
 <body>
     @RenderBody()

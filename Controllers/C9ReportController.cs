@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
 
@@ -12,7 +13,7 @@ namespace OpdAccrRptWeb.Controllers;
 public sealed class C9ReportController(IC9ReportService service, IC9PatientAccessAuditWriter audit,
     TimeProvider timeProvider, ILogger<C9ReportController> logger) : Controller
 {
-    [HttpGet("")] public IActionResult Index() => Redirect("/Report/C9");
+    [HttpGet("")] public IActionResult Index() => Redirect(AppPath.WithPathBase(Request, "/Report/C9"));
 
     [HttpPost("query"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Query([FromBody] C9ReportRequest request, CancellationToken token)

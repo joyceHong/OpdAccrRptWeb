@@ -159,7 +159,7 @@ test("C4 exposes one modal preview action and no PDF UI action", () => {
 test("C4 modal preview requests structured data using the resolved legacy filter", () => {
     assert.match(script, /async openC4Preview\(\)/);
     assert.match(script, /await this\.resolveC4SectionPrefix\(\)/);
-    assert.match(script, /fetch\("\/reports\/c4\/preview"/);
+    assert.match(script, /siteFetch\("\/reports\/c4\/preview"/);
     assert.match(script, /this\.c4PreviewOpen\s*=\s*true/);
     assert.match(script, /if \(this\.c4PreviewOpen\) window\.print\(\)/);
 });

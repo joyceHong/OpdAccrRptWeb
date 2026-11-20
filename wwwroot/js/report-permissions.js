@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     "use strict";
 
     const h = Vue.h;
@@ -66,12 +67,12 @@
             },
             methods: {
                 async getJson(path, fallback) {
-                    const response = await fetch(path, { credentials: "same-origin" });
+                    const response = await siteFetch(path, { credentials: "same-origin" });
                     if (!response.ok) throw new Error(await response.text() || fallback);
                     return response.json();
                 },
                 async postJson(path, payload) {
-                    const response = await fetch(path, {
+                    const response = await siteFetch(path, {
                         method: "POST", credentials: "same-origin",
                         headers: {
                             "Content-Type": "application/json",

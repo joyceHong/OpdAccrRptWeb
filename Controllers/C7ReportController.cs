@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
 
@@ -11,7 +12,7 @@ namespace OpdAccrRptWeb.Controllers;
 [Route("reports/c7")]
 public sealed class C7ReportController(IC7ReportService service,IC7PatientAccessAuditWriter audit):Controller
 {
-    [HttpGet("")][AllowAnonymous] public IActionResult Index()=>Redirect("/Report/C7");
+    [HttpGet("")][AllowAnonymous] public IActionResult Index()=>Redirect(AppPath.WithPathBase(Request, "/Report/C7"));
     [HttpGet("input-users")]
     public async Task<IActionResult> Users([FromQuery]string endDate,CancellationToken token)
     {try{return Ok(await service.GetEligibleUsersAsync(endDate,token));}catch(ArgumentException e){return BadRequest(e.Message);}}

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.ViewModels;
 
 namespace OpdAccrRptWeb.Services;
@@ -127,13 +128,13 @@ public sealed class ReportQueryPermissionFilter(
                     catalog.GetReportIndex(), snapshot);
                 if (firstPath is not null)
                 {
-                    context.Result = new RedirectResult(firstPath);
+                    context.Result = new RedirectResult(AppPath.WithPathBase(context.HttpContext.Request, firstPath));
                     return;
                 }
                 if (string.Equals(RouteValue(context, "action"), "Root",
                         StringComparison.OrdinalIgnoreCase))
                 {
-                    context.Result = new RedirectResult("/Report");
+                    context.Result = new RedirectResult(AppPath.WithPathBase(context.HttpContext.Request, "/Report"));
                     return;
                 }
                 context.Result = new ViewResult

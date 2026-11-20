@@ -30,7 +30,7 @@ assert.match(view,/aria-label="最後一頁"[^>]*:disabled="loading\|\|currentPa
 assert.match(view,/role="option"/);
 assert.match(css,/\.report-autocomplete-panel\{[^}]*width:100%/);
 assert.match(css,/\.report-autocomplete-panel\{[^}]*border-radius:10px/);
-assert.match(view,/fetch\("\/Report\/GetC12SectionOptions"\)/);
+assert.match(view,/fetch\(window\.siteUrl\("\/Report\/GetC12SectionOptions"\)\)/);
 assert.match(view,/v-for="row in pagedRows"/);
 for(const heading of ["日期","時段","診間","序號","科別","醫師","科目","健保","自付","優待／記帳","實收"]) assert.ok(view.includes(`<th>${heading}</th>`),`missing table heading: ${heading}`);
 assert.match(view,/共 \{\{detailRows\.length\}\} 筆/);
@@ -84,7 +84,7 @@ assert.match(summaryPreview,/class="c12-summary-totals"[\s\S]*【合計】[\s\S]
 assert.match(summaryPreview,/class="c12-summary-footer"[\s\S]*※請妥善保存，以免個人資料外洩！[\s\S]*c12-page-number/);
 assert.match(css,/\.c12-print-meta\{display:grid;grid-template-columns:/);
 assert.match(css,/\.c12-summary-footer\{/);
-global.window={};
+global.window={siteUrl:path=>path};
 vm.runInThisContext(view.match(/<script>([\s\S]*)<\/script>/)[1]);
 const component=window.ReportComponents.C12Report;
 const rows=Array.from({length:28},(_,index)=>({sequence:index+1}));

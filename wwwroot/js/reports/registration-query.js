@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const csrf = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
     const registrationNoError = "掛號序號只能輸入 1 至 3 位數字。";
     const emptyForm = defaultDate => ({
@@ -234,7 +235,7 @@
                 this.error = "";
                 this.conditionError = "";
                 try {
-                    const response = await fetch("/data-query/registration/query", {
+                    const response = await siteFetch("/data-query/registration/query", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -307,7 +308,7 @@
                 }
                 this.lookupLoading.section = true;
                 try {
-                    const response = await fetch("/data-query/registration/sections?q=" + encodeURIComponent(query));
+                    const response = await siteFetch("/data-query/registration/sections?q=" + encodeURIComponent(query));
                     if (!response.ok) throw new Error();
                     const result = await response.json();
                     if (current !== this.lookupGeneration.section) return;
@@ -344,7 +345,7 @@
                 }
                 this.lookupLoading.doctor = true;
                 try {
-                    const response = await fetch("/data-query/registration/doctors?q=" + encodeURIComponent(query));
+                    const response = await siteFetch("/data-query/registration/doctors?q=" + encodeURIComponent(query));
                     if (!response.ok) throw new Error();
                     const result = await response.json();
                     if (current !== this.lookupGeneration.doctor) return;

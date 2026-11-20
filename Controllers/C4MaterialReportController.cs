@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
 
@@ -14,7 +15,7 @@ public sealed class C4MaterialReportController(IC4MaterialReportService reportSe
 {
     [HttpGet("")]
     [AllowAnonymous]
-    public IActionResult Index() => Redirect("/Report/C4");
+    public IActionResult Index() => Redirect(AppPath.WithPathBase(Request, "/Report/C4"));
 
     [HttpPost("query")]
     [ValidateAntiForgeryToken]

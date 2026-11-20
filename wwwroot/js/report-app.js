@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const SIDEBAR_PREFERENCE_KEY = "opd-report-sidebar:v1";
     const readSidebarPreference = () => {
         try {
@@ -223,7 +224,7 @@
         { path: "/Report/:reportCode", component: unavailableReportComponent }
     );
     const router = VueRouter.createRouter({
-        history: VueRouter.createWebHistory(),
+        history: VueRouter.createWebHistory(window.sitePathBase || "/"),
         routes: reportRoutes
     });
 
@@ -289,7 +290,7 @@
             },
             async loadPermissionAdministration() {
                 try {
-                    const response = await fetch("/permissions/me", { credentials: "same-origin" });
+                    const response = await siteFetch("/permissions/me", { credentials: "same-origin" });
                     if (!response.ok) return;
                     const result = await response.json();
                     this.canManagePermissions = result.canManage === true;
@@ -307,7 +308,7 @@
                 this.permissionPanelLoading = true;
                 this.permissionPanelError = "";
                 try {
-                    const response = await fetch("/permissions/panel", { credentials: "same-origin" });
+                    const response = await siteFetch("/permissions/panel", { credentials: "same-origin" });
                     if (!response.ok) throw new Error("無法載入權限設定，請稍後再試。");
                     this.permissionPanelHtml = await response.text();
                     await this.$nextTick();
@@ -330,7 +331,7 @@
             selectCategory(category) {
                 if (this.permissionsDirty) {
                     const report = category.groups[0]?.reports[0];
-                    window.location.assign(report ? this.reportPath(report) : "/Report");
+                    window.location.assign(window.siteUrl ? window.siteUrl(report ? this.reportPath(report) : "/Report") : (report ? this.reportPath(report) : "/Report"));
                     return;
                 }
                 this.showPermissionSettings = false;
@@ -344,7 +345,7 @@
             },
             selectReport(report) {
                 if (this.permissionsDirty) {
-                    window.location.assign(this.reportPath(report));
+                    window.location.assign(window.siteUrl ? window.siteUrl(this.reportPath(report)) : this.reportPath(report));
                     return;
                 }
                 this.showPermissionSettings = false;

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpdAccrRptWeb.Models;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
 
@@ -13,7 +14,7 @@ public sealed class C8ReportController(IC8ReportService service, IC8PatientAcces
     TimeProvider timeProvider, ILogger<C8ReportController> logger) : Controller
 {
     [HttpGet("")]
-    public IActionResult Index() => Redirect("/Report/C8");
+    public IActionResult Index() => Redirect(AppPath.WithPathBase(Request, "/Report/C8"));
 
     [HttpPost("query")]
     [ValidateAntiForgeryToken]

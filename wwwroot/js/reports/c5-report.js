@@ -1,4 +1,5 @@
 (() => {
+    const siteFetch = (path, options) => fetch(window.siteUrl ? window.siteUrl(path) : path, options);
     const token = () => document.querySelector('input[name="__RequestVerificationToken"]').value;
     window.ReportComponents = window.ReportComponents || {};
     window.ReportComponents.C5Report = {
@@ -156,7 +157,7 @@
                 if (!query && !showDefaults) { this.organizations = []; this.organizationMenuOpen = false; return; }
                 this.organizationSearchTimer = window.setTimeout(async () => {
                     try {
-                        const response = await fetch(`/reports/c5/organization-units?query=${encodeURIComponent(query)}`);
+                        const response = await siteFetch(`/reports/c5/organization-units?query=${encodeURIComponent(query)}`);
                         const organizations = response.ok ? await response.json() : [];
                         if (generation === this.organizationSearchGeneration) this.organizations = organizations;
                     } catch { if (generation === this.organizationSearchGeneration) this.organizations = []; }
@@ -184,11 +185,11 @@
                 return { ...form, roomNo: this.selectedReport?.code === "C6" ? "" : form.roomNo, newOrganizationUnitCode: selectedCode || directCode, pageNumber: this.currentPage, pageSize: this.pageSize };
             },
             async search() { this.currentPage = 1; await this.load(); },
-            async load() { this.isLoading = true; this.validationMessage = ""; const requestedPayload = JSON.stringify(this.payload()); try { const r = await fetch("/reports/c5/query", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: requestedPayload }); if (!r.ok) throw new Error(await r.text()); const x = await r.json(); this.rows = x.data; this.columns = x.columns; this.totalCount = x.totalCount; this.totalPages = x.totalPages; this.currentPage = x.pageNumber; this.lastLoadedPayload = requestedPayload; this.hasSearched = true; } catch (e) { this.rows = []; this.totalCount = 0; this.totalPages = 0; this.lastLoadedPayload = null; this.validationMessage = e.message; } finally { this.isLoading = false; } },
+            async load() { this.isLoading = true; this.validationMessage = ""; const requestedPayload = JSON.stringify(this.payload()); try { const r = await siteFetch("/reports/c5/query", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: requestedPayload }); if (!r.ok) throw new Error(await r.text()); const x = await r.json(); this.rows = x.data; this.columns = x.columns; this.totalCount = x.totalCount; this.totalPages = x.totalPages; this.currentPage = x.pageNumber; this.lastLoadedPayload = requestedPayload; this.hasSearched = true; } catch (e) { this.rows = []; this.totalCount = 0; this.totalPages = 0; this.lastLoadedPayload = null; this.validationMessage = e.message; } finally { this.isLoading = false; } },
             async goToPage(p) { if (p < 1 || p > this.totalPages || p === this.currentPage) return; this.currentPage = p; await this.load(); },
             async changePageSize() { this.currentPage = 1; await this.load(); },
             resetForm() { this.form = this.initialForm(); this.filterOpen = false; this.filterDraft = null; window.clearTimeout(this.organizationSearchTimer); this.organizationSearchGeneration++; this.organizations = []; this.organizationMenuOpen = false; this.rows = []; this.columns = []; this.totalCount = 0; this.totalPages = 0; this.currentPage = 1; this.pageSize = 10; this.lastLoadedPayload = null; this.hasSearched = false; this.validationMessage = ""; this.closePreview(); },
-            async openPreview() { if (!this.previewAvailable || this.previewLoading) return; this.previewLoading = true; this.previewOpen = false; this.preview = null; this.validationMessage = ""; try { const r = await fetch("/reports/c5/preview", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: JSON.stringify(this.payload()) }); if (!r.ok) { const message = await r.text(); throw new Error(r.status === 403 ? (message || "沒有 C5 預覽權限，請聯絡系統管理員。") : r.status === 401 ? "登入已逾時，請重新登入。" : message || `無法建立 C5 預覽（HTTP ${r.status}）。`); } const x = await r.json(); if (!Array.isArray(x?.rows) || x.rows.length === 0) throw new Error("查無此筆資料"); this.preview = x; this.previewOpen = true; } catch (e) { this.preview = null; this.previewOpen = false; this.validationMessage = e instanceof Error ? e.message : "無法建立 C5 預覽。"; } finally { this.previewLoading = false; } },
+            async openPreview() { if (!this.previewAvailable || this.previewLoading) return; this.previewLoading = true; this.previewOpen = false; this.preview = null; this.validationMessage = ""; try { const r = await siteFetch("/reports/c5/preview", { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token() }, body: JSON.stringify(this.payload()) }); if (!r.ok) { const message = await r.text(); throw new Error(r.status === 403 ? (message || "沒有 C5 預覽權限，請聯絡系統管理員。") : r.status === 401 ? "登入已逾時，請重新登入。" : message || `無法建立 C5 預覽（HTTP ${r.status}）。`); } const x = await r.json(); if (!Array.isArray(x?.rows) || x.rows.length === 0) throw new Error("查無此筆資料"); this.preview = x; this.previewOpen = true; } catch (e) { this.preview = null; this.previewOpen = false; this.validationMessage = e instanceof Error ? e.message : "無法建立 C5 預覽。"; } finally { this.previewLoading = false; } },
             closePreview() { this.previewOpen = false; this.preview = null; },
             printPreview() { if (this.previewOpen) window.print(); }
         }

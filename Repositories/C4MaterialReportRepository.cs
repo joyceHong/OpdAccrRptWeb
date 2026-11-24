@@ -27,7 +27,15 @@ public sealed class C4MaterialReportRepository(IConnectionStringProvider connect
           AND O.chOp4OrdNo = G.chOrdNo
           AND RTRIM(G.chOrdDetal) IS NOT NULL
           AND O.chOp4HinCls IN ('50', '99')
-          AND (:section_prefix IS NULL OR O.chOp4PSec LIKE :section_prefix || '%')
+          AND (:section_prefix IS NULL OR O.chOp4PSec LIKE :section_prefix || '%'
+            OR (RTRIM(O.chOp1Room) = '0000'
+              AND CASE RTRIM(O.chOp4PSec)
+                    WHEN '0201' THEN '11910'
+                    WHEN '0281' THEN '11920'
+                    WHEN '0220' THEN '11930'
+                    WHEN '0221' THEN '11930'
+                    WHEN '0230' THEN '11309'
+                  END = :section_prefix))
         GROUP BY
             DECODE(RTRIM(O.chOp1Room), '0000', 'E', 'R'),
             G.chOrdDetal,

@@ -34,6 +34,8 @@ public sealed class C4MaterialReportRepositoryTests
         Assert.Contains(":run_date", sql); Assert.Contains(":section_prefix", sql);
         Assert.Contains("O.chOp4Stat <> 'DC'", sql); Assert.Contains("('50', '99')", sql);
         Assert.Contains("RTRIM(G.chOrdDetal) IS NOT NULL", sql);
+        Assert.Contains("WHEN '0281' THEN '11920'", sql);
+        Assert.Contains("RTRIM(O.chOp1Room) = '0000'", sql);
         Assert.Contains("ORDER BY\r\n    O.chOp4PSec,\r\n    G.chOrdInv", sql.Replace("\n", "\r\n"));
         Assert.DoesNotContain("MaterialUseTbl", sql); Assert.DoesNotContain("OpdBasicTbl", sql);
         Assert.DoesNotContain("Ipd", sql); Assert.DoesNotContain("NVL(O.chOp4Stat", sql);

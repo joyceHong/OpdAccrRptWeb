@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Models;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
@@ -16,7 +17,7 @@ public sealed class OpdEmergencyDailyReportController(
     TimeProvider timeProvider,
     ILogger<OpdEmergencyDailyReportController> logger) : Controller
 {
-    private static readonly TimeZoneInfo TaipeiTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei");
+    private static readonly TimeZoneInfo TaipeiTimeZone = TaipeiTimeZoneProvider.GetTimeZone();
 
     [HttpGet("")]
     public IActionResult Index()

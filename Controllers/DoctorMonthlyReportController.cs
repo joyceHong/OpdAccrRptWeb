@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Models;
 using OpdAccrRptWeb.Services;
 using OpdAccrRptWeb.ViewModels;
@@ -17,7 +18,7 @@ public sealed class DoctorMonthlyReportController(
     ILogger<DoctorMonthlyReportController> logger) : Controller
 {
     private static readonly TimeZoneInfo TaipeiTimeZone =
-        TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei");
+        TaipeiTimeZoneProvider.GetTimeZone();
 
     [HttpGet("")]
     public IActionResult Index()

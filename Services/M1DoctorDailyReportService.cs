@@ -1,3 +1,4 @@
+using OpdAccrRptWeb.Infrastructure;
 using OpdAccrRptWeb.Models;
 using OpdAccrRptWeb.Repositories;
 using OpdAccrRptWeb.ViewModels;
@@ -11,7 +12,7 @@ public sealed class M1DoctorDailyReportService(
     TimeProvider timeProvider) : IM1DoctorDailyReportService
 {
     private static readonly TimeZoneInfo TaipeiTimeZone =
-        TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei");
+        TaipeiTimeZoneProvider.GetTimeZone();
 
     internal static readonly IReadOnlyList<ReportColumn> Columns =
     [
